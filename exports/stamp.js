@@ -1,4 +1,5 @@
-// RAC planner: the version stamp on every PDF and workings export (B4).
+// RAC planner: the version stamp on the PDF (last page, short form) and the
+// workings export (full) (B4; user, 22 September 2026).
 //
 // It says exactly what produced a plan's figures:
 //   code         the deployed commit (from GET /api/windsor-spend?version=1,
@@ -11,7 +12,8 @@
 //
 //   RAC.stamp.load()          fetches the commit once (the app calls it at start)
 //   RAC.stamp.of(plan)        the stamp as fields
-//   RAC.stamp.line(plan)      the stamp as one line of text
+//   RAC.stamp.line(plan)      the stamp as one line of text (workings)
+//   RAC.stamp.short(plan)     the short form (last page of the PDF)
 (function (RAC) {
   'use strict';
   const W = typeof window !== 'undefined' ? window : {};
@@ -72,6 +74,16 @@
       `${x.overridesFingerprint ? `, plan overrides ${x.overridesFingerprint}` : ''})`;
   }
 
-  RAC.stamp = { state, load, set, of, line };
+  // The short form, printed once on the last page of the PDF (user, 22
+  // September 2026). The workings keep the full line.
+  function short(plan, code) {
+    const x = of(plan, code);
+    const f = RAC.text.fmt;
+    const data = x.dataTo ? `ad platform data to ${f.month(x.dataTo)}${x.settling.length ? ` (${x.settling.map(f.month).join(', ')} not yet settled)` : ''}` : 'ad platform data unknown';
+    return `Reference: code ${x.code} · applicant tracking data ${niceDate(x.eployDate)} · ${data} · assumptions ${niceDate(x.assumptionsDate)} (${x.assumptionsFingerprint}` +
+      `${x.overridesFingerprint ? `, plan overrides ${x.overridesFingerprint}` : ''})`;
+  }
+
+  RAC.stamp = { state, load, set, of, line, short };
   if (W.document && W.location && /^https?:/.test(W.location.protocol || '')) load();
 })(window.RAC = window.RAC || {});

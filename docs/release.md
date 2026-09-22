@@ -157,13 +157,18 @@ archive is frozen.
      should match the merge commit on `main` in GitHub.
    - In the app, open the Method tab: the stamp at the foot reads "Code" and
      the same seven characters, not "Code unknown". Export any PDF and check the
-     stamp at the foot of its pages says the same.
+     stamp at the foot of its last page ("Reference: code ...") says the same.
    - If it reads "Code unknown", check the setting in step 4 and redeploy.
 
 10. **Check the new release** on `https://rac-tools-kappa.vercel.app`: the
     "Test version" banner is gone, the header says "Saved", and "Get spend from
     Windsor" on the pacing screen still works (it relies on the project's
     environment variables from step 4).
+    - **Biraag, two checks that only work on the live address:** change one
+      plan setting, open the Changelog screen and check the change is listed
+      with your name, then set it back (check list 8.4); and in the archive,
+      open a saved Patrol plan and repeat check list 9.3 on it (check list
+      9.4).
 
 11. **Tell the team the link has changed.** Send the new link,
     `https://rac-tools-kappa.vercel.app`, and ask everyone to update their

@@ -25,7 +25,28 @@
     pct: (x, dp = 0) => (x === null || x === undefined || !isFinite(x) ? '-' : (x * 100).toFixed(dp) + '%'),
     signedPct: (x, dp = 0) => (x === null || x === undefined || !isFinite(x) ? '-' : (x >= 0 ? '+' : '-') + Math.abs(x * 100).toFixed(dp) + '%'),
     list: (xs) => (xs.length <= 1 ? xs.join('') : xs.slice(0, -1).join(', ') + ' and ' + xs[xs.length - 1]),
+    // The spending cap multiple, one format everywhere: x1, x1.5, x2 (user, 22 September 2026).
+    mult: (x) => (x === null || x === undefined || !isFinite(x) ? '-' : 'x' + String(+(+x).toFixed(2))),
   };
+
+  // Where a value came from, in the words RAC sees (user, 22 September 2026).
+  // The assumptions file keeps its own source column unchanged.
+  const SOURCE_LABELS = {
+    'agreed': 'Set by Enhance',
+    'default': 'Set by Enhance',
+    'agreed, informed by tests': 'Set by Enhance, informed by testing',
+    'agreed, informed by data': 'Set by Enhance, informed by testing',
+    'tested': "Measured from RAC's data",
+  };
+  const sourceLabel = (s) => SOURCE_LABELS[s] || s;
+  // An assumption's note, reworded for RAC: "Agreed 17 Sep 2026 (Stage 2
+  // review): ..." becomes "Set by Enhance on 17 Sep 2026: ...".
+  function clientNote(s) {
+    return String(s || '')
+      .replace(/^Agreed(?: (\d{1,2} \w{3} \d{4}))?(?: \([^)]*\))?( for this release)?(:|\.)?/,
+        (m, date, rel, punct) => `Set by Enhance${date ? ' on ' + date : ''}${rel || ''}${punct || ''}`)
+      .replace(/\bagreed\b/gi, 'set by Enhance');
+  }
 
   // Months in words. Consecutive months become a run: "January to July 2026",
   // "October 2025 to June 2026"; gaps are listed as separate runs.
@@ -49,8 +70,8 @@
   // in words, from their values in the assumptions file (0 turns one off).
   function capLimitsText(rowLimit, locLimit) {
     const row = rowLimit > 0
-      ? `The month a cap rested on was held to ${num(rowLimit)} x the location and platform’s usual monthly spend over the same months (the average of the months it spent in), so a single unusual month could not set a cap.`
-      : 'The month a cap rested on was not held to a multiple of usual monthly spend.';
+      ? `The month a cap was based on was held to ${num(rowLimit)} x the location and platform’s usual monthly spend over the same months (the average of the months it spent in), so a single unusual month could not set a cap.`
+      : 'The month a cap was based on was not held to a multiple of usual monthly spend.';
     const loc = locLimit > 0
       ? `Each location also had its own cap: ${locLimit === 1 ? 'the most it spent in one of those months' : `${num(locLimit)} x the most it spent in one of those months`}, all platforms together, x the spending cap multiple. Caps for each platform were set separately, so without this a location could have been allowed more in a month than it had ever run.`
       : 'Locations had no cap of their own beyond the sum of their platforms’ caps.';
@@ -182,7 +203,7 @@
     if (RAC.testing && quality.length) {
       const blend = RAC.testing.testMonths(quality, g('test_min_history_months')).map(s => s.test[0]);
       if (blend.length) rows.push({ key: 'blends', part: 'Testing: quality and hire rate settings', months: `${f.span(blend)} (${blend.length} test months)`,
-        basis: 'a fixed rule: each test month predicted from the applicant tracking months before it; the settings in use are agreed values, with the tested figures recorded beside them',
+        basis: 'a fixed rule: each test month predicted from the applicant tracking months before it; the settings in use were set by Enhance, with the tested figures recorded beside them',
         short: `rate testing ${f.span(blend)}` });
     }
     return rows;
@@ -198,7 +219,7 @@
     const add = (heading, ...paras) => sections.push({ heading, paras: paras.filter(Boolean) });
 
     add('What the plan does',
-      `The plan starts from the monthly budget${v.feesOn === false ? '' : ', which includes platform fees'}. Indeed Premium (campaigns x days in the month x ${f.gbp(v.premiumRate)} a day, plus the Indeed fee where fees apply) and the Combined Activity reserve come off the top${v.includesDisplay ? ', and the Google Display remarketing campaign is part of Combined Activity, so its spend sits in that reserve rather than in the planned Google spend' : ''}. What remains is the deployable budget.`,
+      `The plan starts from the monthly budget${v.feesOn === false ? '' : ', which includes platform fees'}. Indeed Premium (campaigns x days in the month x ${f.gbp(v.premiumRate)} a day, plus the Indeed fee where fees apply) and the Combined Activity reserve come off the top. What remains is the deployable budget.`,
       `The deployable budget is split between live locations by their share of open roles${plan && plan.efficiency && plan.efficiency.weight > 0 ? `, moved ${f.pct(plan.efficiency.weight)} of the way towards where a hire is predicted to cost least (the efficiency setting)` : ''}, within any location minimums and maximums, the spending caps and any cost limits. Money a location cannot take moves to locations with room, again by open roles. Anything no location can take is shown as budget the plan could not place efficiently.`,
       'Within each location, money goes to whichever platform delivers the next hire most cheaply, until the platforms cost the same per extra hire or reach their spending caps. Minimums and floors set for the plan are then applied, but never above a spending cap; where a cap stops a minimum being met, the plan says by how much.',
       'Predicted applications, quality applications and hires come from one forecast, used for every figure in this document and in the workings alike.');
@@ -213,7 +234,7 @@
 
     add('Cost per application',
       `The usual cost per application for a location and platform was its spend over applications in the months used, with recent months weighted as set for the plan. Where a location had few applications, its figure was pulled towards the platform’s figure for the role, and the platform’s figure towards the role benchmark (${f.gbp(v.benchmark, 2)}): a figure with ${v.cpaPrior} applications behind it carried half the weight.`,
-      `Cost per application rises as spend rises. The plan uses a rate of ${v.d1Rate}${v.d1Strength >= OFF ? ', shared across platforms' : ''}: doubling spend on a platform raises its cost per application by ${f.pct(Math.pow(2, 1 - v.d1Rate) - 1)} and delivers ${f.pct(Math.pow(2, v.d1Rate) - 1)} more applications. This was an agreed setting informed by testing on past months${tested(v.d1RateTested)}.`,
+      `Cost per application rises as spend rises. The plan uses a rate of ${v.d1Rate}${v.d1Strength >= OFF ? ', shared across platforms' : ''}: doubling spend on a platform raises its cost per application by ${f.pct(Math.pow(2, 1 - v.d1Rate) - 1)} and delivers ${f.pct(Math.pow(2, v.d1Rate) - 1)} more applications. This was set by Enhance, informed by testing on past months${tested(v.d1RateTested)}.`,
       `A remaining-error adjustment of ${v.bias.toFixed(3)} multiplies every planned cost per application. Testing on past months, with each month predicted from the months before it, found predictions still missed by ${v.biasTested !== null && v.biasTested !== undefined ? v.biasTested.toFixed(3) : 'n/a'} overall. That figure is used only when it stays on the same side of 1 with any one test month left out; otherwise the adjustment is 1.00.${v.biasDefault === 1 && v.biasTested !== 1 ? ` For ${role} it did not hold, so the default is 1.00.` : ''}${plan && v.bias !== v.biasDefault ? ` This plan set it to ${v.bias.toFixed(3)} (default ${v.biasDefault.toFixed(3)}).` : ''}`,
       'Planned cost per application = usual cost per application x spend-level adjustment x remaining-error adjustment. Predicted applications = media spend / planned cost per application.');
 
@@ -225,7 +246,7 @@
       `RAC also recorded hires from other sources (organic, job alerts, agencies and others). The plan shows these as a separate line, Expected hires from other sources: ${f.num(v.otherMonthly)} a month${plan && v.otherMonthly !== v.otherMonthlyDefault ? ` (set for this plan; the monthly average was ${f.num(v.otherMonthlyDefault)})` : ', the monthly average'}. It counts towards the hire target but does not depend on the budget. ${v.share > 0 ? `${f.pct(v.share)} of them were credited to paid media, so they grow with paid spend.` : 'None of them were credited to paid media.'}`);
 
     add('Spending caps',
-      `Each location and platform has a spending cap: its largest successful month since ${f.month(v.capFirst)} x the spending cap multiple (${f.pct(v.capMultiple)} in this ${plan ? 'plan' : 'release by default'}). A month counted towards the cap when it had at least ${f.gbp(v.capMinSpend)} of spend and ${v.capMinApps} applications, its cost per application was at or below a fixed benchmark (and at or below any cost per application limit), and the location’s quality rate that month was no more than ${f.pct(v.qualityDrop)} below what was expected for it that month (checked where at least ${v.qualityMin} quality applications would normally have been expected, in months whose quality outcomes had settled).`,
+      `Each location and platform has a spending cap: its largest successful month since ${f.month(v.capFirst)} x the spending cap multiple (${f.mult(v.capMultiple)} in this ${plan ? 'plan' : 'release by default'}). A month counted towards the cap when it had at least ${f.gbp(v.capMinSpend)} of spend and ${v.capMinApps} applications, its cost per application was at or below a fixed benchmark (and at or below any cost per application limit), and the location’s quality rate that month was no more than ${f.pct(v.qualityDrop)} below what was expected for it that month (checked where at least ${v.qualityMin} quality applications would normally have been expected, in months whose quality outcomes had settled).`,
       `The benchmark was the location and platform’s own usual cost per application over the same settled months since ${f.month(v.capFirst)}, each counted once, adjusted for that month’s spend at the same rate the plan uses. Earlier months were left out because that data was put together differently and did not compare like for like. The benchmark does not depend on the plan’s data window or the remaining-error adjustment, so the caps are the same whichever window a plan uses.`,
       'The quality rate expected for a location in a month was its usual rate, scaled by how that month’s quality rate across all locations compared with the usual rate across all locations. So a month when quality was lower everywhere did not count against a location; a location falling well below the others that month did.',
       'Where a location and platform had no successful month, its usual monthly spend over those months (or the platform’s typical month) was used instead, and the row is flagged.',
@@ -243,11 +264,11 @@
       `${ROW_RANGE_LINE} Rows start from the plan’s range and widen where fewer applications sat behind their cost per application (strength ${v.widen}) and where planned spend sat further from past spend.`,
       `Hire ranges combine the application range with the uncertainty in the quality and hire rates (from the counts behind them), the uncertainty in the match to platform hires, chance variation in the number of hires itself, and the month-to-month variation in hires from other sources, over ${f.int(v.draws)} simulated months. A row is marked low confidence where its hire rate was uncertain by more than about ${f.pct(Math.exp(v.lowRateSd) - 1)} or fewer than ${v.lowApps} applications sat behind its cost per application.`);
 
-    add('Testing and agreed settings',
-      `Testing predicted each past month from the months before it only, starting with months that had at least ${v.minHistory} earlier months of data. With few test months so far, settings that tested well may have done so by chance. For this release, the settings above are agreed values informed by testing, and the tested figure is recorded beside each. A setting moves to its tested figure only once there are at least ${v.switchMonths} test months and leaving out any one month does not change the result. A location’s or platform’s own figure replaces the average only where it predicted clearly better (by ${v.minGain} units of likelihood).`);
+    add('Testing and the settings used',
+      `Testing predicted each past month from the months before it only, starting with months that had at least ${v.minHistory} earlier months of data. With few test months so far, settings that tested well may have done so by chance. For now, the settings above were set by Enhance, informed by testing, and the tested figure is recorded beside each. A setting moves to its tested figure only once there are at least ${v.switchMonths} test months and leaving out any one month does not change the result. A location’s or platform’s own figure replaces the average only where it predicted clearly better (by ${v.minGain} units of likelihood).`);
 
     add('Budget for the hire target',
-      'The budget needed for the hire target is found by running the plan at trial budgets, in steps of £50, and taking the lowest that reaches the target, counting expected hires from other sources. Where the spending caps put the target out of reach, the plan shows the most hires it can deliver, the budget at which extra spend stops adding hires, and the same figures at cap multiples of 100%, 200% and 300%.');
+      'The budget needed for the hire target is found by running the plan at trial budgets, in steps of £50, and taking the lowest that reaches the target, counting expected hires from other sources. Where the spending caps put the target out of reach, the plan shows the most hires it can deliver, the budget at which extra spend stops adding hires, and the same figures at cap multiples of x1, x2 and x3.');
 
     if (plan && plan.oneRac) {
       const o = plan.oneRac;
@@ -291,7 +312,18 @@
 
   // Every value a plan used, for the PDF assumptions box and the workings
   // Assumptions sheet: the file's rows, with the plan's own settings on top.
-  function assumptionRows(A, role, plan) {
+  // Settings kept for the team but left out of everything RAC sees (user,
+  // 22 September 2026: the Display remarketing note).
+  const INTERNAL_KEYS = ['combined_activity_includes_display'];
+  // opts.client: for RAC-facing outputs, without the internal settings and
+  // with the source and notes in RAC's words.
+  function assumptionRows(A, role, plan, opts = {}) {
+    const rows = assumptionRowsAll(A, role, plan);
+    if (!opts.client) return rows;
+    return rows.filter(r => !INTERNAL_KEYS.includes(r.key))
+      .map(r => ({ ...r, source: sourceLabel(r.source), notes: clientNote(r.notes) }));
+  }
+  function assumptionRowsAll(A, role, plan) {
     const rows = A.entries.filter(e => e.role === 'all' || e.role === role).map(e => ({
       key: e.key, name: e.name, value: e.parsed, tested: e.testedValue, unit: e.unit, source: e.source, date: e.date, notes: e.notes, plan: null,
     }));
@@ -328,5 +360,5 @@
     };
   }
 
-  RAC.text = { fmt, values, monthsUsed, capLimitsText, method, glossary, assumptionRows, costAdjustment, ATTRIBUTION, QUALITY_DEFINITION, RANGE_LINE, ROW_RANGE_LINE };
+  RAC.text = { fmt, sourceLabel, clientNote, SOURCE_LABELS, INTERNAL_KEYS, values, monthsUsed, capLimitsText, method, glossary, assumptionRows, costAdjustment, ATTRIBUTION, QUALITY_DEFINITION, RANGE_LINE, ROW_RANGE_LINE };
 })(window.RAC = window.RAC || {});

@@ -125,7 +125,7 @@ export default function (check, { assert, near }) {
       { ...opts, monthLabel: 'September 2026' });
     assert(!sept.problems.length, 'September: ' + sept.problems.join('; '));
     const summary = sept.sheets[0].rows.map(r => r.cells[0]).filter(x => typeof x === 'string');
-    assert(summary.some(t => t === 'Platform fees in the plan'), 'the fees line is missing');
+    assert(summary.some(t => t === 'of which platform fees on placed spend'), 'the fees line is missing');
     const patrol = RAC.workings.build([doc('Patrol', build('Patrol'))], opts);
     assert(!patrol.problems.length, 'Patrol: ' + patrol.problems.join('; '));
     assert(RAC.workings.fileName([doc('SMR', build('SMR'))], opts) === 'RAC_October_2026_SMR_Workings.xlsx', 'file name');

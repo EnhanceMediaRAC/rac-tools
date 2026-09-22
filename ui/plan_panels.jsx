@@ -63,11 +63,17 @@
     return (
       <div data-panel={'core-settings-' + role}>
         <Row label="Spending cap multiple"
-          note={<>Each location and platform is capped at its largest successful month times this (100% to 300%);
-            the plan never spends above the caps. Applies to both roles. Default {Math.round(s.capMultiple.default * 100)}% ({sourceLabel(s.capMultiple.source)}).</>}>
+          note={<>Each location and platform is capped at its largest successful month times this (x1 to x3);
+            the plan never spends above the caps. Applies to both roles. Default {RAC.text.fmt.mult(s.capMultiple.default)} ({sourceLabel(s.capMultiple.source)}).</>}>
           <NumberField field="cap-multiple" value={s.capMultiple.value}
-            format={v => Math.round(v * 100) + '%'}
-            parse={t => { const n = num(t); return n === null ? null : Math.min(300, Math.max(100, n)) / 100; }}
+            format={v => RAC.text.fmt.mult(v)}
+            parse={t => {
+              // x1 to x3; a figure typed as a percentage (150%, or 150) still works.
+              const n = num(t);
+              if (n === null) return null;
+              const m = /%/.test(t) || n > 3 ? n / 100 : n;
+              return Math.min(3, Math.max(1, m));
+            }}
             onCommit={v => update({ capMultiple: v === null ? s.capMultiple.default : v })} />
         </Row>
         <Row label="Other-source hires credited to paid media"
@@ -144,7 +150,7 @@
         <div className="banner-icon">!</div>
         <div style={{ flex: 1 }}>
           <strong>{target} hires cannot be reached within the spending caps.</strong>{' '}
-          At a {Math.round(v2.capMultiple * 100)}% cap multiple the most the plan can deliver is {r.mostHires.toFixed(1)} hires,
+          At a cap multiple of {RAC.text.fmt.mult(v2.capMultiple)} the most the plan can deliver is {r.mostHires.toFixed(1)} hires,
           reached at a budget of {fmtGBP(r.saturationBudget)}; spend above that adds no hires, because every location
           and platform is at its cap. At this plan&rsquo;s budget, {fmtGBP(r.unplaced)} could not be placed.
           <table className="alloc-table" style={{ marginTop: 10, maxWidth: 760 }}>
@@ -160,7 +166,7 @@
             <tbody>
               {r.byMultiple.map(x => (
                 <tr key={x.multiple} style={x.current ? { fontWeight: 600 } : null}>
-                  <td>{Math.round(x.multiple * 100)}%{x.current ? ' (this plan)' : ''}</td>
+                  <td>{RAC.text.fmt.mult(x.multiple)}{x.current ? ' (this plan)' : ''}</td>
                   <td className="num mono">{x.hiresAtBudget.toFixed(1)}</td>
                   <td className="num mono">{fmtGBP(x.unplacedAtBudget)}</td>
                   <td className="num mono">{x.budgetForTarget ? fmtGBP(x.budgetForTarget) : 'out of reach'}</td>

@@ -63,8 +63,10 @@ FIGURES_JS = EXPECTED_JS.replace(
   const figs = [F.gbp(plan.budget), F.gbp(plan.deployable), F.gbp(plan.placed), F.gbp(plan.unplaced.total),
     F.num(plan.totals.allHires), F.num(plan.totals.hires), F.int(plan.totals.apps), F.int(plan.totals.passed)];
   if (plan.fees.on) figs.push(F.gbp(plan.fees.total, 2));
-  plan.locations.forEach(l => { figs.push(F.gbp(l.spend)); RAC.PLATFORMS.forEach(p => { if (l.cells[p].spend > 0) figs.push(F.gbp(l.cells[p].plannedCpa, 2)); }); });
-  RAC.PLATFORMS.forEach(p => figs.push(F.gbp(plan.platforms[p].media)));
+  // Spend columns are rounded so the rows add up to the total shown.
+  const locR = RAC.util.roundToTotal(plan.locations.map(l => l.spend));
+  plan.locations.forEach((l, i) => { figs.push(F.gbp(locR[i])); RAC.PLATFORMS.forEach(p => { if (l.cells[p].spend > 0) figs.push(F.gbp(l.cells[p].plannedCpa, 2)); }); });
+  RAC.util.roundToTotal(RAC.PLATFORMS.map(p => plan.platforms[p].media)).forEach(m => figs.push(F.gbp(m)));
   const title = RAC.pdf.titleOf({ plan, roleName: role + ' (' + { SMR: 'Mobile Vehicle Tech', Patrol: 'Roadside Tech (incl. SuperFlex)' }[role] + ')' }, 'October 2026');
   return { figs, title, headings: RAC.text.method(plan.A, role, plan, RAC.app.state.backtest).map(s => s.heading),
     apps: plan.totals.apps,""")
@@ -116,9 +118,13 @@ with sync_playwright() as pw:
     if missing:
         fails.append(f'PDF lacks planner figures: {missing[:6]}')
     notes.append(f"{len(want['figs']) - len(missing)} of {len(want['figs'])} planner figures found; title {want['title']!r}")
+    # The short version stamp is on the last page only (user, 22 September 2026).
     for i, p in enumerate(pages):
-        if 'Code' + VERSION_COMMIT[:7] not in squash(p):
-            fails.append(f'page {i + 1} has no version stamp')
+        has_stamp = 'Reference:code' + VERSION_COMMIT[:7] in squash(p)
+        if has_stamp != (i == len(pages) - 1):
+            fails.append(f'page {i + 1}: version stamp {"missing" if i == len(pages) - 1 else "should be on the last page only"}')
+        if '.xlsx' in p:
+            fails.append(f'page {i + 1} names a file')
         if f'Page{i + 1}of{len(pages)}' not in squash(p):
             fails.append(f'page {i + 1} has no page number')
     if '—' in text or re.search(r'hiring\s*lab', text, re.I):
@@ -160,6 +166,41 @@ with sync_playwright() as pw:
         if stale:
             fails.append(f'{len(stale)} formulas were saved with an answer, so they would not be worked out again: '
                          + ', '.join(f"{c['sheet']}!{c['ref']}" for c in stale[:4]))
+        # Header rows are tall enough for their wrapped labels, and titles are
+        # not squeezed (feedback 27).
+        wbh = load_workbook(path3)
+        short = []
+        for ws in wbh.worksheets:
+            widths = {}
+            for dim in ws.column_dimensions.values():
+                for i in range(dim.min or 1, (dim.max or dim.min or 1) + 1):
+                    widths[i] = dim.width
+            for row in ws.iter_rows():
+                cells = [c for c in row if isinstance(c.value, str) and c.value]
+                if not cells:
+                    continue
+                h = ws.row_dimensions[row[0].row].height
+                if cells[0].font and cells[0].font.size == 13 and (h or 0) < 24:
+                    short.append(f'{ws.title} title row {row[0].row} height {h}')
+                if cells[0].fill and cells[0].fill.fgColor and cells[0].fill.fgColor.rgb == 'FF14213D':
+                    need = 1
+                    for c in cells:
+                        w = (widths.get(c.column) or 16) - 1
+                        n, ln = 1, 0
+                        for word in c.value.split(' '):
+                            add = (1 if ln else 0) + len(word)
+                            if ln and ln + add > w:
+                                n, ln = n + 1, len(word)
+                            else:
+                                ln += add
+                        need = max(need, n)
+                    if (h or 15) < 6 + 13.5 * need - 0.01:
+                        short.append(f'{ws.title} header row {row[0].row}: height {h} for {need} lines')
+        wbh.close()
+        if short:
+            fails.append('rows too short for their text: ' + '; '.join(short[:4]))
+        else:
+            notes.append('workbook header and title rows are tall enough for their text')
         made, why = recalculate(path3)
         if made is None:
             notes.append('SKIPPED: ' + why)
@@ -195,7 +236,10 @@ with sync_playwright() as pw:
     over = [i for i, p in enumerate(pages) if p.count('Assumptions and risks') > 1]
     if over:
         fails.append(f'the assumptions box is repeated on pages {over}')
-    notes.append('summary page holds the assumptions and risks box, cost limits included')
+    # The whole summary fits on one page (feedback 26): no "Summary (continued)".
+    if any('Summary(continued)' in squash(p) for p in pages):
+        fails.append('the summary runs onto a second page')
+    notes.append('summary on one page, with the assumptions and risks box, cost limits included; short stamp on the last page only')
 
     if dialogs:
         fails.append(f'alerts shown: {dialogs[:2]}')

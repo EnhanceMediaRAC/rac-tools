@@ -10,7 +10,7 @@
 //   4. location and platform, one table per platform, with the cost per
 //      application build-up, spending cap, quality and hire rates and ranges
 //   5. method and glossary (exports/text.js)
-// Every page carries the version stamp (exports/stamp.js). Before saving, the
+// The last page carries the version stamp (exports/stamp.js, short form). Before saving, the
 // output checks (exports/checks.js) run on every string drawn, every table
 // row and the title; a document that fails is not saved.
 //
@@ -23,6 +23,7 @@
   const P = () => RAC.PLATFORMS;
   const L = () => RAC.PLATFORM_LABELS;
   const f = () => RAC.text.fmt;
+  const U = () => RAC.util;
 
   const NAVY = [20, 33, 61], ORANGE = [242, 140, 40], INK = [33, 37, 41], MUTED = [110, 117, 125];
   const LINE = [214, 219, 226], ZEBRA = [245, 247, 250], HEAD = [232, 236, 242], WARN = [176, 76, 20];
@@ -58,28 +59,35 @@
 
     // Drawing helpers. Every string goes through T so the checks see it.
     const T = (s, x, yy, o) => { const str = String(s); texts.push(str); pdf.text(str, x, yy, o || {}); };
-    const font = (size, style = 'normal', color = INK) => { pdf.setFont('helvetica', style); pdf.setFontSize(size); pdf.setTextColor(...color); };
+    let curFont = null;
+    const font = (size, style = 'normal', color = INK) => { curFont = [size, style, color]; pdf.setFont('helvetica', style); pdf.setFontSize(size); pdf.setTextColor(...color); };
     const wrap = (s, w) => pdf.splitTextToSize(String(s), w);
 
-    function header(title, sub) {
+    // Page header: the plan title small, then the section in large type, so
+    // the part that changes from page to page is the one that stands out.
+    // The caller's font is restored afterwards, so text carried onto a new
+    // page keeps its own style.
+    function header(title, section) {
+      const saved = curFont;
       pdf.setFillColor(...NAVY); pdf.rect(0, 0, PAGE_W, 20, 'F');
       pdf.setFillColor(...ORANGE); pdf.rect(0, 20, PAGE_W, 1.2, 'F');
-      font(14, 'bold', [255, 255, 255]); T(title, M, 9.5);
-      font(8.5, 'normal', [220, 226, 236]); T(sub, M, 15.5);
-      font(8, 'normal', [220, 226, 236]); T(`Prepared by Enhance Media${opts.planName ? ' · ' + opts.planName : ''}`, PAGE_W - M, 9.5, { align: 'right' });
+      font(8.5, 'normal', [220, 226, 236]); T(title, M, 7.5);
+      font(15, 'bold', [255, 255, 255]); T(section, M, 15.5);
+      font(8, 'normal', [220, 226, 236]); T(`Prepared by Enhance Media${opts.planName ? ' · ' + opts.planName : ''}`, PAGE_W - M, 7.5, { align: 'right' });
+      if (saved) font(...saved);
       y = 29;
     }
-    function page(title, sub) {
+    function page(title, section) {
       if (started) pdf.addPage();
       started = true;
-      pageTitle = title; pageSub = sub;
-      header(title, sub);
+      pageTitle = title; pageSub = section;
+      header(title, section);
     }
     // Room for h mm, or a continuation page.
     function ensure(h, again) {
       if (y + h <= BOTTOM) return false;
       pdf.addPage();
-      header(pageTitle + ' (continued)', pageSub);
+      header(pageTitle, pageSub + ' (continued)');
       if (again) again();
       return true;
     }
@@ -99,21 +107,34 @@
     // where a cell is a string or [main, small second line].
     function table(cols, body, o = {}) {
       const x0 = M;
+      // Header labels: a word is never split; the label shrinks instead
+      // (point 19). The header is as tall as its longest label.
+      const heads = cols.map(c => {
+        let size = 6.6;
+        font(size, 'bold', NAVY);
+        const fits = () => String(c.label).split(' ').every(word => wrap(word, c.w - 2).length === 1);
+        while (!fits() && size > 5.4) { size -= 0.2; font(size, 'bold', NAVY); }
+        return { size, lines: wrap(c.label, c.w - 2).slice(0, 3) };
+      });
+      const hh = 3.1 + 2.8 * Math.max(...heads.map(h => h.lines.length));
       const drawHead = () => {
-        const hh = 11.5;
         pdf.setFillColor(...HEAD); pdf.rect(x0, y - 4.5, cols.reduce((a, c) => a + c.w, 0), hh, 'F');
         let x = x0;
-        cols.forEach(c => {
-          font(6.6, 'bold', NAVY);
-          const lines = wrap(c.label, c.w - 2).slice(0, 3);
-          lines.forEach((ln, i) => T(ln, c.align === 'right' ? x + c.w - 1.5 : x + 1.5, y - 1.4 + i * 2.8, c.align === 'right' ? { align: 'right' } : {}));
+        cols.forEach((c, ci) => {
+          font(heads[ci].size, 'bold', NAVY);
+          heads[ci].lines.forEach((ln, i) => T(ln, c.align === 'right' ? x + c.w - 1.5 : x + 1.5, y - 1.4 + i * 2.8, c.align === 'right' ? { align: 'right' } : {}));
           x += c.w;
         });
         y += hh - 2;
       };
       drawHead();
       body.forEach((r, ri) => {
-        const two = r.cells.some(v => Array.isArray(v) && v[1]);
+        const lines = cols.map((c, ci) => {
+          if (!c.wrap || Array.isArray(r.cells[ci])) return null;
+          font(7.2, r.total || ci === 0 ? 'bold' : 'normal', INK);   // measure in the font it is drawn in
+          return wrap(r.cells[ci] === null || r.cells[ci] === undefined ? '' : r.cells[ci], c.w - 2);
+        });
+        const two = r.cells.some(v => Array.isArray(v) && v[1]) || lines.some(l => l && l.length > 1);
         const rh = two ? 7.4 : 4.6;
         if (ensure(rh + 1, drawHead)) { /* continued */ }
         if (r.total) { pdf.setFillColor(...HEAD); pdf.rect(x0, y - 3.4, cols.reduce((a, c) => a + c.w, 0), rh, 'F'); }
@@ -126,6 +147,13 @@
           const ax = c.align === 'right' ? x + c.w - 1.5 : x + 1.5;
           const al = c.align === 'right' ? { align: 'right' } : {};
           font(7.2, r.total || ci === 0 ? 'bold' : 'normal', r.warn && ci === cols.length - 1 ? WARN : INK);
+          if (lines[ci] && lines[ci].length > 1) {
+            // A wrapping column: first line, then the rest on a second line in the same style.
+            T(lines[ci][0], ax, y, al);
+            T(wrap(lines[ci].slice(1).join(' '), c.w - 2)[0] || '', ax, y + 3, al);
+            x += c.w;
+            return;
+          }
           T(wrap(main === null || main === undefined ? '' : main, c.w - 2)[0] || '', ax, y, al);
           if (small) { font(5.8, 'normal', MUTED); T(wrap(small, c.w - 2)[0] || '', ax, y + 3, al); }
           x += c.w;
@@ -141,11 +169,11 @@
     const appRange = (r) => (r && r.apps ? range(r.apps.low, r.apps.high, 0) : '');
     const x2 = (v, dp = 2) => (v === null || v === undefined || !isFinite(v) ? '-' : 'x' + v.toFixed(dp));
 
-    function commentary(d) {
+    function commentary(d, title) {
       [['legacy', 'Notes on the legacy plan'], ['plan', 'Notes on this plan']].forEach(([k, label]) => {
         const pts = (d.commentary && d.commentary[k]) || [];
         if (!pts.length) return;
-        page(label, `${d.roleName} · ${monthLabel}`);
+        page(title, label);
         pts.forEach((p, i) => {
           ensure(10);
           font(10, 'bold', ORANGE); T(String(i + 1), M, y);
@@ -158,7 +186,7 @@
 
     function summary(d, title) {
       const p = d.plan, t = p.totals, r = t.range, hb = p.holdbacks, fees = p.fees;
-      page(title, `${d.roleName} · summary · ${monthLabel}`);
+      page(title, 'Summary');
       titles.push({ title, plan: p });
       const colW = (PAGE_W - 2 * M - 10) / 2;
       const top = y;
@@ -173,7 +201,8 @@
       money.push(['Deployable budget', F.gbp(p.deployable)]);
       money.push(['Placed in the plan', F.gbp(p.placed)]);
       money.push(['Budget the plan could not place efficiently', F.gbp(p.unplaced.total)]);
-      if (fees && fees.on) money.push([`Platform fees in the plan (Indeed ${F.pct(fees.rates.indeed, 2)}, Meta ${F.pct(fees.rates.meta, 2)}, Google ${F.pct(fees.rates.google, 2)})`, F.gbp(fees.total, 2)]);
+      // Fees on placed spend only: the Indeed Premium fee is already in its own line (X1).
+      if (fees && fees.on) money.push([`of which platform fees on placed spend (Indeed ${F.pct(fees.rates.indeed, 2)}, Meta ${F.pct(fees.rates.meta, 2)}, Google ${F.pct(fees.rates.google, 2)})`, F.gbp(fees.placed, 2)]);
       money.forEach(([a, b], i) => {
         font(8.5, i === 3 + (hb.oneRac > 0 ? 1 : 0) ? 'bold' : 'normal', INK);
         T(a, M, y); T(b, M + colW, y, { align: 'right' });
@@ -209,13 +238,13 @@
 
       if (p.reach) {
         heading('What the spending caps allow');
-        para(`The hire target could not be reached within the spending caps at a ${F.pct(p.capMultiple)} cap multiple. Spend above ${F.gbp(p.reach.saturationBudget)} would add no hires, because every location and platform would be at its cap. The same plan at other cap multiples:`);
+        para(`The hire target could not be reached within the spending caps at a cap multiple of ${F.mult(p.capMultiple)}. Spend above ${F.gbp(p.reach.saturationBudget)} would add no hires, because every location and platform would be at its cap. The same plan at other cap multiples:`);
         table([
           { label: 'Cap multiple', w: 40 }, { label: `Hires at ${F.gbp(p.budget)}`, w: 40, align: 'right' },
           { label: 'Budget not placed', w: 40, align: 'right' }, { label: `Budget for ${p.hireTarget} hires`, w: 50, align: 'right' },
           { label: 'Most hires (budget where they stop rising)', w: 70, align: 'right' },
         ], p.reach.byMultiple.map(m => ({ cells: [
-          `${F.pct(m.multiple)}${m.current ? ' (this plan)' : ''}`, F.num(m.hiresAtBudget), F.gbp(m.unplacedAtBudget),
+          `${F.mult(m.multiple)}${m.current ? ' (this plan)' : ''}`, F.num(m.hiresAtBudget), F.gbp(m.unplacedAtBudget),
           m.budgetForTarget ? F.gbp(m.budgetForTarget) : 'out of reach',
           m.budgetForTarget ? '-' : `${F.num(m.mostHires)} (${F.gbp(m.saturationBudget)})`,
         ] })));
@@ -224,15 +253,29 @@
       heading('Assumptions and risks');
       const s = Object.fromEntries(p.settings.map(z => [z.key, z]));
       const ca = RAC.text.costAdjustment(p);
-      const src = (z) => (z.changed ? `set for this plan; default ${z.unit === 'share' ? F.pct(z.default) : z.unit === 'multiple' && z.key === 'capMultiple' ? F.pct(z.default) : z.default}` : z.source);
+      const src = (z) => (z.changed ? `set for this plan; default ${z.unit === 'share' ? F.pct(z.default) : z.unit === 'multiple' && z.key === 'capMultiple' ? F.mult(z.default) : z.default}` : RAC.text.sourceLabel(z.source));
+      // Spend above past levels, in three parts that do not overlap: above the
+      // month a cap was based on; above the largest month the row ran; and in
+      // rows with no spend of their own in the months the caps looked at.
+      const capFirst = F.month(RAC.assumptions.get(p.A, 'ceiling_first_month'));
+      const placedCells = p.locations.flatMap(l => P().map(q => l.cells[q])).filter(c => c.spend > 0.005);
+      const unrun = placedCells.filter(c => !(c.largestMonth > 0));
+      const unrunTotal = unrun.reduce((a, c) => a + c.aboveLargestMonth, 0);
+      const aboveRun = Math.max(0, p.aboveLargestMonth.total - unrunTotal);
+      const share = (x) => F.pct(p.placed > 0 ? x / p.placed : 0);
+      const pastLevels = [
+        `Spend above past levels: ${F.gbp(p.aboveLargestSuccessful.total)} (${share(p.aboveLargestSuccessful.total)} of placed spend) is above the month each spending cap was based on`,
+        ...(aboveRun > 0.5 ? [`${F.gbp(aboveRun)} (${share(aboveRun)}) is above the largest month the location and platform ran since ${capFirst}`] : []),
+        ...(unrun.length ? [`${F.gbp(unrunTotal)} (${share(unrunTotal)}) is in ${F.list(unrun.map(c => `${c.region} ${L()[c.platform]}`))}, which had no spend of ${unrun.length === 1 ? 'its' : 'their'} own since ${capFirst}`] : []),
+      ].join('; ') + '. Predictions for spend above past levels are based on the rate at which cost per application rises with spend.';
       const lines = [
-        `Spend above past levels: ${F.gbp(p.aboveLargestSuccessful.total)} (${F.pct(p.aboveLargestSuccessful.share)} of placed spend) sits above each location and platform's largest successful month, and ${F.gbp(p.aboveLargestMonth.total)} (${F.pct(p.aboveLargestMonth.share)}) above its largest month of any kind. Predictions for that spend rest on the rate at which cost per application rises with spend.`,
-        `Spending cap multiple: ${F.pct(s.capMultiple.value)} (${src(s.capMultiple)}). The plan never spends above a cap.`,
+        pastLevels,
+        `Spending cap multiple: ${F.mult(s.capMultiple.value)}.`,
         `Remaining-error adjustment: ${s.remainingError.value.toFixed(3)} (${src(s.remainingError)}; testing gave ${s.remainingError.tested !== null && s.remainingError.tested !== undefined ? s.remainingError.tested.toFixed(3) : 'n/a'}).`,
         ...(ca.extra ? [`Cost adjustment: planned cost per application is multiplied by ${ca.used.toFixed(3)} (${ca.basis}).`] : []),
         `Expected hires from other sources: ${F.num(s.otherHiresMonthly.value)} a month (${src(s.otherHiresMonthly)}), ${F.pct(s.otherHiresShare.value)} of them credited to paid media (${src(s.otherHiresShare)}).`,
         `Months used: ${RAC.text.monthsUsed(p.A, d.role, p, opts.backtest).map(r => r.short).join('; ')}. Quality and hire rates, caps, other-source hires and testing follow fixed rules, not the data window; the method pages give each in full.${p.settlingUsed.length ? ` Not yet settled, figures may change: ${p.settlingUsed.map(m => F.month(m.month)).join(', ')}.` : ''}`,
-        fees && fees.on ? `Platform fees: Indeed ${F.pct(fees.rates.indeed, 2)}, Meta ${F.pct(fees.rates.meta, 2)} and Google ${F.pct(fees.rates.google, 2)} of media spend (Appcast none), inside the budget (${F.gbp(fees.total, 2)} in this plan). Forecasts use media spend.`
+        fees && fees.on ? `Platform fees: Indeed ${F.pct(fees.rates.indeed, 2)}, Meta ${F.pct(fees.rates.meta, 2)} and Google ${F.pct(fees.rates.google, 2)} of media spend (Appcast none): ${F.gbp(fees.total, 2)} in this plan, of which ${F.gbp(fees.premium, 2)} on Indeed Premium. Fees are paid from the budget, so less than the full budget reaches the platforms. Past costs were recorded without fees, so predictions use the spend after fees.`
           : 'Platform fees: none in this plan (fees apply to plans from ' + F.month(fees ? fees.firstMonth : '') + ').',
         'Attribution: quality and hire rates came from RAC’s applicant tracking data, which credited each application to the last source used; Meta and Google rates were moved towards the role average (see Method).',
         ...(p.oneRac && p.oneRac.second
@@ -248,29 +291,36 @@
       if (lowCells) lines.push(`${lowCells} location and platform ${lowCells === 1 ? 'row is' : 'rows are'} marked low confidence (little evidence behind the hire rate or the cost per application).`);
       const flagged = p.locations.flatMap(l => P().map(q => l.cells[q])).filter(c => c.spend > 0 && c.ceilingFlagged);
       if (flagged.length) lines.push(`No successful month, so capped at the usual monthly spend: ${flagged.map(c => `${c.region} ${L()[c.platform]}`).join(', ')}.`);
-      lines.forEach(l => { font(8.3, 'normal', INK); const w = wrap(l, PAGE_W - 2 * M - 5); ensure(w.length * 3.8 + 1); T('•', M, y); w.forEach(ln => { T(ln, M + 4, y); y += 3.8; }); y += 1; });
+      lines.forEach(l => { font(8.2, 'normal', INK); const w = wrap(l, PAGE_W - 2 * M - 5); ensure(w.length * 3.6 + 0.8); T('•', M, y); w.forEach(ln => { T(ln, M + 4, y); y += 3.6; }); y += 0.8; });
     }
 
     function locations(d, title) {
       const p = d.plan;
-      page(title, `${d.roleName} · by location · ${monthLabel}`);
+      page(title, 'By location');
+      const NOTE = {
+        'location set to no spend': 'set to no spend', 'location maximum': 'at location maximum',
+        'location spending cap (largest month x multiple)': 'at location spending cap',
+        'spending caps (largest successful month x multiple)': 'at spending caps',
+        'spending caps and cost per application limits': 'at spending caps and cost limits', 'cost per hire limit': 'at cost per hire limit',
+      };
+      const spendR = U().roundToTotal(p.locations.map(l => l.spend));
       const cols = [
         { label: 'Location', w: 34 }, { label: 'Open roles', w: 16, align: 'right' }, { label: 'Spend', w: 22, align: 'right' },
         { label: 'Spending room (caps and limits)', w: 28, align: 'right' },
         { label: 'Applications (range)', w: 34, align: 'right' }, { label: 'Quality applications', w: 18, align: 'right' },
         { label: 'Hires, paid media (range)', w: 30, align: 'right' }, { label: 'Cost per application', w: 20, align: 'right' },
-        { label: 'Cost per hire', w: 20, align: 'right' }, { label: 'Notes', w: 47 },
+        { label: 'Cost per hire', w: 20, align: 'right' }, { label: 'Notes', w: 47, wrap: true },
       ];
-      const body = p.locations.map(l => {
+      const body = p.locations.map((l, li) => {
         const note = [];
         if (l.capReason === 'location set to no spend') note.push('set to no spend');
-        else if (l.spend >= l.cap - 1 && l.cap < Infinity) note.push('at ' + l.capReason);
+        else if (l.spend >= l.cap - 1 && l.cap < Infinity) note.push(NOTE[l.capReason] || 'at ' + l.capReason);
         if (l.range && l.range.hires && l.range.hires.lowConfidence) note.push('low confidence');
         const sf = p.minimumShortfalls.find(x => x.kind === 'location' && x.region === l.region);
         if (sf) note.push(`minimum short by ${F.gbp(sf.short)}`);
         return {
           label: l.region, spend: l.spend, cph: l.spend > 0 && l.hires > 0 ? F.gbp(l.spend / l.hires) : '-', warn: note.length > 0,
-          cells: [l.region, F.int(l.vacancies), F.gbp(l.spend), isFinite(l.cap) ? F.gbp(l.cap) : 'no limit',
+          cells: [l.region, F.int(l.vacancies), F.gbp(spendR[li]), isFinite(l.cap) ? F.gbp(l.cap) : 'no limit',
             [F.int(l.apps), appRange(l.range)], F.int(l.passed), [F.num(l.hires), hireRange(l.range)],
             l.spend > 0 && l.apps > 0 ? F.gbp(l.spend / l.apps, 2) : '-', l.spend > 0 && l.hires > 0 ? F.gbp(l.spend / l.hires) : '-', note.join('; ')],
         };
@@ -281,12 +331,12 @@
         F.gbp(t.cpa, 2), F.gbp(t.cph), `plus ${F.num(t.otherHires)} expected from other sources`] });
       table(cols, body, { rowCheck: r => ({ label: r.label, spend: r.spend, cph: r.cph }) });
       font(7.5, 'normal', MUTED);
-      para(`Budget is shared between locations by open roles, within location maximums, spending caps and any cost limits. ${RAC.text.ROW_RANGE_LINE} Hires here are paid media only.`, M, PAGE_W - 2 * M, 7.5);
+      para(`Budget is shared between locations by open roles, within location maximums, spending caps and any cost limits. At spending caps: every platform in the location is at its own spending cap. At location spending cap: the location is at the most it spent in one month, all platforms together, x the cap multiple. ${RAC.text.ROW_RANGE_LINE} Hires here are paid media only.`, M, PAGE_W - 2 * M, 7.5);
     }
 
     function platforms(d, title) {
       const p = d.plan;
-      page(title, `${d.roleName} · by platform · ${monthLabel}`);
+      page(title, 'By platform');
       const on = p.fees && p.fees.on;
       const cols = [
         { label: 'Platform', w: 24 }, { label: 'Spend', w: 22, align: 'right' },
@@ -296,11 +346,13 @@
         { label: 'Hires, paid media (range)', w: 29, align: 'right' }, { label: 'Cost per application', w: 22, align: 'right' },
         { label: 'Cost per hire', w: 22, align: 'right' },
       ];
-      const body = P().map(q => {
+      const spendR = U().roundToTotal(P().map(q => p.platforms[q].spend));
+      const mediaR = U().roundToTotal(P().map(q => p.platforms[q].media));
+      const body = P().map((q, qi) => {
         const x = p.platforms[q], rp = p.rates.platform[q];
         return {
           label: L()[q], spend: x.spend, cph: x.spend > 0 && x.hires > 0 ? F.gbp(x.spend / x.hires) : '-',
-          cells: [L()[q], F.gbp(x.spend), F.gbp(x.media), on && p.fees.rates[q] > 0 ? F.gbp(x.fee, 2) : '-',
+          cells: [L()[q], F.gbp(spendR[qi]), F.gbp(mediaR[qi]), on && p.fees.rates[q] > 0 ? F.gbp(x.fee, 2) : '-',
             [F.int(x.apps), appRange(x.range)], F.int(x.passed), [F.pct(rp.used, 1), rp.basis],
             [F.num(x.hires), hireRange(x.range)], x.spend > 0 && x.apps > 0 ? F.gbp(x.spend / x.apps, 2) : '-',
             x.spend > 0 && x.hires > 0 ? F.gbp(x.spend / x.hires) : '-'],
@@ -317,28 +369,29 @@
     function cells(d, title) {
       const p = d.plan;
       P().forEach(q => {
-        page(title, `${d.roleName} · ${L()[q]} by location · ${monthLabel}`);
+        page(title, `${L()[q]} by location`);
         const fee = p.fees && p.fees.on ? p.fees.rates[q] : 0;
+        const spendR = U().roundToTotal(p.locations.map(l => l.cells[q].spend));
         const cols = [
           { label: 'Location', w: 27 }, { label: 'Spend', w: 19, align: 'right' },
           { label: fee > 0 ? 'of which fee' : 'Platform fee', w: 15, align: 'right' },
-          { label: 'Spending cap (basis)', w: 24, align: 'right' },
+          { label: 'Spending cap (basis)', w: 23, align: 'right' },
           { label: 'Historic cost per application', w: 21, align: 'right' },
           { label: 'Thin-data adjustment', w: 16, align: 'right' }, { label: 'Spend-level adjustment', w: 16, align: 'right' },
-          { label: RAC.text.costAdjustment(p).label, w: 17, align: 'right' }, { label: 'Planned cost per application', w: 19, align: 'right' },
-          { label: 'Applications (range)', w: 25, align: 'right' },
+          { label: RAC.text.costAdjustment(p).label, w: 21, align: 'right' }, { label: 'Planned cost per application', w: 19, align: 'right' },
+          { label: 'Applications (range)', w: 23, align: 'right' },
           { label: 'Quality rate', w: 16, align: 'right' }, { label: 'Hire rate after quality', w: 16, align: 'right' },
-          { label: 'Hires (range)', w: 21, align: 'right' }, { label: 'Cost per hire', w: 17, align: 'right' },
+          { label: 'Hires (range)', w: 20, align: 'right' }, { label: 'Cost per hire', w: 17, align: 'right' },
         ];
-        const body = p.locations.map(l => {
+        const body = p.locations.map((l, li) => {
           const c = l.cells[q];
           const funded = c.spend > 0.005;
-          const capBasis = `${c.ceilingFlagged ? 'usual month' : c.ceilingRowLimited ? `${+(+RAC.assumptions.get(p.A, 'cap_row_usual_limit')).toFixed(2)}x usual` : 'largest'} ${F.gbp(c.ceilingBase)} x${p.capMultiple}`;
+          const capBasis = `${c.ceilingFlagged ? 'usual month' : c.ceilingRowLimited ? `${+(+RAC.assumptions.get(p.A, 'cap_row_usual_limit')).toFixed(2)}x usual` : 'largest'} ${F.gbp(c.ceilingBase)} ${F.mult(p.capMultiple)}`;
           const cph = funded && c.hires > 0 ? F.gbp(c.spend / c.hires) : '-';
           return {
             label: `${l.region} ${L()[q]}`, spend: c.spend, cph,
             cells: [
-              l.region, c.on ? F.gbp(c.spend) : 'off', fee > 0 && funded ? F.gbp(c.fee, 2) : '-',
+              l.region, c.on ? F.gbp(spendR[li]) : 'off', fee > 0 && funded ? F.gbp(c.fee, 2) : '-',
               [F.gbp(c.cap), c.cpaLimitSpend !== null && c.cpaLimitSpend < c.ceilingTotal ? 'cost limit' : capBasis],
               [c.historicCpa !== null ? F.gbp(c.historicCpa, 2) : 'no data', c.historicCpa !== null ? `${F.int(c.historicApps)} applications` : `platform ${F.gbp(c.platformCpa, 2)}`],
               c.thinAdjustment !== null ? x2(c.thinAdjustment) : 'platform', funded ? x2(c.spendAdjustment) : '-', x2(c.remainingError, 3),
@@ -362,7 +415,7 @@
     }
 
     function method(d, title) {
-      page(title, `${d.roleName} · method and glossary · ${monthLabel}`);
+      page(title, 'Method and glossary');
       const colW = (PAGE_W - 2 * M - 8) / 2;
       const cols = [M, M + colW + 8];
       let col = 0;
@@ -372,7 +425,7 @@
         wrap(s, colW).forEach(line => {
           if (y + size * 0.42 > BOTTOM) {
             if (col === 0) { col = 1; y = top; }
-            else { pdf.addPage(); header(pageTitle + ' (continued)', pageSub); col = 0; }
+            else { pdf.addPage(); header(pageTitle, pageSub + ' (continued)'); col = 0; }
           }
           T(line, cols[col], y); y += size * 0.42;
         });
@@ -389,7 +442,7 @@
 
     docs.forEach(d => {
       const title = titleOf(d, monthLabel);
-      if (notes) commentary(d);
+      if (notes) commentary(d, title);
       summary(d, title);
       locations(d, title);
       platforms(d, title);
@@ -397,14 +450,15 @@
       method(d, title);
     });
 
-    // Footers, now the page count is known.
+    // Footers, now the page count is known. The version stamp, in its short
+    // form, goes on the last page only (user, 22 September 2026).
     const n = pdf.getNumberOfPages();
-    stampLine = docs.map(d => RAC.stamp.line(d.plan, opts.code)).join(' | ');
+    stampLine = docs.map(d => RAC.stamp.short(d.plan, opts.code)).join(' | ');
     for (let i = 1; i <= n; i++) {
       pdf.setPage(i);
       pdf.setDrawColor(...LINE); pdf.line(M, 200, PAGE_W - M, 200);
       font(6.3, 'normal', MUTED);
-      T(stampLine, M, 204);
+      if (i === n) T(stampLine, M, 204);
       T(`RAC ${monthLabel} plan · Enhance Media · Page ${i} of ${n}`, PAGE_W - M, 204, { align: 'right' });
     }
 

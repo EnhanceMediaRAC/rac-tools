@@ -43,7 +43,7 @@ export default function (check, { assert }) {
     for (const gone of ['31 days', 'rate of 0.65', 'Meta 2.00%']) assert(!t1.includes(gone), 'changed text still says ' + gone);
     const plan = build('SMR', { ...OCT, otherHiresMonthly: 12, remainingError: 1.2, capMultiple: 3 });
     const t2 = allText(plan.A, 'SMR', plan);
-    for (const need of ['12.0 a month (set for this plan', 'set it to 1.200 (default 1.096)', '300% in this plan']) assert(t2.includes(need), 'plan text lacks ' + need);
+    for (const need of ['12.0 a month (set for this plan', 'set it to 1.200 (default 1.096)', 'x3 in this plan']) assert(t2.includes(need), 'plan text lacks ' + need);
     const patrol = allText(A, 'Patrol', build('Patrol'));
     assert(/For Patrol it did not hold, so the default is 1\.00/.test(patrol), 'Patrol text does not say its adjustment did not hold');
     assert(/September 2026|earlier month, so it includes no fees/.test(allText(A, 'SMR', build('SMR', { ...OCT, planMonth: '2026-09' }))), 'September plan text does not say it has no fees');

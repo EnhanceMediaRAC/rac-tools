@@ -21,6 +21,12 @@
     // September 2026). The Eploy dataset's own file name is RAC's, and stays.
     { re: /\bSetup\b|\bapps?\b|\bapp['’]s\b|\btools?\b|\bwebsite\b|\bscreens?\b|\bbuttons?\b|\bdatabase\b|\b(Method|Data|Assumptions|OneRAC|Plan|Benchmarks) tab\b|\b[\w-]+\.(js|mjs|jsx|csv|json|py|html)\b|\brac_data\b|\[object Object\]/i, why: 'refers to the app or an internal file' },
     { re: /\bapp(lication)?s? target\b/i, why: 'location application target' },
+    // "Agreed" reads as agreed with RAC; values were set by Enhance. And
+    // "rest on" is "based on" (user, 22 September 2026).
+    { re: /\bagreed\b/i, why: 'says "agreed" (values were set by Enhance, not agreed with RAC)' },
+    { re: /\b(rests?|rested|resting) on\b/i, why: 'says "rest on" (use "based on")' },
+    // The Display remarketing note stays internal (user, 22 September 2026).
+    { re: /display remarketing|dynamic remarketing/i, why: 'mentions the Display remarketing campaign' },
     { re: /\bNaN\b|\bundefined\b|\bInfinity\b/, why: 'broken figure' },
   ];
 

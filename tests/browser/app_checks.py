@@ -81,6 +81,64 @@ with sync_playwright() as pw:
     else:
         notes.append(f"October plan fees: Plan tab shows {fee_text}, as the planner")
 
+    # Plan and Platforms tabs (feedback 6, 7, 8, 10, 39, X3, X4): location
+    # budgets add up to the total shown, cost per application is shown, the
+    # per-hire figure and the suggested lower budget use placed spend, and the
+    # Platforms tab adds up to placed spend.
+    gbp = lambda t: int(re.sub(r'[^0-9]', '', t) or 0)
+    table = page.locator('.card:has(.card-title:has-text("Applications by location")) table')
+    heads = [h.strip().lower() for h in table.locator('thead th').all_inner_texts()]
+    body = table.locator('tbody tr').all()
+    budget_col = heads.index('budget')
+    loc_rows = [r.locator('td').all_inner_texts() for r in body if 'total-row' not in (r.get_attribute('class') or '')]
+    loc_rows = [r for r in loc_rows if len(r) == len(heads)]
+    total_row = table.locator('tbody tr.total-row').first.locator('td').all_inner_texts()
+    rows_sum = sum(gbp(r[budget_col]) for r in loc_rows)
+    if rows_sum != gbp(total_row[budget_col]) or gbp(total_row[budget_col]) != round(want['placed']):
+        fails.append(f"location budgets add to £{rows_sum:,}, total shows {total_row[budget_col]}, placed £{want['placed']:,.0f}")
+    if 'likely applications range' not in heads or 'cost per application' not in heads:
+        fails.append('location table headings: ' + ', '.join(heads))
+    cpa_col = heads.index('cost per application') if 'cost per application' in heads else None
+    want_cpa = f"£{want['placed'] / want['apps']:,.2f}"
+    if cpa_col is None or total_row[cpa_col] != want_cpa:
+        fails.append(f"total cost per application {total_row[cpa_col] if cpa_col is not None else 'missing'}, planner {want_cpa}")
+    kpi_apps = page.locator('.kpi:has(.kpi-label:has-text("Predicted applications")) .kpi-sub').inner_text()
+    kpi_hires = page.locator('.kpi:has(.kpi-label:has-text("Predicted hires")) .kpi-sub').inner_text()
+    per_hire = f"£{want['placed'] / want['paid']:,.0f} per paid-media hire"
+    if want_cpa + ' an application' not in kpi_apps or per_hire not in kpi_hires:
+        fails.append(f'KPI lines: {kpi_apps!r} / {kpi_hires!r}; expected {want_cpa} an application and {per_hire}')
+    if 'volatility' in table.locator('xpath=../..').inner_text() or 'guardrail' in page.locator('.main').inner_text():
+        fails.append('the location table help text still describes the previous method')
+    warn = page.locator('.banner-warn:has-text("could not be placed efficiently")')
+    if want['unplaced'] > 1:
+        lower = f"lower the budget to £{want['budget'] - want['unplaced']:,.0f}"
+        if warn.count() != 1 or lower not in ' '.join(warn.inner_text().split()):
+            fails.append(f"not-placed notice should say {lower!r}: {warn.inner_text()[:200] if warn.count() else 'not shown'}")
+    notes.append(f"Plan tab: {len(loc_rows)} location budgets add to £{rows_sum:,} = placed; cost per application {want_cpa}; {per_hire}"
+                 + (f"; not placed £{want['unplaced']:,.0f}, suggests £{want['budget'] - want['unplaced']:,.0f}" if want['unplaced'] > 1 else ''))
+    page.locator('.tab-btn', has_text='Platforms').click()
+    page.wait_for_selector('text=By location and platform', timeout=30000)
+    ptable = page.locator('.card:has(.card-title:has-text("By location and platform")) table')
+    pheads = [h.strip().lower() for h in ptable.locator('thead th').all_inner_texts()]
+    prow_cells = [r.locator('td').all_inner_texts() for r in ptable.locator('tbody tr').all() if 'total-row' not in (r.get_attribute('class') or '')]
+    ptotal = ptable.locator('tbody tr.total-row td').all_inner_texts()
+    bad_cols = []
+    for ci, h in enumerate(pheads):
+        if h in ('indeed', 'meta', 'google', 'appcast', 'budget'):
+            col = sum(gbp(r[ci].split()[0]) for r in prow_cells)
+            if col != gbp(ptotal[ci]):
+                bad_cols.append(f'{h} rows £{col:,} against total {ptotal[ci]}')
+    if bad_cols:
+        fails.append('Platforms tab columns do not add up: ' + '; '.join(bad_cols))
+    if gbp(ptotal[pheads.index('budget')]) != round(want['placed']):
+        fails.append(f"Platforms tab total {ptotal[pheads.index('budget')]} is not the placed £{want['placed']:,.0f}")
+    ptext = page.locator('.main').inner_text()
+    if 'historically' in ptext or 'all-time spend' in ptext or 'of deployable budget' in ptext:
+        fails.append('Platforms tab text still describes the previous method')
+    notes.append(f"Platforms tab: every column adds to its total; total {ptotal[pheads.index('budget')]} = placed")
+    page.locator('.tab-btn', has_text='Plan').first.click()
+    page.wait_for_selector('.kpi-label:has-text("Predicted applications")', timeout=30000)
+
     # Out of reach at a 200% multiple on this data: the panel shows the planner's figures.
     reach = want['reach']
     panel = page.locator('[data-panel="reach"]')
@@ -193,7 +251,7 @@ with sync_playwright() as pw:
         fails.append('Method tab not shown')
     else:
         mt = method.inner_text()
-        needed = ['Platform fees', 'Spending caps', 'Testing and agreed settings', 'Code b0a7d5c', 'rate of 0.65', '1.096']
+        needed = ['Platform fees', 'Spending caps', 'Testing and the settings used', 'Code b0a7d5c', 'rate of 0.65', '1.096']
         missing = [n for n in needed if n not in mt]
         if missing:
             fails.append(f'Method tab lacks {missing}')

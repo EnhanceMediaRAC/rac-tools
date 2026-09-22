@@ -67,7 +67,8 @@ EXPECTED_JS = """(role) => {
   const plan = RAC.plan.build(role, p, RAC.app.env(window.__AVP_DATA__, 'browser-check'));
   return { apps: plan.totals.apps, hires: plan.totals.allHires, paid: plan.totals.hires, other: plan.totals.otherHires,
     deployable: plan.deployable, settledTo: plan.stamps.data.settledTo, reach: plan.reach,
-    settling: plan.settlingUsed.map(x => x.month), shortfalls: plan.minimumShortfalls.map(x => x.text), fees: plan.fees.total, feesOn: plan.fees.on };
+    settling: plan.settlingUsed.map(x => x.month), shortfalls: plan.minimumShortfalls.map(x => x.text), fees: plan.fees.total, feesOn: plan.fees.on,
+    budget: plan.budget, placed: plan.placed, unplaced: plan.unplaced.total };
 }""" % (json.dumps(working), json.dumps({'SMR': SMR_VAC, 'Patrol': PATROL_VAC}))
 
 

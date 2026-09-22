@@ -69,7 +69,7 @@ Reading the South East Indeed row left to right:
 | Usual cost per application | £97.64 | (406.7 x £99.71 + 35 x £73.63) / (406.7 + 35) |
 | Thin-data adjustment | 0.979 | £97.64 / £99.71: this row has plenty of evidence, so it barely moved |
 | Usual monthly spend | £5,793.19 | from Blend inputs |
-| Cost rises with spend (rate) | 0.65 | the agreed rate, shared across platforms |
+| Cost rises with spend (rate) | 0.65 | the rate set by Enhance, shared across platforms |
 | Media spend | £5,492.82 | planned spend £5,588.95 / 1.0175, the Indeed fee taken off |
 | Spend-level adjustment | 0.982 | (£5,492.82 / £5,793.19) ^ (1 − 0.65): planned spend sits below usual, so cost comes down a little |
 | Remaining-error adjustment | 1.096 | what testing on past months still missed for SMR |
@@ -109,7 +109,7 @@ tested, the same way whatever data window the plan uses:
   In June it was 19.1% against 17.4% expected, so it passed; in January it was
   15.0% against 21.7%, so January was set aside.
 
-June 2026 was the largest month that passed, at £7,192.78. A cap may rest on
+June 2026 was the largest month that passed, at £7,192.78. A cap may be based on
 no more than 2 x the row's usual monthly spend (2 x £5,359.88 = £10,719.76), so
 June stands, and the cap is £7,192.78 x 2 (the spending cap multiple) plus the
 Indeed fee: **£14,637.31**. This row was funded at £5,588.95, inside it.

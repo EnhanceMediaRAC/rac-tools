@@ -2,10 +2,10 @@
 // it went, wraps text at a rough character width, and never draws. The real
 // PDF is checked in the browser (tests/browser/export_checks.py).
 export class FakePDF {
-  constructor() { this.pages = [[]]; this.cur = 0; this.size = 10; this.saved = null; }
+  constructor() { this.pages = [[]]; this.cur = 0; this.size = 10; this.saved = null; this.color = [0, 0, 0]; }
   text(s, x, y, o) {
     if (x < 0 || x > 297.01 || y < 0 || y > 210) throw new Error(`text off the page at ${x}, ${y}: ${s}`);
-    this.pages[this.cur].push({ s: String(s), x, y, o: o || {} });
+    this.pages[this.cur].push({ s: String(s), x, y, o: o || {}, color: this.color.slice(), size: this.size });
   }
   splitTextToSize(s, w) {
     const per = Math.max(1, Math.floor(w / (this.size * 0.19)));
@@ -20,7 +20,8 @@ export class FakePDF {
     });
     return out;
   }
-  setFont() {} setTextColor() {} setFillColor() {} setDrawColor() {} rect() {} line() {}
+  setFont() {} setFillColor() {} setDrawColor() {} rect() {} line() {}
+  setTextColor(...c) { this.color = c; }
   setFontSize(n) { this.size = n; }
   addPage() { this.pages.push([]); this.cur = this.pages.length - 1; }
   setPage(i) { this.cur = i - 1; }

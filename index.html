@@ -650,6 +650,10 @@ function fmtGBP(n) {
   if (n == null || isNaN(n)) return '£0';
   return '£' + Math.round(n).toLocaleString('en-GB');
 }
+function fmtGBP2(n) {
+  if (n == null || isNaN(n)) return '£0.00';
+  return '£' + Number(n).toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
 function fmtInt(n) {
   if (n == null || isNaN(n)) return '0';
   return Math.round(n).toLocaleString('en-GB');
@@ -2637,7 +2641,7 @@ async function readChanges() {
 // The plan settings worth recording: the ones that change the figures and are
 // set per plan rather than in the assumptions file.
 const LOGGED_SETTINGS = [
-  { key: 'capMultiple', name: 'Spending cap multiple', perRole: false, unit: 'share' },
+  { key: 'capMultiple', name: 'Spending cap multiple', perRole: false, unit: 'multiple' },
   { key: 'includeSettling', name: 'Include months still settling', perRole: false, unit: 'yes/no' },
   { key: 'otherHiresShare', name: 'Other-source hires credited to paid media', perRole: true, unit: 'share' },
   { key: 'otherHiresMonthly', name: 'Expected hires from other sources per month', perRole: true, unit: 'number' },
@@ -2650,6 +2654,7 @@ function changeText(v, unit) {
   if (v === null || v === undefined || v === '') return 'not set';
   if (unit === 'yes/no') return v ? 'yes' : 'no';
   if (unit === 'share') return Math.round(Number(v) * 100) + '%';
+  if (unit === 'multiple') return RAC.text.fmt.mult(Number(v));
   if (unit === 'gbp') return fmtGBP(Number(v));
   return String(v);
 }
@@ -3221,7 +3226,7 @@ function SetupTab({ state, setState, onOpenPriorities, container }) {
                 </div>
               </div>
               <div>
-                <label className="field-label" title="Includes the Google Display remarketing campaign (RAC | Conversion | Dynamic Remarketing | UK | GD DR); its spend is not in the planner's Google figures.">Combined Activity reserve (includes Google Display remarketing)</label>
+                <label className="field-label" title="Includes the Google Display remarketing campaign (RAC | Conversion | Dynamic Remarketing | UK | GD DR); its spend is not in the planner's Google figures.">Combined Activity reserve</label>
                 <input className="text-input"
                   value={'\u00A3' + (((state.acReserve && state.acReserve[role]) || 0)).toLocaleString('en-GB')}
                   onChange={e => setRoleField(role, 'acReserve', parseInt(e.target.value.replace(/[^0-9]/g, '')) || 0)} />
@@ -3448,6 +3453,8 @@ function PlanTab({ state, setState, role: roleView, setRole: setRoleView }) {
   const pct = Math.round(plan.pctOfTarget * 100);
   const budgetGap = plan.budgetForTarget - budget;
   const rows = plan.locations.slice().sort((a, b) => (b.vacancies - a.vacancies) || (b.predApps - a.predApps));
+  // Budgets rounded so the rows add up to the total shown (feedback 6).
+  const spendR = RAC.util.roundToTotal(rows.map(l => l.spend));
 
   const applyBudget = () => setState(s => ({ ...s, budget: { ...s.budget, [role]: plan.budgetForTarget } }));
 
@@ -3532,7 +3539,7 @@ function PlanTab({ state, setState, role: roleView, setRole: setRoleView }) {
                 <strong>{fmtGBP(plan.unplacedBudget)} could not be placed efficiently.</strong> Every location that
                 could take it has reached its maximum budget, its spending cap or its cost limit, so this money has
                 nowhere to go. Raise a limit, or lower the budget to
-                {' '}{fmtGBP(plan.deployable - plan.unplacedBudget + plan.premiumHoldback + plan.acHoldback)}.
+                {' '}{fmtGBP(plan.budget - plan.unplacedBudget)}.
               </>
             )}
             {plan.v2 && plan.v2.minimumShortfalls.length > 0 && (
@@ -3561,7 +3568,8 @@ function PlanTab({ state, setState, role: roleView, setRole: setRoleView }) {
           <div className="kpi kpi-accent-orange">
             <div className="kpi-label">Predicted applications</div>
             <div className="kpi-value mono">{fmtInt(plan.predictedApps)}</div>
-            <div className="kpi-sub">likely {fmtInt(plan.predLow)}&ndash;{fmtInt(plan.predHigh)}</div>
+            <div className="kpi-sub">likely {fmtInt(plan.predLow)}&ndash;{fmtInt(plan.predHigh)}
+              {plan.predictedApps > 0 ? ' \u00B7 ' + fmtGBP2(plan.placed / plan.predictedApps) + ' an application' : ''}</div>
           </div>
           <div className="kpi kpi-accent-blue">
             <div className="kpi-label">Predicted hires</div>
@@ -3569,7 +3577,7 @@ function PlanTab({ state, setState, role: roleView, setRole: setRoleView }) {
             <div className="kpi-sub">
               likely {plan.predictedHiresLow.toFixed(1)}&ndash;{plan.predictedHiresHigh.toFixed(1)}
               {' \u00B7 paid media ' + plan.paidHires.toFixed(1) + ', expected from other sources ' + plan.otherSourcesHires.toFixed(1)}
-              {plan.paidHires > 0 ? ' \u00B7 ' + fmtGBP(plan.deployable / plan.paidHires) + ' per paid-media hire' : ''}
+              {plan.paidHires > 0 ? ' \u00B7 ' + fmtGBP(plan.placed / plan.paidHires) + ' per paid-media hire' : ''}
             </div>
           </div>
           <div className="kpi kpi-accent-navy">
@@ -3666,18 +3674,18 @@ function PlanTab({ state, setState, role: roleView, setRole: setRoleView }) {
               <thead>
                 <tr>
                   <th>Location</th><th>Open roles</th><th>Budget</th>
-                  <th>App target</th><th>Predicted apps</th><th>Likely range</th>
-                  <th>Hire CVR</th><th>Predicted hires</th>
+                  <th>App target</th><th>Predicted apps</th><th>Likely applications range</th>
+                  <th>Cost per application</th><th>Hire CVR</th><th>Predicted hires</th>
                 </tr>
               </thead>
               <tbody>
-                {rows.map(l => {
+                {rows.map((l, li) => {
                   const hit = l.appSubTarget > 0 && l.predApps >= l.appSubTarget;
                   return (
                     <tr key={l.region}>
                       <td>{l.region}</td>
                       <td>{l.vacancies}</td>
-                      <td>{fmtGBP(l.spend)}</td>
+                      <td>{fmtGBP(spendR[li])}</td>
                       <td>{fmtInt(l.appSubTarget)}</td>
                       <td style={{ color: l.appSubTarget > 0 ? (hit ? 'var(--good)' : 'var(--warn)') : 'inherit', fontWeight: 600 }}
                         title={'Blended CPA \u00A3' + Math.round(l.cpa) +
@@ -3689,6 +3697,7 @@ function PlanTab({ state, setState, role: roleView, setRole: setRoleView }) {
                       </td>
                       <td className="band-text">{fmtInt(l.predLow)}&ndash;{fmtInt(l.predHigh)}
                         {' '}<span style={{ opacity: 0.7 }}>(&plusmn;{l.bandPct}%)</span></td>
+                      <td>{l.predApps > 0 ? fmtGBP2(l.spend / l.predApps) : '\u2013'}</td>
                       <td>{l.predApps > 0 ? (l.hireCvr * 100).toFixed(2) + '%' : '\u2013'}</td>
                       <td style={{ fontWeight: 600 }}>{l.predHires > 0 ? l.predHires.toFixed(1) : '0'}</td>
                     </tr>
@@ -3697,31 +3706,32 @@ function PlanTab({ state, setState, role: roleView, setRole: setRoleView }) {
                 <tr className="total-row">
                   <td>Total</td>
                   <td>{plan.totalVac}</td>
-                  <td>{fmtGBP(rows.reduce((s, l) => s + l.spend, 0))}</td>
+                  <td>{fmtGBP(spendR.reduce((s, x) => s + x, 0))}</td>
                   <td>{fmtInt(plan.appTarget)}</td>
                   <td>{fmtInt(plan.predictedApps)}</td>
                   <td className="band-text">{fmtInt(plan.predLow)}&ndash;{fmtInt(plan.predHigh)}</td>
+                  <td>{plan.predictedApps > 0 ? fmtGBP2(plan.placed / plan.predictedApps) : '\u2013'}</td>
                   <td>{plan.predictedApps > 0 ? (plan.paidHires / plan.predictedApps * 100).toFixed(2) + '%' : '\u2013'}</td>
                   <td style={{ fontWeight: 600 }}>{plan.paidHires.toFixed(1)}</td>
                 </tr>
                 <tr>
-                  <td colSpan={7}>Expected hires from other sources (not driven by budget)</td>
+                  <td colSpan={8}>Expected hires from other sources (not driven by budget)</td>
                   <td>{plan.otherSourcesHires.toFixed(1)}</td>
                 </tr>
                 <tr className="total-row">
-                  <td colSpan={7}>All hires</td>
+                  <td colSpan={8}>All hires</td>
                   <td style={{ fontWeight: 600 }}>{plan.predictedHires.toFixed(1)}</td>
                 </tr>
               </tbody>
             </table>
             <div className="help-text" style={{ padding: '12px 16px' }}>
-              Each location gets a share of the budget in proportion to its open roles, and the same share
-              of the application target. Predicted apps = budget &divide; the location&rsquo;s
-              blended cost-per-application; the range reflects its historic month-to-month volatility.
-              {' '}<span style={{ color: 'var(--warn)' }}>*</span> thin data, CPA adjusted toward the
-              benchmark; <span style={{ color: 'var(--ink-35)' }}>&dagger;</span> no historic data.
-              {' '}<span style={{ color: 'var(--ink-55)' }}>Implied hires across the plan: about {plan.predictedHires.toFixed(0)},
-              {' '}a guardrail only; this plan is measured in applications.</span>
+              Each location gets a share of the budget in proportion to its open roles, within its spending
+              caps and any limits. Predicted apps = media spend &divide; planned cost per application, and cost
+              per application here is the budget over predicted applications. The likely applications range
+              shows how far the model has missed in testing, and is wider where there is less evidence.
+              {' '}{RAC.text.ROW_RANGE_LINE}
+              {' '}<span style={{ color: 'var(--warn)' }}>*</span> thin data, cost per application adjusted
+              toward the platform figure; <span style={{ color: 'var(--ink-35)' }}>&dagger;</span> no historic data.
             </div>
           </div>
         </div>
@@ -3746,6 +3756,10 @@ function PlatformsTab({ state, role: roleView, setRole: setRoleView }) {
   const liveCount = plan.totalCount;
   const deployable = plan.deployable;
   const rows = plan.locations.slice().sort((a, b) => (b.vacancies - a.vacancies) || (b.spend - a.spend));
+  // Rounded so each column adds up to the total shown (feedback 6).
+  const locR = RAC.util.roundToTotal(rows.map(l => l.spend));
+  const cellR = Object.fromEntries(PLATFORMS.map(p => [p, RAC.util.roundToTotal(rows.map(l => l.platSpend[p] || 0))]));
+  const platR = PLATFORMS.map(p => cellR[p].reduce((s, x) => s + x, 0));
   const PLAT_ACCENT = { indeed: 'orange', meta: 'navy', google: 'blue', appcast: 'good' };
 
   function sharePct(v) { return Math.round(v * 100); }
@@ -3765,8 +3779,8 @@ function PlatformsTab({ state, role: roleView, setRole: setRoleView }) {
       <div className="banner banner-info">
         <div className="banner-icon">i</div>
         <div>
-          Each location's budget is split across platforms the way it has been historically. The totals
-          below add up to your deployable budget to the pound.
+          Within each location, money goes to whichever platform delivers the next hire most cheaply, up to
+          each platform's spending cap. The totals below add up to the budget placed in the plan.
         </div>
       </div>
 
@@ -3781,14 +3795,14 @@ function PlatformsTab({ state, role: roleView, setRole: setRoleView }) {
         <>
           {/* Per-platform totals */}
           <div className="kpi-row" style={{ marginBottom: 18 }}>
-            {PLATFORMS.map(p => {
-              const total = plan.platformTotals[p] || 0;
-              const share = deployable > 0 ? (total / deployable) * 100 : 0;
+            {PLATFORMS.map((p, pi) => {
+              const total = platR[pi];
+              const share = plan.placed > 0 ? (plan.platformTotals[p] / plan.placed) * 100 : 0;
               return (
                 <div key={p} className={'kpi kpi-accent-' + PLAT_ACCENT[p]}>
                   <div className="kpi-label">{PLATFORM_LABELS[p]}</div>
                   <div className="kpi-value mono">{fmtGBP(total)}</div>
-                  <div className="kpi-sub">{Math.round(share)}% of deployable budget</div>
+                  <div className="kpi-sub">{Math.round(share)}% of the budget placed</div>
                 </div>
               );
             })}
@@ -3817,19 +3831,19 @@ function PlatformsTab({ state, role: roleView, setRole: setRoleView }) {
                   </tr>
                 </thead>
                 <tbody>
-                  {rows.map(l => (
+                  {rows.map((l, li) => (
                     <tr key={l.region}>
                       <td>{l.region}</td>
                       <td>{l.vacancies}</td>
                       {PLATFORMS.map(p => (
                         <td key={p}>
-                          {fmtGBP(l.platSpend[p])}
+                          {fmtGBP(cellR[p][li])}
                           {' '}<span style={{ color: 'var(--ink-35)', fontSize: 11 }}>
                             {sharePct(l.platShare[p])}%
                           </span>
                         </td>
                       ))}
-                      <td style={{ fontWeight: 600 }}>{fmtGBP(l.spend)}</td>
+                      <td style={{ fontWeight: 600 }}>{fmtGBP(locR[li])}</td>
                       <td>{fmtInt(l.predApps)}</td>
                       <td>{l.predHires > 0 ? l.predHires.toFixed(1) : '0'}</td>
                       <td>{l.cph ? fmtGBP(l.cph) : 'n/a'}</td>
@@ -3838,22 +3852,22 @@ function PlatformsTab({ state, role: roleView, setRole: setRoleView }) {
                   <tr className="total-row">
                     <td>Total</td>
                     <td>{plan.totalVac}</td>
-                    {PLATFORMS.map(p => (
-                      <td key={p}>{fmtGBP(plan.platformTotals[p])}</td>
+                    {PLATFORMS.map((p, pi) => (
+                      <td key={p}>{fmtGBP(platR[pi])}</td>
                     ))}
-                    <td>{fmtGBP(deployable)}</td>
+                    <td>{fmtGBP(locR.reduce((s, x) => s + x, 0))}</td>
                     <td>{fmtInt(plan.predictedApps)}</td>
                     <td>{plan.paidHires.toFixed(1)}</td>
-                    <td>{plan.paidHires > 0 ? fmtGBP(deployable / plan.paidHires) : 'n/a'}</td>
+                    <td>{plan.paidHires > 0 ? fmtGBP(plan.placed / plan.paidHires) : 'n/a'}</td>
                   </tr>
                 </tbody>
               </table>
               <div className="help-text" style={{ padding: '12px 16px' }}>
-                The small percentage next to each platform spend is that location&rsquo;s historic share
-                for that platform, taken from its all-time spend on this role. Locations with under
-                &pound;200 of history fall back to the role-wide platform mix. Per-row spends add up to
-                each location&rsquo;s total budget, and the column totals add up to your deployable
-                budget of {fmtGBP(deployable)}.
+                The small percentage next to each platform spend is that platform&rsquo;s share of the
+                location&rsquo;s budget in this plan. The column totals add up to the budget placed,
+                {' '}{fmtGBP(plan.placed)}, out of a deployable budget of {fmtGBP(deployable)}; the rest is
+                budget the plan could not place. Figures are rounded to the pound so each column adds up
+                to its total.
               </div>
             </div>
           </div>
@@ -5719,6 +5733,14 @@ function exportPlanPDF(state, roleFilter, opts) {
 // the plans or the data. Newest first. Dated, no version numbers.
 // ====================================================================
 const CHANGELOG = [
+  { date: '22 Sep', items: [
+    'PDF: each page now leads with the part that changes (Summary, By location, Indeed by location and so on), with the plan title smaller above it. The version stamp is shorter, names no file, and is printed once, on the last page; the workings keep it in full. The summary fits on one page again, and text carried onto a new page is no longer drawn in pale grey.',
+    'PDF: the fees line on the summary shows only the fees on placed spend, since the Indeed Premium fee already has its own line. The assumptions box states the spending cap multiple on its own, says where values came from in plain words (set by Enhance, set by Enhance and informed by testing, or measured from RAC’s data), explains the fees in plain terms, and names any location and platform planned with no spend of its own since January 2026.',
+    'PDF tables: rows are rounded so they add up to the total shown; location notes are shorter and run onto a second line rather than being cut off; column headings no longer split a word across lines.',
+    'The spending cap multiple now reads x1, x2 or x3 everywhere, on Setup as well as in the PDF and workings.',
+    'Workings: header rows are tall enough for their labels; the Assumptions sheet uses the same plain words for where values came from, and its first rows state the months of data this plan used. The Display remarketing note no longer appears in anything sent to RAC; it stays on the Assumptions tab.',
+    'Plan tab: location budgets add up to the total shown, cost per application is shown for each location and the plan, cost per paid-media hire is worked out on the budget placed, and the suggested lower budget when money cannot be placed now allows for a OneRAC hold-back. Platforms tab: its totals add up to the budget placed, and its notes describe how the split is now made.',
+  ] },
   { date: '18 Sep', items: [
     'New Efficiency setting on Setup, 0% by default. At 0 the money is split between locations by their open roles, as it always has been. Above 0 the split moves that far towards where a hire is predicted to cost least, still inside every location maximum, spending cap and cost limit. It is a way to ask what efficiency alone would do; RAC hires against open roles, so it is left at 0 unless you want that comparison. Where it is above 0, the PDF says so and lists how each location’s share moved.',
     'The OneRAC set-up can now show a second scenario: what the same budget would be expected to deliver at a different self-competition figure, beside the plan. It is a comparison, not the plan, and the PDF says so where it prints it. Leave it empty for none.',

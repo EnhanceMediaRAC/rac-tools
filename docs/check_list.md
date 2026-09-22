@@ -59,11 +59,11 @@ BUILD_PROGRESS.md for the numbers):
     platforms together, x the spending cap multiple (settled 2026 months).
     Row caps are set separately and added up, so without this a location
     could be allowed more than it has ever run.
-  - A row's cap cannot rest on a month above twice its usual monthly spend
+  - A row's cap cannot be based on a month above twice its usual monthly spend
     (the average of the 2026 months it spent in), so one unusual month cannot
     set a cap.
   Both values are in assumptions.csv (cap_location_month_limit 1,
-  cap_row_usual_limit 2, source agreed); 0 turns either off. There is no limit
+  cap_row_usual_limit 2, set by Enhance); 0 turns either off. There is no limit
   on the plan as a whole.
 - The header SMR and Patrol buttons now also work in the archive (section 9).
 
@@ -91,7 +91,7 @@ Now sanity-check the figures with the new caps in place:
    - The location cap held **North West** and **Yorkshire & Humber** (SMR):
      their platforms' caps added up to more than either had ever spent in a
      month. On the locations page of the PDF their notes read "at location
-     spending cap (largest month x multiple)". Patrol South East and North East
+     spending cap". Patrol South East and North East
      had location caps below their row caps, but the plan did not reach them.
    - The row limit held 12 rows to twice their usual monthly spend. SMR: South
      East Appcast, London Appcast (London is set to no spend in those
@@ -99,7 +99,7 @@ Now sanity-check the figures with the new caps in place:
      Yorkshire & Humber Appcast. Patrol: South East Appcast, West Midlands
      Google, North West Google, Scotland Indeed, Scotland Meta, Scotland Google.
      In the PDF their cap basis reads "2x usual".
-   Ask: for the rows you know, was the month the cap used to rest on really a
+   Ask: for the rows you know, was the month the cap was based on really a
    one-off? Scotland Patrol Indeed, for example, spent £3,223 in July 2026
    against a next best month of £928.
 
@@ -129,23 +129,27 @@ Now sanity-check the figures with the new caps in place:
      out) and the quality test (against what was expected for that location
      that month, given quality across all locations).
    - The same section, and the spending caps line in "Months used", should
-     state both limits: a cap rests on no more than 2 x usual monthly spend,
+     state both limits: a cap is based on no more than 2 x usual monthly spend,
      and each location has its own cap of the most it spent in one month, all
      platforms together, x the multiple. It should say there is no limit on
      the plan as a whole.
    - The glossary should have "Spending cap" (mentioning the 2 x usual limit)
      and "Location spending cap".
    - On the locations page, a location held by its own cap shows "at location
-     spending cap (largest month x multiple)" in the notes. On a platform page,
-     a row held by the usual-spend limit shows "2x usual" in its cap basis.
+     spending cap" in the notes, and the note under the table says what that
+     means. Notes run onto a second line rather than being cut off. On a
+     platform page, a row held by the usual-spend limit shows "2x usual" in
+     its cap basis.
    - The definition of a quality application should end "Repeat applications
      from the same candidate are not counted unless they had already passed
      screening."
    - Settings are described as "set for the plan" or "set for this plan". The
      settings screen is not named anywhere.
-6. Check the stamp at the foot of each page: a short code, the Eploy file and
-   date, the month the ad data runs to and the assumptions date. It should hold
-   no link and name nothing about where the app is kept or hosted.
+6. Check the stamp. It is on the last page only, bottom left, and starts
+   "Reference:": a short code, the applicant tracking data date, the month the
+   ad data runs to and the assumptions date. It should name no file, hold no
+   link and name nothing about where the app is kept or hosted. Every other
+   page has only the page number at the foot.
 7. Press "PDF, no notes" and confirm only the notes page is missing.
 
 ## 4. The workings (10 minutes)
@@ -178,9 +182,16 @@ Now sanity-check the figures with the new caps in place:
    of the two held. Check one location's month against the Data sources
    sheet.
 8. On the Assumptions sheet, the heading note should read "Every value comes
-   from one agreed list of assumptions, held apart from the calculations", and
-   the notes should name no files. The data source reads "RAC's monthly SMR
-   spend and application data, to August 2026". The two cap limits are listed.
+   from one list of assumptions set by Enhance, held apart from the
+   calculations", and the notes should name no files. The Source column reads
+   "Set by Enhance", "Set by Enhance, informed by testing" or "Measured from
+   RAC's data". The first two rows are the data: "RAC's monthly SMR spend and
+   application data, as used for cost per application:" followed by the months
+   this plan used (for example "January to April 2026 counted once and May to
+   July 2026 counted twice") and the months the spending caps used, then the
+   months of applicant tracking data behind the quality and hire rates. The
+   two cap limits are listed. The setting for the Google remarketing campaign
+   held in the Combined Activity reserve is not listed.
 
 ## 5. The data window and upweighting (15 minutes)
 
@@ -254,16 +265,19 @@ document that fails it, so a find here means something slipped past that check.
 1. **Assumptions tab.** Every value, what this plan used, what testing gave,
    where it came from and when it was set. Check nothing says "set for this
    plan" that you did not set. The two new cap limits (cap_location_month_limit
-   1 and cap_row_usual_limit 2) appear with source agreed. This tab is for the
-   team, so it still names the assumptions file and links to its history.
+   1 and cap_row_usual_limit 2) appear, with the source the file gives them.
+   This tab is for the team, so it still names the assumptions file, links to
+   its history and uses the file's own source words.
 2. **Setup, cost limits.** Set a low cost per application on one location and
    platform and watch the plan move; then clear it.
 3. **Setup, market guide.** Cost per click and per thousand impressions are in
    pounds, with each platform's average beside them. Check the months read
    sensibly against what you know about the market.
-4. **Changelog screen.** Your changes above should be listed, with your name.
-   The release notes on the same screen should include the two cap limits, and
-   should say nothing about where the app is kept or hosted.
+4. **Changelog screen.** The release notes should include the two cap limits,
+   and should say nothing about where the app is kept or hosted. A test link
+   cannot write anything, so the record of your own changes stays empty here;
+   that part is checked on the live address after the release (docs/release.md,
+   step 10).
 
 ## 9. Issued plans and the archive (10 minutes)
 

@@ -377,7 +377,7 @@
   function capBasis(plan, c, f) {
     const limit = c.cpaLimitSpend !== null && c.cpaLimitSpend < c.ceilingTotal;
     if (limit) return `cost per application limit of ${f.gbp(c.cpaLimit, 2)}`;
-    return `${c.ceilingBasis} ${f.gbp(c.ceilingBase)} x${plan.capMultiple}${c.feeRate > 0 ? ', plus the fee' : ''}`;
+    return `${c.ceilingBasis} ${f.gbp(c.ceilingBase)} ${f.mult(plan.capMultiple)}${c.feeRate > 0 ? ', plus the fee' : ''}`;
   }
 
   // The front page: what went in, what came out.
@@ -396,16 +396,16 @@
     const pfRow = s.body(['Indeed Premium, platform fee', plan.holdbacks.premiumFee,
       plan.fees.on ? `${f.pct(plan.fees.rates.indeed, 2)} of the media above` : 'No fees on this plan']);
     const pRow = s.body(['Indeed Premium hold-back', F(`$B$${pmRow}+$B$${pfRow}`, plan.holdbacks.premium), 'Media and fee together']);
-    const cRow = s.body(['Combined Activity reserve', plan.holdbacks.combined,
-      `Set for this plan${plan.combinedActivityIncludesDisplay ? '. It covers the Google Display remarketing campaign, whose spend is not in the planned Google spend.' : '.'}`]);
+    const cRow = s.body(['Combined Activity reserve', plan.holdbacks.combined, 'Set for this plan.']);
     const oRow = s.body(['OneRAC hold-back', plan.holdbacks.oneRac, 'Set for this plan']);
     const dRow = s.body(['Deployable budget', F(`$B$${bRow}-$B$${pRow}-$B$${cRow}-$B$${oRow}`, plan.deployable), 'What is left for the locations']);
     const placedRow = s.body(['Placed in the plan', F(W('spend'), plan.placed), 'Workings sheet, plan total']);
     s.body(['Budget the plan could not place efficiently', F(`$B$${dRow}-$B$${placedRow}`, plan.unplaced.total),
       plan.unplaced.reasons.length ? 'Held back by: ' + plan.unplaced.reasons.join('; ') : 'None']);
-    s.body(['Platform fees in the plan', F(`${W('fee')}+$B$${pfRow}`, plan.fees.total),
+    // Fees on placed spend only; the Indeed Premium fee is in its own row above (X1).
+    s.body(['of which platform fees on placed spend', F(W('fee'), plan.fees.placed),
       plan.fees.on
-        ? `Indeed ${f.pct(plan.fees.rates.indeed, 2)}, Meta ${f.pct(plan.fees.rates.meta, 2)} and Google ${f.pct(plan.fees.rates.google, 2)} of media spend, including the Indeed Premium hold-back`
+        ? `Indeed ${f.pct(plan.fees.rates.indeed, 2)}, Meta ${f.pct(plan.fees.rates.meta, 2)} and Google ${f.pct(plan.fees.rates.google, 2)} of media spend, inside the placed figure above. The Indeed Premium fee is in its own row.`
         : `This plan is for ${f.month(plan.fees.planMonth || '') || 'a month before fees applied'}; fees apply from ${f.month(plan.fees.firstMonth)} plans.`]);
     s.blank();
     s.add('title', ['What the plan predicts']);
@@ -423,7 +423,7 @@
       r.allHires ? r.allHires.low : '', r.allHires ? r.allHires.high : '', ''], [null, N1, null, N1, N1]);
     s.body(['Cost per application', F(W('plannedTotal'), plan.totals.cpa), 'Spend over applications, on the total cost including any fee', '', '', ''], [null, GBP2]);
     s.body(['Cost per hire, paid media', F(W('cph'), plan.totals.cph), 'Spend over predicted hires from paid media', '', '', ''], [null, GBP]);
-    s.body(['Spend above the largest successful month', plan.aboveLargestSuccessful.total,
+    s.body(['Spend above the month each cap was based on', plan.aboveLargestSuccessful.total,
       `${f.pct(plan.aboveLargestSuccessful.share)} of the money placed`, '', '', ''], [null, GBP]);
     s.blank();
     s.add('title', [plan.hireTarget > 0 ? `The budget for ${plan.hireTarget} hires` : 'The budget for the target']);
@@ -436,7 +436,7 @@
       s.note(`The spending caps put the target out of reach. The plan can deliver ${f.num(plan.maxAchievable)} hires; above ${f.gbp(plan.saturationBudget)} extra spend adds none.`);
       s.head(['Spending cap multiple', 'Hires at this budget', 'Budget not placed', 'Budget for the target', 'Most hires', 'Budget where hires stop rising']);
       (plan.reach ? plan.reach.byMultiple : []).forEach(x => {
-        s.body([`${x.multiple}${x.current ? ' (this plan)' : ''}`, x.hiresAtBudget, x.unplacedAtBudget,
+        s.body([`${f.mult(x.multiple)}${x.current ? ' (this plan)' : ''}`, x.hiresAtBudget, x.unplacedAtBudget,
           x.budgetForTarget === null ? 'out of reach' : x.budgetForTarget,
           x.mostHires === null ? '' : x.mostHires, x.saturationBudget === null ? '' : x.saturationBudget],
         [null, N1, GBP, GBP, N1, GBP]);
@@ -480,9 +480,16 @@
     const s = makeSheet('Assumptions', { freeze: 1, columns: [
       { w: 30 }, { w: 52 }, { w: 14 }, { w: 14 }, { w: 14 }, { w: 12 }, { w: 22 }, { w: 12 }, { w: 90 },
     ] });
-    s.title('Every value this plan used', 'Every value comes from one agreed list of assumptions, held apart from the calculations. A plan can set the fields marked as a plan value; the rest are the same for every plan until the list is changed.');
+    s.title('Every value this plan used', 'Every value comes from one list of assumptions set by Enhance, held apart from the calculations. A plan can set the fields marked as a plan value; the rest are the same for every plan until the list is changed.');
     s.head(['Key', 'What it is', 'Value used', 'This plan', 'Testing gave', 'Unit', 'Source', 'Date', 'Notes']);
-    RAC.text.assumptionRows(plan.A, doc.role, plan).forEach(row => {
+    // The data behind the plan: the months it actually used (user, 22 September 2026).
+    const used = Object.fromEntries(RAC.text.monthsUsed(plan.A, doc.role, plan).map(r => [r.key, r]));
+    const roleName = doc.role === 'OneRAC' ? 'SMR and Patrol' : doc.role;
+    s.body(['data_ad_platforms', 'Monthly spend and applications by location and platform', '', '', '', 'months', "RAC's data", '',
+      `RAC's monthly ${roleName} spend and application data, as used for cost per application: ${used.cost ? used.cost.months : 'none'}. Spending caps: ${used.caps ? used.caps.months : 'none'}.`]);
+    s.body(['data_applicant_tracking', 'Quality and hire rates', '', '', '', 'months', "RAC's data", '',
+      `RAC's applicant tracking data: quality rates from ${used.quality ? used.quality.months : 'none'}; hire rates from ${used.hires ? used.hires.months : 'none'}.`]);
+    RAC.text.assumptionRows(plan.A, doc.role, plan, { client: true }).forEach(row => {
       s.body([row.key, row.name,
         row.value === null || row.value === undefined ? '' : row.value,
         row.plan === null || row.plan === undefined ? '' : row.plan,
@@ -587,7 +594,7 @@
       s.body([loc.region, lc.month, lc.byPlat.indeed, lc.byPlat.meta, lc.byPlat.google, lc.byPlat.appcast, lc.media, lc.cap, rowSum,
         lc.cap < rowSum - 0.005 ? 'location cap' : 'platform caps'], [null, null, GBP2, GBP2, GBP2, GBP2, GBP2, GBP2, GBP2, null]);
     });
-    s.note(`The location cap is ${RAC.assumptions.get(plan.A, 'cap_location_month_limit')} x the most in one month x the spending cap multiple (${plan.capMultiple}), with each platform’s fee added where fees apply. Past spend is media spend.`);
+    s.note(`The location cap is ${RAC.assumptions.get(plan.A, 'cap_location_month_limit')} x the most in one month x the spending cap multiple (${f.mult(plan.capMultiple)}), with each platform’s fee added where fees apply. Past spend is media spend.`);
     return s;
   }
 
@@ -668,7 +675,11 @@
         // Formulas are written without a saved answer, so the spreadsheet
         // works every one of them out when it opens. A saved answer could go
         // stale, and a reader would show it without noticing.
-        const r = ws.addRow(row.cells.map(v => (isF(v) ? { formula: v.formula } : (v === null || v === undefined ? '' : v))));
+        // Blank cells are left empty (not an empty string), so long text in the
+        // cell before them can run across instead of being cut off.
+        // Header rows keep empty strings, so their fill runs the full width.
+        const blank = row.kind === 'head' ? '' : null;
+        const r = ws.addRow(row.cells.map(v => (isF(v) ? { formula: v.formula } : (v === null || v === undefined || v === '' ? blank : v))));
         style(r, row, sheet);
       });
       (sheet.columns || []).forEach((c, i) => { ws.getColumn(i + 1).width = c.w || 16; });
@@ -681,10 +692,26 @@
     return wb;
   }
 
+  // A header row tall enough for its longest label once wrapped to the column
+  // width (10pt bold: about one character per width unit, 13.5 points a line).
+  function headHeight(row, sheet) {
+    const lines = row.cells.map((v, i) => {
+      if (typeof v !== 'string' || !v) return 1;
+      const w = Math.max(4, (((sheet.columns || [])[i] || {}).w || 16) - 1);
+      let n = 1, len = 0;
+      v.split(' ').forEach(word => {
+        const add = (len ? 1 : 0) + word.length;
+        if (len && len + add > w) { n += 1; len = word.length; } else len += add;
+      });
+      return n;
+    });
+    return Math.max(20, 6 + 13.5 * Math.max(...lines));
+  }
+
   function style(r, row, sheet) {
     if (row.kind === 'title') {
       r.font = { bold: true, size: 13, color: { argb: NAVY } };
-      r.height = 20;
+      r.height = 24;
       return;
     }
     if (row.kind === 'sub' || row.kind === 'note') {
@@ -694,8 +721,8 @@
     }
     if (row.kind === 'blank') return;
     if (row.kind === 'head') {
-      r.height = 30;
-      r.eachCell(cell => {
+      r.height = headHeight(row, sheet);
+      r.eachCell({ includeEmpty: true }, cell => {
         cell.font = { bold: true, size: 10, color: { argb: 'FFFFFFFF' } };
         cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: NAVY } };
         cell.alignment = { vertical: 'middle', wrapText: true, horizontal: 'left' };
@@ -703,7 +730,7 @@
       return;
     }
     const fmts = row.fmt || (sheet.columns || []).map(c => c.f);
-    r.eachCell((cell, n) => {
+    r.eachCell({ includeEmpty: true }, (cell, n) => {
       const col = (sheet.columns || [])[n - 1] || {};
       cell.font = { size: 10, bold: row.kind === 'total' };
       cell.alignment = { vertical: 'middle', horizontal: col.a || 'left' };

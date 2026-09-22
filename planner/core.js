@@ -124,7 +124,21 @@
     return Math.max(0, Math.round(lambda + Math.sqrt(lambda) * normal()));
   }
 
-  RAC.util = { sum, parseCsv, fingerprint, stableKey, addMonths, monthEnd, daysBetween, percentileInc, rng, normals, poisson };
+  // Round a column of figures to whole units so the rounded figures add up to
+  // the rounded total (largest remainder). Used wherever a table shows rows
+  // and their total, so the printed rows always add to the printed total.
+  function roundToTotal(xs, unit = 1) {
+    const v = xs.map(x => (Number.isFinite(x) ? x / unit : 0));
+    const floors = v.map(Math.floor);
+    let left = Math.round(sum(v)) - sum(floors);
+    const order = v.map((x, i) => [x - floors[i], i]).sort((a, b) => b[0] - a[0] || a[1] - b[1]);
+    const out = floors.slice();
+    for (let k = 0; left > 0 && k < order.length; k++, left--) out[order[k][1]] += 1;
+    for (let k = order.length - 1; left < 0 && k >= 0; k--, left++) out[order[k][1]] -= 1;
+    return out.map(x => x * unit);
+  }
+
+  RAC.util = { sum, parseCsv, fingerprint, stableKey, addMonths, monthEnd, daysBetween, percentileInc, rng, normals, poisson, roundToTotal };
 
   // A small store for built plans, keyed on every input. Cleared when the data
   // changes (RAC.plan.invalidate, called from the app's resetDataCaches).

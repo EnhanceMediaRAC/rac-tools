@@ -7,6 +7,7 @@
 //
 // Field notes:
 //   beyondProven     spend above each cell's largest successful month (x1)
+//   placed           budget placed in the plan (deployable less what could not be placed)
 //   unplacedBudget   budget the plan could not place efficiently
 //   mostHires, saturationBudget  where the target is out of reach within the
 //                    spending caps: the most hires and the budget where they stop rising
@@ -121,7 +122,7 @@
       beyondProven: plan.aboveLargestSuccessful.total,
       role: plan.role, daysInMonth: plan.daysInMonth, coverageRate: plan.inputs.coveragePct > 0 ? plan.inputs.coveragePct / 100 : 0,
       premiumHoldback: plan.holdbacks.premium, fees: plan.fees, acHoldback: plan.holdbacks.combined, oneRacHoldback: plan.holdbacks.oneRac,
-      deployable: plan.deployable, coverageReserve: plan.coverageReserve, demandPool: plan.demandPool,
+      deployable: plan.deployable, placed: plan.placed, coverageReserve: plan.coverageReserve, demandPool: plan.demandPool,
       locations, totalVac: plan.totalVac, totalCount: plan.liveCount, platformTotals,
       channelSummary, regionSummary, regionChannel,
       platBreaches, platClamped: {}, platMin: plan.platMin, platMax: plan.platMax,
