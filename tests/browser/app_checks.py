@@ -314,7 +314,14 @@ with sync_playwright() as pw:
         page.wait_for_timeout(800)
         pinned = page.locator('text=This plan is using its own open-role counts').count() > 0
         regions = page.evaluate('window.__AVP_DATA__.regions_ordered')
+        # Setup shows one role at a time (feedback 46): read SMR, then switch
+        # to Patrol with the header button and read Patrol.
         values = page.locator('.loc-toggle .vac-input').evaluate_all('els => els.map(e => Number(e.value))')
+        header_role(page, 'Patrol')
+        if page.locator('[data-panel="setup-Patrol"]').count() != 1 or page.locator('[data-panel="setup-SMR"]').count() != 0:
+            fails.append('Setup does not follow the header switch to Patrol')
+        values += page.locator('.loc-toggle .vac-input').evaluate_all('els => els.map(e => Number(e.value))')
+        header_role(page, 'SMR')
         smr_want = [2 * SMR_VAC.get(r, 0) for r in regions]
         patrol_want = [PATROL_VAC.get(r, 0) for r in regions]
         notes.append(f'"Use those counts instead" ({n_links} links, SMR clicked): pinned {pinned}; SMR {values[:len(regions)]}; Patrol {values[len(regions):]}; page errors {errors[:2] or "none"}')
@@ -404,10 +411,24 @@ with sync_playwright() as pw:
         if want not in low:
             fails.append(f'the Assumptions tab does not show {want!r}')
     notes.append(f'Assumptions tab: {rows} values with their source, date and tested figure')
-    # The market guide on Setup: read from data/market.json, cost in pounds.
+    # The market guide on Setup: closed until opened (feedback 2), read from
+    # data/market.json (cost in pounds), with the Indeed Hiring Insights table.
     page.locator('.tab-btn', has_text='Setup').click()
+    page.wait_for_selector('[data-panel="market-guide"]', timeout=30000)
+    if page.locator('[data-panel="market"]').count():
+        fails.append('the market guide is open before it is clicked')
+    ll = page.locator('[data-panel="location-limits-SMR"]').inner_text() if page.locator('[data-panel="location-limits-SMR"]').count() else ''
+    if 'Location limits' not in ll or 'Platform coverage' not in ll or 'Cost limits' not in ll:
+        fails.append('Location limits heading does not hold both limit tables')
+    page.locator('[data-action="market-guide-toggle"]').click()
     page.wait_for_selector('[data-panel="market"]', timeout=30000)
+    page.wait_for_selector('[data-panel="indeed-insights"]', timeout=30000)
     page.wait_for_timeout(600)
+    indeed_rows = page.locator('[data-panel="indeed-insights"] tbody tr').count()
+    indeed_text = page.inner_text('[data-panel="indeed-insights"]')
+    if indeed_rows != 13 or '2,631' not in indeed_text or '140,865' not in indeed_text and '25' not in indeed_text:
+        fails.append(f'the Indeed Hiring Insights table shows {indeed_rows} months: {indeed_text[:200]}')
+    notes.append(f'Setup: Location limits holds both limit tables; market guide closed until opened; Indeed Hiring Insights {indeed_rows} months')
     market_rows = page.locator('[data-panel="market"] tbody tr').count()
     market_text = page.inner_text('[data-panel="market"]')
     if market_rows < 10:

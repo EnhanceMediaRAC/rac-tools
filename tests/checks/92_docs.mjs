@@ -88,9 +88,29 @@ export default function (check, { assert, near }) {
         `${f} reads the market data; it must stay a guide on Setup`));
     const ui = readRoot('ui/market_table.jsx');
     assert(ui.includes("fetch('data/market.json'"), 'the Setup panel does not read the market file');
-    assert(readRoot('index.html').includes('<RACUI.MarketTable />'), 'the market table is not on Setup');
-    return `${market.months.length} months of cost per click and per thousand in pounds and search interest, read only by the Setup panel; ` +
-      'no Hiring Lab figure in the repository';
+    // The guide is on Setup, for either role, closed until opened (feedback 2).
+    assert(readRoot('index.html').includes('<RACUI.MarketGuide />') && /RACUI\.MarketGuide = MarketGuide/.test(ui), 'the market guide is not on Setup');
+    // Indeed Hiring Insights figures (user decisions, 22 September 2026): in
+    // the repository, read only by the Setup guide, never in anything RAC
+    // sees. Every row passes the two arithmetic checks the transcription used.
+    const csv = RAC.util.parseCsv(readRoot('data/indeed_hiring_insights.csv'));
+    const head = csv[0], rows = csv.slice(1).map(c => Object.fromEntries(head.map((h, i) => [h, c[i]])));
+    assert(rows.length === 39 && new Set(rows.map(r => r.series)).size === 3, `${rows.length} Indeed rows`);
+    const bad = [];
+    rows.forEach(r => { if (Math.abs(Number(r.jobseekers) / Number(r.jobs) - Number(r.jobseekers_per_job)) > 0.5) bad.push(`${r.series} ${r.month} per job`); });
+    [...new Set(rows.map(r => r.series))].forEach(sr => {
+      const ms = rows.filter(r => r.series === sr).sort((x, y) => (x.month < y.month ? -1 : 1));
+      ms.slice(1).forEach((r, i) => [['jobs', 'jobs_change'], ['jobseekers', 'jobseekers_change'], ['jobseekers_per_job', 'per_job_change']].forEach(([v, c]) => {
+        if (Number(r[v]) - Number(ms[i][v]) !== Number(r[c])) bad.push(`${sr} ${r.month} ${c}`);
+      }));
+    });
+    assert(!bad.length, 'Indeed figures fail the arithmetic: ' + bad.slice(0, 4).join(', '));
+    assert(ui.includes("fetch('data/indeed_hiring_insights.csv'"), 'the Setup guide does not read the Indeed figures');
+    ['exports/text.js', 'exports/pdf.js', 'exports/workings.js', 'exports/tables.js', 'planner/plan.js', 'planner/app.js', 'index.html']
+      .forEach(f => assert(!/indeed_hiring_insights/.test(readRoot(f)), `${f} reads the Indeed figures; they must stay a guide on Setup`));
+    assert(RAC.outputChecks.text('Indeed Hiring Insights showed 34 jobseekers per job.').length > 0, 'the output checks do not refuse Hiring Insights');
+    return `${market.months.length} months of cost per click and per thousand in pounds and search interest, and ${rows.length} months of Indeed Hiring Insights (3 job titles, every row passing its arithmetic), read only by the Setup guide; ` +
+      'nothing RAC sees reads either';
   });
 
   check('The check list covers every screen and export the release changed', () => {

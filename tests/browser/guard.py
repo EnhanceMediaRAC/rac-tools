@@ -3,7 +3,7 @@
 Every request a page makes is either handled here or blocked:
   - the app page (index.html) at the address under test;
   - the app's own files, served from this repo: rac_data.js, assumptions.csv,
-    data/*.json, planner/*.js, exports/*.js, ui/*.jsx (a check can replace any
+    data/*.json and data/*.csv, planner/*.js, exports/*.js, ui/*.jsx (a check can replace any
     of them);
   - the version request (GET api/windsor-spend?version=1), answered with a
     stand-in commit, so exports carry a stamp;
@@ -34,7 +34,7 @@ CDN = {
     'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js': 'node_modules/xlsx/dist/xlsx.full.min.js',
     'https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js': 'node_modules/exceljs/dist/exceljs.min.js',
 }
-APP_FILE = re.compile(r'^(rac_data\.js|assumptions\.csv|data/[a-z_]+\.json|planner/[a-z0-9_]+\.js|exports/[a-z0-9_]+\.js|ui/[a-z0-9_]+\.jsx)$')
+APP_FILE = re.compile(r'^(rac_data\.js|assumptions\.csv|data/[a-z_]+\.(json|csv)|planner/[a-z0-9_]+\.js|exports/[a-z0-9_]+\.js|ui/[a-z0-9_]+\.jsx)$')
 VERSION_COMMIT = 'b0a7d5c0ffee1234567890abcdef1234567890ab'
 TYPES = {'.js': 'text/javascript', '.jsx': 'text/babel', '.json': 'application/json', '.csv': 'text/csv'}
 

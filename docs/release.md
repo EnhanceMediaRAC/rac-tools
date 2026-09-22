@@ -209,6 +209,41 @@ archive is frozen.
     until the release is put back. Do not retire the old address until the
     release has settled.
 
+## Each month, before the plan
+
+Some values in `assumptions.csv` are measured from RAC's data and move a little
+each month; others were set by Enhance and switch to a tested figure only when
+the switch rule is met (at least 12 test months, and leaving out any one month
+does not change the result). This review keeps the file current. Biraag
+decides each change; the app author makes it, because it is an edit to the
+repository (step 5).
+
+1. **Upload the new month's data** on the Data tab once it has settled (31 days
+   after the month ended). Biraag.
+2. **When a new applicant tracking (Eploy) file arrives,** run the import with
+   the comparison against the previous one (`docs/eploy_import.md`) and review
+   any shift above 10%. App author, with Biraag.
+3. **Run the tests on past months, without writing:**
+
+       node tools/calibrate.mjs
+
+   and compare every tested figure with the file. App author.
+4. **Open the Assumptions tab** on the live address: it lists any set value
+   whose tested figure now meets the switch rule. Biraag.
+5. **Make the changes Biraag decided:** edit `assumptions.csv` on a branch (or
+   run `node tools/calibrate.mjs --write` for the measured values and review the
+   difference), check the branch's test link, then merge. Record the decision
+   and its date in the row's notes. App author, not Biraag.
+6. **Quarterly:** measure the settle period and the quality and hire maturity
+   rules again, and review the values the Assumptions tab marks as quarterly
+   (the cap multiple default, the cap rules, the thin-data blend). Biraag
+   decides; the app author makes any change as in step 5.
+
+From plans for January 2027 the spending caps use the last 12 settled months
+instead of every month since January 2026 (`ceiling_rolling_from`,
+`ceiling_rolling_months`). Nothing needs doing then; check the first January
+plan's "Months used" shows the new months.
+
 ## Issued plans
 
 A plan that has been sent to RAC should be marked as issued, using the button

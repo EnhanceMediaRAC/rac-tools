@@ -14,6 +14,9 @@
   const BANNED = [
     { re: /—/, why: 'em-dash' },
     { re: /hiring\s*lab/i, why: 'Hiring Lab named' },
+    // Indeed Hiring Insights figures are a guide on Setup only (user, 22
+    // September 2026): nothing RAC sees may name them.
+    { re: /hiring\s*insights/i, why: 'Hiring Insights named' },
     // Nothing RAC sees may name where the app is kept or hosted, or say that
     // any of its data or code is public (user, 18 September 2026).
     { re: /\b(repositor(y|ies)|repo|github|git|vercel|supabase|public(ly)?)\b/i, why: 'names the repository, hosting or database, or says something is public' },

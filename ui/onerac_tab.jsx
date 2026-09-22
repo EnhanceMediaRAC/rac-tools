@@ -55,7 +55,8 @@
     try { selfDefault = RAC.assumptions.get(RAC.app.state.A, 'onerac_self_competition'); } catch (e) { selfDefault = 0; }
     return (
       <div className="card" data-panel="onerac-setup">
-        <div className="card-title">OneRAC set-up</div>
+        <div className="card-head"><div className="card-title">OneRAC set-up</div></div>
+        <div className="card-body">
         <div className="help-text" style={{ marginBottom: 12 }}>
           Pick the locations OneRAC runs in and the month each one starts. From that month they are planned here and
           left out of the SMR and Patrol plans, so nothing is planned twice.
@@ -138,6 +139,7 @@
             format={v => fmt.fmtGBP(v || 0)} parse={t => num(t) || 0}
             onCommit={v => set({ acReserve: v })} />
         </Row>
+        </div>
       </div>
     );
   }
@@ -276,14 +278,16 @@
         <Setup state={state} update={update} fmt={fmt} suggestion={suggestion} months={months} regions={regions} />
         {plan ? (
           <div className="card" style={{ marginTop: 18 }}>
-            <div className="card-title" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span>The OneRAC plan</span>
+            <div className="card-head" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div className="card-title">The OneRAC plan</div>
               <span>
                 <button className="btn btn-sm" style={{ marginRight: 8 }} onClick={onExportWorkings}>Workings</button>
                 <button className="btn btn-sm btn-primary" onClick={onExportPdf}>PDF</button>
               </span>
             </div>
-            <PlanView plan={plan} fmt={fmt} />
+            <div className="card-body">
+              <PlanView plan={plan} fmt={fmt} />
+            </div>
           </div>
         ) : (
           <div className="banner banner-info" style={{ marginTop: 18 }} data-panel="onerac-none">

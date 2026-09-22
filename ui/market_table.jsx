@@ -3,6 +3,12 @@
 // adjustment. Loaded by index.html as a Babel script before the app; exposed
 // as window.RACUI.MarketTable.
 //
+// Below it, the Indeed Hiring Insights figures for the three job titles
+// (data/indeed_hiring_insights.csv: competition score, jobs, jobseekers and
+// jobseekers per job, typed from the monthly reports and checked by a second
+// reading and arithmetic; user decisions, 22 September 2026). They are shown
+// here only.
+//
 // It is a guide, not part of the model. Nothing here changes a plan's figures,
 // and none of it goes into the PDF, the workings export or the Method text
 // (addendum 2.5). It answers the question the adjustment raises: when the model
@@ -88,13 +94,91 @@
         </table>
         <div className="help-text" style={{ marginTop: 10 }}>
           From {data.sources.ads.file} ({data.sources.ads.file_date}) and {data.sources.trends.file} ({data.sources.trends.file_date}),
-          the campaigns the planner plans only. The Indeed Hiring Lab series is not here: its access terms have not been
-          checked. Whatever happens, no Hiring Lab figure may appear in anything RAC sees, and the output checks refuse
-          to save a document that even names it.
+          the campaigns the planner plans only.
         </div>
+        <IndeedInsights months={months} />
+      </div>
+    );
+  }
+
+  // Indeed Hiring Insights, by month, for the three job titles.
+  function IndeedInsights({ months }) {
+    const [rows, setRows] = useState(null);
+    useEffect(() => {
+      let live = true;
+      fetch('data/indeed_hiring_insights.csv', { cache: 'no-cache' })
+        .then(r => (r.ok ? r.text() : Promise.reject(new Error('status ' + r.status))))
+        .then(t => {
+          const [head, ...body] = RAC.util.parseCsv(t);
+          if (live) setRows(body.map(c => Object.fromEntries(head.map((h, i) => [h, c[i]]))));
+        })
+        .catch(() => { if (live) setRows([]); });
+      return () => { live = false; };
+    }, []);
+    if (!rows) return null;
+    if (!rows.length) return <div className="help-text" style={{ marginTop: 14 }}>The Indeed Hiring Insights figures could not be read.</div>;
+    const series = [...new Set(rows.map(r => r.series))];
+    const ms = [...new Set(rows.map(r => r.month))].sort().slice(-months);
+    const get = (s, m) => rows.find(r => r.series === s && r.month === m) || {};
+    const n = (v) => (v === '' || v === undefined ? '-' : Number(v).toLocaleString('en-GB'));
+    return (
+      <div data-panel="indeed-insights" style={{ marginTop: 22 }}>
+        <div className="section-label">Indeed Hiring Insights</div>
+        <div className="help-text" style={{ marginBottom: 10 }}>
+          From Indeed&rsquo;s monthly Hiring Insights reports for three job titles. Competition is Indeed&rsquo;s score out of 100
+          (higher means more competition for candidates); jobs are the jobs that received clicks; jobseekers per job is
+          jobseekers over jobs. Typed from the reports, checked by a second reading and by the arithmetic on each page.
+          A guide on this screen only: no Indeed figure goes into the PDF or the workings.
+        </div>
+        <table className="alloc-table" style={{ maxWidth: 1100 }}>
+          <thead>
+            <tr>
+              <th rowSpan={2}>Month</th>
+              {series.map(s => <th key={s} colSpan={3} style={{ textAlign: 'center' }}>{s}</th>)}
+            </tr>
+            <tr>
+              {series.map(s => ['Competition', 'Jobs', 'Jobseekers per job'].map(h => <th key={s + h} className="num">{h}</th>))}
+            </tr>
+          </thead>
+          <tbody>
+            {ms.map(m => (
+              <tr key={m}>
+                <td className="mono">{label(m)}</td>
+                {series.map(s => {
+                  const r = get(s, m);
+                  return [
+                    <td key={s + 'c'} className="num mono">{r.competition_score ? `${r.competition_score} ${r.competition_level.toLowerCase()}` : '-'}</td>,
+                    <td key={s + 'j'} className="num mono">{n(r.jobs)}</td>,
+                    <td key={s + 'p'} className="num mono">{n(r.jobseekers_per_job)}</td>,
+                  ];
+                })}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    );
+  }
+
+  // The guide on Setup, closed until opened (feedback 2), with room around it.
+  function MarketGuide() {
+    const [open, setOpen] = useState(false);
+    return (
+      <div data-panel="market-guide" style={{ marginTop: 26, paddingTop: 14, borderTop: '1px solid var(--line, #E3E7ED)' }}>
+        <div className="section-label" data-action="market-guide-toggle" style={{ cursor: 'pointer', userSelect: 'none' }} onClick={() => setOpen(o => !o)}>
+          <span style={{ display: 'inline-block', width: 14, color: 'var(--rac-orange)' }}>{open ? '▾' : '▸'}</span>
+          What the market was doing
+          <span className="text-muted" style={{ fontWeight: 400 }}> &middot; a guide, not part of the plan</span>
+        </div>
+        {open && (
+          <div style={{ marginTop: 12 }}>
+            <MarketTable />
+          </div>
+        )}
       </div>
     );
   }
 
   RACUI.MarketTable = MarketTable;
+  RACUI.MarketGuide = MarketGuide;
 })();

@@ -3148,7 +3148,9 @@ function CoverageMatrix({ role, state, setState }) {
 // ====================================================================
 // TAB 1 - SETUP: budget, targets, live locations
 // ====================================================================
-function SetupTab({ state, setState, onOpenPriorities, container }) {
+// Setup shows one role at a time, following the SMR / Patrol switch in the
+// header (user decision, 22 September 2026; feedback 46).
+function SetupTab({ state, setState, onOpenPriorities, container, role: roleView, setRole: setRoleView }) {
   const update = (patch) => setState(s => ({ ...s, ...patch }));
   const pinned = !!state.demandOverride;
   // Pinning starts from whatever is on screen, so nothing jumps.
@@ -3184,11 +3186,20 @@ function SetupTab({ state, setState, onOpenPriorities, container }) {
 
   return (
     <div>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
+        <div className="role-switch">
+          {ROLES.map(r => (
+            <button key={r} className={r === roleView ? 'active' : ''}
+              onClick={() => setRoleView(r)}>{r}</button>
+          ))}
+        </div>
+        <span className="help-text">Setup shows one role at a time; switch here or with the SMR / Patrol buttons at the top.</span>
+      </div>
       <div className="banner banner-info">
         <div className="banner-icon">i</div>
         <div>
           Set the budget, hold-backs and hire target. The application target comes off the hire target.
-          Open roles come from Location priorities.
+          Open roles come from Location priorities. Settings marked &ldquo;applies to both roles&rdquo; are shared.
         </div>
       </div>
 
@@ -3211,8 +3222,8 @@ function SetupTab({ state, setState, onOpenPriorities, container }) {
         </div>
       </div>
 
-      {ROLES.map(role => (
-        <div className="card" key={role}>
+      {[roleView].map(role => (
+        <div className="card" key={role} data-panel={'setup-' + role}>
           <div className="card-head">
             <div className={'role-badge'} style={{
               background: role === 'SMR' ? 'var(--rac-orange)' : 'var(--em-blue)',
@@ -3342,17 +3353,6 @@ function SetupTab({ state, setState, onOpenPriorities, container }) {
               plan={buildFundingPlan(role, { ...planParams(role, state), appTarget: state.appTarget[role] || 0 })}
               fmt={{ fmtGBP, fmtInt, monthShort }} />
 
-            <div className="section-label" style={{ marginTop: 16 }}>Cost limits</div>
-            <RACUI.CostLimits role={role} state={state} update={update} regions={state.liveRegions[role] || []}
-              plan={buildFundingPlan(role, { ...planParams(role, state), appTarget: state.appTarget[role] || 0 })}
-              fmt={{ fmtGBP, fmtInt }} />
-
-            {role === ROLES[0] && (
-              <>
-                <div className="section-label" style={{ marginTop: 16 }}>What the market was doing</div>
-                <RACUI.MarketTable />
-              </>
-            )}
 
             {(container && container.demand && container.demand._carriedFrom && !pinned) && (
               <div className="banner banner-warn" style={{ marginBottom: 12 }}>
@@ -3442,7 +3442,23 @@ function SetupTab({ state, setState, onOpenPriorities, container }) {
               })}
             </div>
 
-            <CoverageMatrix role={role} state={state} setState={setState} />
+            {/* The two per-location limit tables together (feedback 3): where
+                platforms run and spend limits in pounds; then unit costs. */}
+            <div data-panel={'location-limits-' + role} style={{ marginTop: 22 }}>
+              <div className="section-label" style={{ fontSize: 13 }}>Location limits</div>
+              <div className="help-text" style={{ marginBottom: 4 }}>
+                Two tables, both by location: the first sets where each platform runs and the least and most a location
+                may spend in pounds; the second sets the most a hire or an application may cost.
+              </div>
+              <CoverageMatrix role={role} state={state} setState={setState} />
+              <div className="section-label" style={{ marginTop: 16 }}>Cost limits</div>
+              <RACUI.CostLimits role={role} state={state} update={update} regions={state.liveRegions[role] || []}
+                plan={buildFundingPlan(role, { ...planParams(role, state), appTarget: state.appTarget[role] || 0 })}
+                fmt={{ fmtGBP, fmtInt }} />
+            </div>
+
+            {/* The market guide, for either role, closed until opened (feedback 2). */}
+            <RACUI.MarketGuide />
           </div>
         </div>
       ))}
@@ -5523,6 +5539,9 @@ function exportPlanPDF(state, roleFilter, opts) {
 // ====================================================================
 const CHANGELOG = [
   { date: '22 Sep', items: [
+    'Setup shows one role at a time and follows the SMR / Patrol switch at the top. The two per-location limit tables sit together under Location limits.',
+    'The market guide is on Setup for either role, closed until opened, and now includes Indeed’s monthly Hiring Insights figures for the three job titles (competition score, jobs and jobseekers per job). It is a guide only; nothing from it goes into the PDF or the workings.',
+    'OneRAC tab: its cards use the same spacing as the other tabs.',
     'Plan tab and PDF now show the same tables, with the same columns in the same order: total spend, fee, media, plan cost per application (media), predicted applications, quality rate, hire rate from quality applications, hire adjustment, plan cost per hire (media) and predicted hires, with ranges under their figures. The location table adds notes and VAFs; each platform table adds the base cost per application and the CPA adjustments that multiply it to the plan figure. Totals are the sums of the rows. The Platforms tab has gone.',
     'Cost per application and cost per hire are now on media spend, with platform fees shown separately everywhere, including the summary. Cost limits are judged on media cost.',
     'Renamed everywhere: the spend-level adjustment is now the diminishing returns adjustment, and the remaining-error adjustment is now the real-world CPA outcome adjustment. It comes from the assumptions file only; Setup no longer has a field for it.',
@@ -10151,7 +10170,7 @@ function App() {
             {tool === 'planner' && !comparing && (
               <>
                 {tab === 'setup' && <SetupTab state={plannerState} setState={setPlannerState} container={container}
-                  onOpenPriorities={() => setTool('priorities')} />}
+                  role={roleView} setRole={setRoleView} onOpenPriorities={() => setTool('priorities')} />}
                 {tab === 'plan' && <PlanTab state={plannerState} setState={setPlannerState} role={roleView} setRole={setRoleView} />}
                 {tab === 'benchmarks' && <RACUI.BenchmarksTab state={plannerState} setState={setPlannerState} role={roleView} setRole={setRoleView}
                   dataVersion={DATA_VERSION} fmt={{ fmtGBP, fmtInt, monthShort }} />}
