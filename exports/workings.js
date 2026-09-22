@@ -383,7 +383,7 @@
   }
 
   function capBasis(plan, c, f) {
-    return `${c.ceilingBasis} ${f.gbp(c.ceilingBase)} ${f.mult(plan.capMultiple)}${c.feeRate > 0 ? '; planned spend held to it plus the fee' : ''}`;
+    return `${c.ceilingBasis} ${f.gbp(c.ceilingBase)} ${f.mult(plan.capMultiple)}${c.feeRate > 0 ? '; planned spend is capped at it plus the fee' : ''}`;
   }
 
   // The front page: what went in, what came out.
@@ -590,7 +590,7 @@
   // Every month tested for the spending caps, and the cap it set. The tests,
   // "Counted" and each month's cap are formulas over the cells beside them,
   // so the sheet shows the tests being applied (points 35 and 36). Caps are
-  // on media spend; planned spend is held to the cap plus any fee.
+  // on media spend; planned spend is capped at the cap plus any fee.
   function successfulMonths(plan, f) {
     const A = plan.A;
     const drop = RAC.assumptions.get(A, 'quality_test_drop');
@@ -652,7 +652,7 @@
       s.body([loc.region, lc.month, lc.byPlat.indeed, lc.byPlat.meta, lc.byPlat.google, lc.byPlat.appcast, lc.media, lc.capMedia, rowSum,
         (lc.capMedia < rowSum - 0.005 ? 'location cap' : 'platform caps') + extra], [null, null, GBP2, GBP2, GBP2, GBP2, GBP2, GBP2, GBP2, null]);
     });
-    s.note(`The location cap is ${RAC.assumptions.get(A, 'cap_location_month_limit')} x the most in one month x the spending cap multiple (${f.mult(plan.capMultiple)}), on media spend; planned spend is held to it with each platform’s fee added where fees apply.`);
+    s.note(`The location cap is ${RAC.assumptions.get(A, 'cap_location_month_limit')} x the most in one month x the spending cap multiple (${f.mult(plan.capMultiple)}), on media spend; planned spend is capped at it with each platform’s fee added where fees apply.`);
     return { sheet: s, capRow, capCol: C.cap };
   }
 

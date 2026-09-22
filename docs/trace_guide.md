@@ -122,7 +122,7 @@ adjustment, so the caps stay the same whichever window a plan uses.
 June 2026 was the largest month that passed, at £7,192.78. A cap may be based on
 no more than 2 x the row's average monthly spend (2 x £5,359.88 = £10,719.76),
 so June stands, and the cap on media is £7,192.78 x 2 (the spending cap
-multiple): **£14,385.56**. Planned spend is held to that plus the Indeed fee.
+multiple): **£14,385.56**. Planned spend is capped at that plus the Indeed fee.
 This row was funded at £5,500.80 of media, inside it.
 
 The South East also has a location cap. Its biggest month across all platforms

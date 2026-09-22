@@ -192,13 +192,40 @@ does the amount left over look like more than they could really take?
    fees); attribution; any minimums not met; low-confidence rows; rows with no
    successful month.
 6. The table pages match the Plan tab (section 2).
-7. Method and glossary: the terms are "diminishing returns adjustment",
-   "real-world CPA outcome adjustment", "CPA adjustments", "Base cost per
-   application", "Plan cost per application (media)", "Hire adjustment",
-   "VAFs". Nothing should say "remaining-error", "spend-level" or "usual". The
-   Cost limits section says a cost per application limit replaces the row's
-   spending cap. The Spending caps section says that from plans for January
-   2027 the caps use the last 12 settled months.
+7. Method and glossary. The method is now numbered steps, in the order the
+   plan works and the order the table columns run, one step per point. Read it
+   straight through: it should make sense on its own, with no step that needs
+   another page to explain it.
+   - Points 1 to 11 are how the plan is worked out: hold-backs, platform fees,
+     hires from other sources, the share between locations by VAFs, the VAF
+     rule, the split within a location, the spending caps, what made a month
+     successful, the quality test, a row with no successful month, and cost
+     limits.
+   - Points 12 to 22 follow the table columns: which months count, base cost
+     per application, the thin-data, diminishing returns and real-world CPA
+     outcome adjustments, "Plan CPA (media)" and predicted applications, the
+     quality rate, attribution, the hire rate from quality applies, the hire
+     adjustment, then predicted hires and cost per hire.
+   - Then Months used, the two range points (the second ends "at least 12 test
+     months"), the budget for the target, and what is not included.
+   - Every figure should be there: £44 a day, 1.75%, 2.00%, 2.00%, 10.1 a
+     month, £200 and 5 applications, 25%, 10 quality applications, 2 x average
+     monthly spend, 31 days, £74.97, 35 applications, a factor of 0.65 with
+     27% and 57%, 1.077, 20.9%, 11.7%, x0.980, -18.5% to +19.2%, 800, 2,000
+     simulated months, 35%, 35 applications, 12 test months.
+   - Point 3 must say hires from other sources count towards the hire target
+     and are "not modelled on the budget". Point 7 must end "From January 2027
+     onwards, these caps will be based on the last 12 settled months instead of
+     everything since January 2026." Point 11 must say a cost per application
+     limit replaces the row's spending cap. Point 19 is the attribution point
+     on Meta and Google.
+   - The terms are "diminishing returns adjustment", "real-world CPA outcome
+     adjustment", "CPA adjustments", "Base cost per application", "Plan cost
+     per application (media)", "Hire adjustment", "VAFs". Nothing should say
+     "remaining-error", "spend-level", "usual" or "held to", and no sentence
+     should read as a sum ("divided by 1 plus the fee rate" and the like). Say
+     if any sentence still reads as arithmetic.
+   - The glossary below it should use the same words as the points.
 8. The stamp is on the last page only, bottom left, and starts "Reference:": a
    short code, the applicant tracking data date, the month the ad data runs to
    and the assumptions date. It names no file and holds no link.
@@ -297,13 +324,20 @@ means something slipped past that check.
 
 ## 11. The other screens (10 minutes)
 
-1. **Assumptions tab.** Every value, what this plan used, what testing gave,
+1. **Method tab.** The same numbered method as the PDF (section 6, step 7),
+   with this plan's own figures, and the version stamp underneath. Switch the
+   role in the header: the figures should change with it (the SMR real-world
+   CPA outcome adjustment reads 1.077, Patrol 1.000, and Patrol's point says
+   the misses were not in the same direction with every test month left out, so
+   no adjustment is applied).
+2. **Assumptions tab.** Every value, what this plan used, what testing gave,
    where it came from and when it was set. The quality blend is 35, the SMR
-   real-world CPA outcome adjustment 1.00 with its tested figure beside it, and
-   the two rolling-cap rows (ceiling_rolling_from 2027-01,
-   ceiling_rolling_months 12) are there. This tab is for the team, so it still
-   uses the file's own source words.
-2. **Changelog screen.** The 22 Sep release notes cover the tables, costs on
+   real-world CPA outcome adjustment 1.0769 with its tested figure beside it,
+   and the two rolling-cap rows (ceiling_rolling_from 2027-01,
+   ceiling_rolling_months 12) are there. The diminishing returns row now reads
+   "factor", not "rate". This tab is for the team, so it still uses the file's
+   own source words.
+3. **Changelog screen.** The 22 Sep release notes cover the tables, costs on
    media, the renames, cost limits, the VAF rule, the budget for the target,
    Setup following the role switch and the market guide. They should say
    nothing about where the app is kept or hosted. A test link cannot write, so

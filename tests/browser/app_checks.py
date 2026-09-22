@@ -256,7 +256,10 @@ with sync_playwright() as pw:
         fails.append('Method tab not shown')
     else:
         mt = method.inner_text()
-        needed = ['Platform fees', 'Spending caps', 'Testing and the settings used', 'Code b0a7d5c', 'rate of 0.65', 'real-world CPA outcome adjustment (1.077)', 'Cost limits']
+        # The method is numbered steps (user decision, 22 September 2026).
+        needed = ['How the plan is worked out', 'Platform fees', 'Spending caps', 'Cost limits',
+                  'Code b0a7d5c', 'factor of 0.65', 'Real-world CPA outcome adjustment: 1.077',
+                  'Hire adjustment: x0.980', 'Settings, and what is not included']
         missing = [n for n in needed if n not in mt]
         if missing:
             fails.append(f'Method tab lacks {missing}')
@@ -472,7 +475,7 @@ with sync_playwright() as pw:
         cell = page.locator('[data-panel="cost-limits-SMR"] [data-limit="cpa-South East-indeed"]').inner_text()
         if 'limit applied: spend' not in cell:
             fails.append('Setup does not show the spend the limit produced: ' + cell)
-        notes.append(f"cost limits: South East Indeed held to £45 an application moved the plan from "
+        notes.append(f"cost limits: South East Indeed capped at £45 an application moved the plan from "
                      f"{before_plan['apps']:.0f} to {after[0]} applications, as the planner says; Setup shows \"{' '.join(cell.split())}\"")
     if errors or guard.blocked or guard.writes:
         fails.append(f'cost limits run: errors {errors[:2]}, blocked {guard.blocked[:3]}, writes {guard.writes[:3]}')

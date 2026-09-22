@@ -188,9 +188,9 @@ export default function (check, { assert, near }) {
       return { m, g, mu };
     };
     const t = texts(on, A);
-    for (const [k, v] of Object.entries(t)) assert(/held to 2 x the location and platform’s average monthly spend|held to 2 x its average monthly spend/.test(v), `${k}: row limit not stated`);
-    assert(/its own cap: the most it spent in one of those months, all platforms together, x the spending cap multiple/.test(t.m) && /its own cap/.test(t.mu), 'location cap not stated');
-    assert(/Location spending cap: /.test(t.g) && /no limit on the plan as a whole/.test(t.m), 'glossary or plan-level wording');
+    for (const [k, v] of Object.entries(t)) assert(/cannot be more than 2 x the location and platform’s average monthly spend|capped at 2 x its average monthly spend/.test(v), `${k}: row limit not stated`);
+    assert(/capped at the most it spent in one of those months, all platforms together, times the spending cap multiple/.test(t.m) && /capped at the most it spent/.test(t.mu), 'location cap not stated');
+    assert(/Location spending cap: /.test(t.g) && /no cap on the plan as a whole/.test(t.m), 'glossary or plan-level wording');
     const t0 = texts(off, RAC.assumptions.withValues(A, { cap_row_usual_limit: 0, cap_location_month_limit: 0 }));
     assert(!/Location spending cap: /.test(t0.g) && /no cap of their own/.test(t0.m), 'wording with the limits off');
     const bound = on.locations.filter(l => l.capReason.startsWith('location spending cap')).map(l => l.region);

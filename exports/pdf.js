@@ -278,7 +278,7 @@
         `Spend above past levels: ${F.gbp(p.aboveLargestSuccessful.total)} (${share(p.aboveLargestSuccessful.total)} of placed spend) is above the month each spending cap was based on`,
         ...(aboveRun > 0.5 ? [`${F.gbp(aboveRun)} (${share(aboveRun)}) is above the largest month the location and platform ran since ${capFirst}`] : []),
         ...(unrun.length ? [`${F.gbp(unrunTotal)} (${share(unrunTotal)}) is in ${F.list(unrun.map(c => `${c.region} ${L()[c.platform]}`))}, which had no spend of ${unrun.length === 1 ? 'its' : 'their'} own since ${capFirst}`] : []),
-      ].join('; ') + '. Predictions for spend above past levels are based on the rate at which cost per application rises with spend.';
+      ].join('; ') + '. Predictions for spend above past levels are based on how much cost per application rises with spend.';
       const reEntry = RAC.assumptions.entry(p.A, 'remaining_error_factor', d.role) || {};
       const reUsed = ca.remainingError, reTested = reEntry.testedValue;
       const lines = [

@@ -90,7 +90,7 @@ export default function (check, { assert }) {
     const texts = [...pdfOf(plan).texts, ...RAC.workings.build([doc('SMR', plan)], opts).texts,
       ...RAC.text.method(plan.A, 'SMR', plan, bt).flatMap(s => s.paras)];
     const all = texts.join('\n');
-    ['x1 (this plan)', 'x2', 'x3', 'cap multiples of x1, x2 and x3', 'spending cap multiple (x1 in this plan)'].forEach(t => assert(all.includes(t), 'missing: ' + t));
+    ['x1 (this plan)', 'x2', 'x3', 'cap multiples of x1, x2 and x3', 'spending cap multiple (x1 in this plan'].forEach(t => assert(all.includes(t), 'missing: ' + t));
     const pctMultiple = texts.filter(t => /(cap multiple|multiple of)[^.]{0,20}\d{3}%|\d{3}% cap multiple/i.test(t));
     assert(!pctMultiple.length, 'a multiple shown as a percentage: ' + pctMultiple[0]);
     return 'x1, x2, x3 in the PDF, workings and method text; no multiple shown as a percentage';

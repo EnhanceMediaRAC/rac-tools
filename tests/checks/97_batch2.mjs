@@ -104,7 +104,7 @@ export default function (check, { assert, near }) {
     const c = r.locations.find(l => l.region === 'South East').cells.indeed;
     assert(c.ceilingMonths.every(m => m.month >= '2026-04'), 'a cap looked at an earlier month');
     const text = RAC.text.method(A, 'SMR', oct, bt).flatMap(s => s.paras).join(' ');
-    assert(/From plans for January 2027, the caps use the last 12 settled months/.test(text), 'method text does not record the switch');
+    assert(/From January 2027 onwards, these caps will be based on the last 12 settled months/.test(text), 'method text does not record the switch');
     return `October 2026 and January 2027 caps from January 2026 (data to July 2026); with the rule set to 4 months from October 2026: ${r.capMonths.join(', ')}; the method text records the January 2027 switch`;
   });
 

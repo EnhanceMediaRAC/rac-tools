@@ -30,7 +30,7 @@
 //   C4 Cap = largest successful month x the spending cap multiple. With
 //      no successful month, the cell's average monthly spend over those
 //      months (or the platform's typical month) x the multiple, flagged. The
-//      month a cap is based on is held to cap_row_usual_limit x the row's
+//      month a cap is based on is capped at cap_row_usual_limit x the row's
 //      average monthly spend, so a single unusual month cannot set a cap
 //      (user decision, 18 September 2026).
 //   Location cap: cap_location_month_limit x the most the location spent in
@@ -114,7 +114,7 @@
     const rowMax = rowLimit > 0 && bench.spendBasis === 'own' && bench.spendUsual > 0 ? rowLimit * bench.spendUsual : Infinity;
     if (largestSuccessful > rowMax + 1e-9) {
       base = rowMax; rowLimited = true;
-      basis = `largest successful month held to ${rowLimit} x average monthly spend`;
+      basis = `largest successful month, capped at ${rowLimit} x average monthly spend`;
     } else if (largestSuccessful > 0) { base = largestSuccessful; basis = 'largest successful month'; }
     else {
       base = bench.spendUsual;

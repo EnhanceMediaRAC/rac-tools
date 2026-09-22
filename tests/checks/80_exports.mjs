@@ -36,18 +36,18 @@ export default function (check, { assert }) {
     const t0 = allText(A, 'SMR', build('SMR'));
     const bench = RAC.assumptions.get(A, 'role_cpa_benchmark', 'SMR').toFixed(2);
     const reTested = RAC.assumptions.entry(A, 'remaining_error_factor', 'SMR').testedValue.toFixed(3);
-    for (const need of ['31 days', '0.65', `£${bench}`, '1.75%', '2.00%', 'October 2026', `(${reTested})`, 'testing gave 0.7', '35 further applications', '800', '12 test months', RAC.text.ATTRIBUTION, RAC.text.OTHER_SOURCES_LINE]) {
+    for (const need of ['31 days', '0.65', `£${bench}`, '1.75%', '2.00%', 'October 2026', `(${reTested})`, 'factor of 0.65', 'strength of 35 applications', 'strength of 800', '12 test months', RAC.text.ATTRIBUTION, RAC.text.OTHER_SOURCES_LINE]) {
       assert(t0.includes(need), 'SMR text lacks ' + need);
     }
     const changed = RAC.assumptions.withValues(A, { data_settle_days: 45, d1_role_rate: 0.5, fee_rate_meta: 0.03, screen_blend_n: { SMR: 350 } });
     const t1 = allText(changed, 'SMR', build('SMR', OCT, changed));
-    for (const need of ['45 days', 'rate of 0.5', 'Meta 3.00%', 'as if 350 further']) assert(t1.includes(need), 'changed text lacks ' + need);
-    for (const gone of ['31 days', 'rate of 0.65', 'Meta 2.00%']) assert(!t1.includes(gone), 'changed text still says ' + gone);
+    for (const need of ['45 days', 'factor of 0.5', 'Meta 3.00%', 'strength of 350 applications']) assert(t1.includes(need), 'changed text lacks ' + need);
+    for (const gone of ['31 days', 'factor of 0.65', 'Meta 2.00%']) assert(!t1.includes(gone), 'changed text still says ' + gone);
     const plan = build('SMR', { ...OCT, otherHiresMonthly: 12, capMultiple: 3 });
     const t2 = allText(plan.A, 'SMR', plan);
     for (const need of ['12.0 a month (set for this plan', 'It is set for every plan, not plan by plan', 'x3 in this plan']) assert(t2.includes(need), 'plan text lacks ' + need);
     const patrol = allText(A, 'Patrol', build('Patrol'));
-    assert(/For Patrol it did not hold, so the adjustment is 1\.00/.test(patrol), 'Patrol text does not say its adjustment did not hold');
+    assert(/not in the same direction with every test month left out, so no adjustment is applied/.test(patrol), 'Patrol text does not say why its adjustment is 1.00');
     assert(/September 2026|earlier month, so it includes no fees/.test(allText(A, 'SMR', build('SMR', { ...OCT, planMonth: '2026-09' }))), 'September plan text does not say it has no fees');
     return 'settle days, rates, fees, benchmark, adjustment and its rule, tested figures, row widening, switch rule and the agreed attribution wording all follow the values';
   });
