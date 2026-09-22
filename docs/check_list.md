@@ -90,10 +90,10 @@ BUILD_PROGRESS.md in the data folder):
 - **Costs are on media.** Cost per application, cost per hire and cost limits
   now leave the fee out; fees are shown in their own column and lines. The
   split between platforms still treats a platform with a fee as dearer.
-- **SMR's real-world CPA outcome adjustment is now 1.00** (it was 1.096). The
-  tested values were worked out again after the two changes below, and under
-  the rules already set the adjustment no longer held with every test month
-  left out. This added about a hire to SMR.
+- **SMR's real-world CPA outcome adjustment is 1.077** (it was 1.096). The
+  tested values were worked out again after the two changes below, and the
+  adjustment is now learned from every test month rather than the latest
+  three, by decision on 22 September.
 - **Quality blend 35** for Indeed and Appcast, both roles (it was 200): about
   0.3 fewer hires for each role.
 - **Role benchmark cost per application** is each role's average over the
@@ -107,11 +107,11 @@ The October figures after these changes:
 
 | | Hires (paid + other) | Applications | Placed | Not placed |
 |---|---|---|---|---|
-| SMR x1 | 21.9 (11.8 + 10.1) | 601 | £46,595 | £46,191 |
-| SMR x2 | 26.4 | 833 | £73,136 | £19,650 |
-| SMR x3 | 29.1 | 958 | £91,941 | £845 |
+| SMR x1 | 21.0 (10.9 + 10.1) | 558 | £46,595 | £46,191 |
+| SMR x2 | 25.3 (15.2 + 10.1) | 773 | £73,136 | £19,650 |
+| SMR x3 | 27.7 (17.6 + 10.1) | 890 | £91,941 | £845 |
 | Patrol x1 | 24.8 (10.9 + 13.9) | 786 | £67,215 | £6,985 |
-| Patrol x2 | 25.6 | 857 | £71,735 | £2,465 |
+| Patrol x2 | 25.6 (11.7 + 13.9) | 857 | £71,735 | £2,465 |
 
 Budget not placed is a real result: it says the plan would be spending more in a
 place than it has ever absorbed in a month. Ask: for the locations you know,
@@ -123,7 +123,7 @@ does the amount left over look like more than they could really take?
    target, less the hires expected from other sources, gives the paid-media
    hires needed; then the hold-backs plus what is placed for them gives the
    budget.
-2. For SMR (30 hires, out of reach) the box reads "Most 21.9 hires", "needing a
+2. For SMR (30 hires, out of reach) the box reads "Most 21.0 hires", "needing a
    total budget of £55,800 (£46,595 placed plus £9,164 held back)", and the line
    below it reads "Spend above £55,800 has not successfully driven results:
    every location and platform would be above the largest month that worked
