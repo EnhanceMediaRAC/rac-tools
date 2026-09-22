@@ -214,30 +214,42 @@ archive is frozen.
 Some values in `assumptions.csv` are measured from RAC's data and move a little
 each month; others were set by Enhance and switch to a tested figure only when
 the switch rule is met (at least 12 test months, and leaving out any one month
-does not change the result). This review keeps the file current. Biraag
-decides each change; the app author makes it, because it is an edit to the
-repository (step 5).
+does not change the result). This review keeps the file current.
+
+**The app author carries out this review.** Biraag decides what changes;
+the app author does the work, because every change is an edit to the
+repository.
+
+- **Biraag:** uploads the new month's data (step 1) and decides each change
+  (steps 4 and 6). He does not edit the repository.
+- **The app author:** runs the import comparison, runs the tests, reads the
+  Assumptions tab against the file, then edits `assumptions.csv` on a branch,
+  checks the branch's test link and merges (steps 2, 3, 5 and 7).
 
 1. **Upload the new month's data** on the Data tab once it has settled (31 days
-   after the month ended). Biraag.
+   after the month ended). **Biraag.**
 2. **When a new applicant tracking (Eploy) file arrives,** run the import with
    the comparison against the previous one (`docs/eploy_import.md`) and review
-   any shift above 10%. App author, with Biraag.
+   any shift above 10%. **App author**, who tells Biraag about any shift.
 3. **Run the tests on past months, without writing:**
 
        node tools/calibrate.mjs
 
-   and compare every tested figure with the file. App author.
-4. **Open the Assumptions tab** on the live address: it lists any set value
-   whose tested figure now meets the switch rule. Biraag.
+   and compare every tested figure with the file. **App author**, who sends
+   Biraag the differences.
+4. **Decide the changes.** The Assumptions tab on the live address lists any
+   set value whose tested figure now meets the switch rule; the app author's
+   step 3 gives the measured values that have moved. **Biraag** decides which
+   to take, and says so in writing.
 5. **Make the changes Biraag decided:** edit `assumptions.csv` on a branch (or
    run `node tools/calibrate.mjs --write` for the measured values and review the
-   difference), check the branch's test link, then merge. Record the decision
-   and its date in the row's notes. App author, not Biraag.
+   difference), check the branch's test link, then merge. Record the decision,
+   who made it and its date in the row's notes. **App author, not Biraag.**
 6. **Quarterly:** measure the settle period and the quality and hire maturity
    rules again, and review the values the Assumptions tab marks as quarterly
-   (the cap multiple default, the cap rules, the thin-data blend). Biraag
-   decides; the app author makes any change as in step 5.
+   (the cap multiple default, the cap rules, the thin-data blend). **Biraag**
+   decides.
+7. **Make any quarterly change** the same way as step 5. **App author.**
 
 From plans for January 2027 the spending caps use the last 12 settled months
 instead of every month since January 2026 (`ceiling_rolling_from`,

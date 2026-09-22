@@ -140,4 +140,21 @@ export default function (check, { assert, near }) {
     assert(!internalText(doc).length, 'the release document fails the output checks: ' + internalText(doc).join('; '));
     return 'every check to run, the back-up, the archive copy and the match against the live exports are all in docs/release.md';
   });
+  check('Release steps: the monthly review names who does each step', () => {
+    const doc = readRoot('docs/release.md');
+    const i = doc.indexOf('## Each month, before the plan');
+    assert(i > 0, 'docs/release.md has no monthly review section');
+    const sec = doc.slice(i, doc.indexOf('\n## ', i + 5));
+    ['The app author carries out this review', 'Biraag decides what changes',
+      'edits `assumptions.csv` on a branch', "checks the branch's test link and merges",
+      'App author, not Biraag']
+      .forEach(t => assert(sec.includes(t), 'the monthly review section does not say: ' + t));
+    // Every numbered step says whose it is.
+    const steps = sec.split(/\n(?=\d+\. )/).slice(1);
+    assert(steps.length >= 7, 'the monthly review has fewer steps than expected: ' + steps.length);
+    steps.forEach((t, n) => assert(/\*\*(Biraag|App author)/.test(t),
+      'monthly review step ' + (n + 1) + ' does not name who does it'));
+    return "the monthly review is the app author's, Biraag decides, and every step names its owner";
+  });
+
 }
