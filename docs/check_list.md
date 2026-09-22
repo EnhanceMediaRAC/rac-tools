@@ -65,7 +65,7 @@ you check here holds for the PDF too.
 6. Read the Notes column. Each location says what held it, in these words:
    "Every platform at its spending cap", "At the most this location has spent
    in a month", "At the maximum set for this plan", "Held by caps and cost
-   limits", "At the cost per hire limit set for this plan", "Hires held to its
+   limits", "At the cost per hire limit set for this plan", "Hires capped at its
    VAFs", "Spend set by the cost limit for this plan", "No spend in this plan",
    "Minimum £A not met: £X short, held by caps", "Low confidence: little
    evidence behind the hires", or "Full share of budget placed" where nothing

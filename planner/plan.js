@@ -417,7 +417,7 @@
         [locCap, 'location spending cap (largest month x multiple)'],
         [base.softCaps ? Infinity : l.capacity, l.limited.length ? 'spending caps and cost per application limits' : 'spending caps (largest successful month x multiple)'],
         [l.cphCap, 'cost per hire limit'],
-        [l.vafCap, 'hires held to its VAFs'],
+        [l.vafCap, 'hires capped at its VAFs'],
       ];
       const [cap, reason] = options.reduce((a, b) => (b[0] < a[0] ? b : a));
       l.cap = cap; l.capReason = reason;
@@ -670,7 +670,7 @@
     'spending caps (largest successful month x multiple)': 'Every platform at its spending cap',
     'spending caps and cost per application limits': 'Held by caps and cost limits',
     'cost per hire limit': 'At the cost per hire limit set for this plan',
-    'hires held to its VAFs': 'Hires held to its VAFs',
+    'hires capped at its VAFs': 'Hires capped at its VAFs',
   };
   function locationNotes(loc, shortfalls, regionMax) {
     const out = [];

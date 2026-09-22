@@ -57,9 +57,9 @@ export default function (check, { assert, near }) {
     const p = build('SMR', inputs);
     const over = p.locations.filter(l => l.hires > l.vacancies + 1e-6);
     assert(!over.length, 'over their VAFs: ' + over.map(l => `${l.region} ${l.hires.toFixed(2)} of ${l.vacancies}`).join(', '));
-    const held = p.locations.filter(l => l.capReason === 'hires held to its VAFs' && l.spend >= l.cap - 1);
+    const held = p.locations.filter(l => l.capReason === 'hires capped at its VAFs' && l.spend >= l.cap - 1);
     assert(held.length > 0, 'expected a location held by the VAF rule');
-    held.forEach(l => { near(l.hires, l.vacancies, 0.01, `${l.region} held at its VAFs`); assert(l.notes.includes('Hires held to its VAFs'), `${l.region} note`); });
+    held.forEach(l => { near(l.hires, l.vacancies, 0.01, `${l.region} capped at its VAFs`); assert(l.notes.includes('Hires capped at its VAFs'), `${l.region} note`); });
     near(p.holdbacks.total + p.placed + p.unplaced.total, inputs.budget, 0.01, 'budget conserved');
     return `at £400,000, x3 and full efficiency: ${held.map(l => `${l.region} held at ${l.hires.toFixed(2)} hires for ${l.vacancies} VAFs`).join(', ')}; no location above its VAFs; budget conserved`;
   });
