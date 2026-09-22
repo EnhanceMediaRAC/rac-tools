@@ -1,15 +1,18 @@
-// Setup and Plan panels for the planner's core settings and for targets the
-// spending caps put out of reach. Loaded by index.html as a Babel script
-// before the app; exposed as window.RACUI.CoreSettings and
-// window.RACUI.ReachPanel and window.RACUI.FeesNote. Formatting helpers are passed in by the app.
+// Setup and Plan panels for the planner's core settings, for targets the
+// spending caps put out of reach, and the Plan tab's tables. Loaded by
+// index.html as a Babel script before the app; exposed as
+// window.RACUI.CoreSettings, ReachPanel, FeesNote and PlanTables. Formatting
+// helpers are passed in by the app.
 //
 // Core Setup fields (user decision, 17 September 2026). Each is saved with the
 // plan and shown with its default from assumptions.csv beside it:
 //   capMultiple        spending cap multiple, 1 to 3 (both roles)
 //   otherHiresShare    share of other-source hires credited to paid media, per role
 //   otherHiresMonthly  expected hires from other sources per month, per role
-//   remainingError     remaining-error adjustment, per role
 //   includeSettling    include months still settling (both roles)
+// The real-world CPA outcome adjustment is no longer set here: it comes from
+// the assumptions file and shows on the Assumptions tab (user decision,
+// 22 September 2026).
 (function () {
   const { useState, useEffect } = React;
   const RACUI = (window.RACUI = window.RACUI || {});
@@ -37,7 +40,7 @@
     const t = String(s).replace(/[^0-9.]/g, '');
     return t === '' || isNaN(Number(t)) ? null : Number(t);
   };
-  const sourceLabel = (s) => (s === 'tested' || s === 'agreed' || s === 'agreed, informed by tests' ? s : 'starting value');
+  const sourceLabel = (s) => (s ? RAC.text.sourceLabel(s) : 'starting value');
 
   function Row({ label, children, note }) {
     return (
@@ -97,18 +100,6 @@
             parse={t => num(t)}
             onCommit={v => perRole('otherHiresMonthly', v)} />
         </Row>
-        <Row label="Remaining-error adjustment"
-          note={<>
-            Multiplies every planned cost per application (0.50 to 2.00). Default {s.remainingError.default.toFixed(3)} ({sourceLabel(s.remainingError.source)}):
-            testing on past months still missed by {s.remainingError.tested != null ? s.remainingError.tested.toFixed(3) : 'n/a'}, which is used only
-            if it stays on the same side of 1 with any one test month left out.
-            {s.remainingError.changed && <> {reset(() => perRole('remainingError', null))}.</>}
-          </>}>
-          <NumberField field={'remaining-error-' + role} value={s.remainingError.value}
-            format={v => v.toFixed(3)}
-            parse={t => { const n = num(t); return n === null ? null : Math.min(2, Math.max(0.5, n)); }}
-            onCommit={v => perRole('remainingError', v)} />
-        </Row>
         <Row label="Efficiency"
           note={<>
             0% by default: the money is split between locations by their open roles, as it always has been. Above 0 the
@@ -151,8 +142,8 @@
         <div style={{ flex: 1 }}>
           <strong>{target} hires cannot be reached within the spending caps.</strong>{' '}
           At a cap multiple of {RAC.text.fmt.mult(v2.capMultiple)} the most the plan can deliver is {r.mostHires.toFixed(1)} hires,
-          reached at a budget of {fmtGBP(r.saturationBudget)}; spend above that adds no hires, because every location
-          and platform is at its cap. At this plan&rsquo;s budget, {fmtGBP(r.unplaced)} could not be placed.
+          needing a total budget of {fmtGBP(r.saturationBudget)} ({fmtGBP(r.saturationPlaced)} placed plus {fmtGBP(r.saturationHoldbacks)} held back).
+          {' '}{RAC.text.reachSentence(v2)} At this plan&rsquo;s budget, {fmtGBP(r.unplaced)} could not be placed.
           <table className="alloc-table" style={{ marginTop: 10, maxWidth: 760 }}>
             <thead>
               <tr>
@@ -160,7 +151,7 @@
                 <th className="num">Hires at {fmtGBP(v2.budget)}</th>
                 <th className="num">Not placed</th>
                 <th className="num">Budget for {target} hires</th>
-                <th className="num">Most hires (budget where they stop rising)</th>
+                <th className="num">Most hires (total budget where they stop rising)</th>
               </tr>
             </thead>
             <tbody>
@@ -195,13 +186,61 @@
           <strong>Platform fees included: {fmtGBP(f.total)}.</strong>{' '}
           Indeed {pct(f.rates.indeed)}, Meta {pct(f.rates.meta)} and Google {pct(f.rates.google)} of media spend, inside the budget (Appcast has none).
           {' '}{['indeed', 'meta', 'google'].map(p => `${L[p]}: media ${fmtGBP(f.byPlatform[p].media)}, fee ${fmtGBP(f.byPlatform[p].fee)}`).join('; ')};
-          {' '}Indeed Premium fee {fmtGBP(f.premium)}. Forecasts use media spend; costs per application and per hire include the fee.
+          {' '}Indeed Premium fee {fmtGBP(f.premium)}. Fees are shown separately; forecasts, cost per application and cost per hire use media spend.
         </div>
       </div>
     );
   }
 
+  // The plan's tables, the same ones the PDF draws (exports/tables.js):
+  // locations, platforms, then each platform by location. A second line under
+  // a figure is its range, or the parts of the CPA adjustments.
+  function PlanTables({ plan }) {
+    if (!plan) return null;
+    return (
+      <div data-panel="plan-tables">
+        {RAC.tables.all(plan).map(t => (
+          <div className="card" key={t.key} data-table={t.key}>
+            <div className="card-head">
+              <div className="card-title">{t.title}</div>
+            </div>
+            <div className="card-body" style={{ padding: 0, overflowX: 'auto' }}>
+              <table className="alloc-table">
+                <thead>
+                  <tr>{t.columns.map(c => <th key={c.key} className={c.align === 'right' ? 'num' : ''}>{c.label}</th>)}</tr>
+                </thead>
+                <tbody>
+                  {t.rows.map((r, ri) => (
+                    <tr key={ri} className={r.total ? 'total-row' : ''}>
+                      {r.cells.map((v, ci) => {
+                        const main = Array.isArray(v) ? v[0] : v;
+                        const sub = Array.isArray(v) ? v[1] : null;
+                        const c = t.columns[ci];
+                        const warn = r.warn && ci === (t.warnCol !== undefined ? t.warnCol : t.columns.length - 1);
+                        return (
+                          <td key={ci} className={c.align === 'right' ? 'num mono' : ''}
+                            style={{ fontWeight: ci === 0 || r.total ? 600 : 400, color: warn ? 'var(--warn)' : 'inherit', whiteSpace: c.wrap ? 'normal' : 'nowrap' }}>
+                            {main}
+                            {sub && <div className="help-text" style={{ fontSize: 11, marginTop: 1 }}>{sub}</div>}
+                          </td>
+                        );
+                      })}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              <div className="help-text" style={{ padding: '12px 16px' }}>
+                {t.notes.map((n, i) => <p key={i} style={{ margin: i ? '6px 0 0' : 0 }}>{n}</p>)}
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+    );
+  }
+
   RACUI.CoreSettings = CoreSettings;
+  RACUI.PlanTables = PlanTables;
   RACUI.ReachPanel = ReachPanel;
   RACUI.FeesNote = FeesNote;
 })();

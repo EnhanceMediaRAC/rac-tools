@@ -99,7 +99,8 @@ export default function (check, { assert, near }) {
     for (const plat of RAC.PLATFORMS) {
       let ps = 0, pa = 0;
       ds.regions.forEach(r => { const x = stats(r, plat); if (x.a > 0) { ps += x.s; pa += x.a; } });
-      const pcpa = pa > 0 ? (ps + 35 * 48.2) / (pa + 35) : 48.2;
+      const bench = RAC.assumptions.get(A, 'role_cpa_benchmark', 'SMR');
+      const pcpa = pa > 0 ? (ps + 35 * bench) / (pa + 35) : bench;
       for (const r of ds.regions) {
         const x = stats(r, plat);
         const want = x.a > 0 ? (x.s + 35 * pcpa) / (x.a + 35) : pcpa;
@@ -113,7 +114,10 @@ export default function (check, { assert, near }) {
 
   check('With part months counted, the method equals the previous prediction blend', () => {
     // Settling switched off: every month counts, as in the previous version.
-    const A0 = RAC.assumptions.withValues(A, { data_settle_days: 0 });
+    // The role benchmark is set to the previous method's figure (it became
+    // the role's average over the caps' months on 22 September 2026), so
+    // this compares the method alone.
+    const A0 = RAC.assumptions.withValues(A, { data_settle_days: 0, role_cpa_benchmark: { SMR: 48.2 } });
     const D = withRoleMonthly(BASE, F2A.raw, 'SMR');
     const ds = RAC.data.snapshot(D, { at: '2099-01-01', months: monthsOf(F2A) }, REPO);
     const ctx = RAC.cost.context(ds, A0, 'SMR', W);

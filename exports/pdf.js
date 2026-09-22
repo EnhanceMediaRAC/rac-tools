@@ -7,8 +7,9 @@
 //      the target (or what is reachable), assumptions and risks
 //   2. locations
 //   3. platforms
-//   4. location and platform, one table per platform, with the cost per
-//      application build-up, spending cap, quality and hire rates and ranges
+//   4. location and platform, one table per platform, with the base cost per
+//      application and the CPA adjustments
+//   Tables 2 to 4 come from exports/tables.js, which the Plan tab also uses.
 //   5. method and glossary (exports/text.js)
 // The last page carries the version stamp (exports/stamp.js, short form). Before saving, the
 // output checks (exports/checks.js) run on every string drawn, every table
@@ -36,8 +37,8 @@
     const cpa = [];
     Object.keys(lim.cpa || {}).forEach(r => P().forEach(q => { if ((lim.cpa[r] || {})[q] > 0) cpa.push(`${r} ${L()[q]} ${F.gbp(lim.cpa[r][q], 2)}`); }));
     const out = [];
-    if (cph.length) out.push(`Cost per hire limits: ${cph.map(r => `${r} ${F.gbp(lim.cph[r])}`).join(', ')}. The plan stops adding spend where a limit would be passed.`);
-    if (cpa.length) out.push(`Cost per application limits: ${cpa.join(', ')}.`);
+    if (cph.length) out.push(`Cost per hire limits (media): ${cph.map(r => `${r} ${F.gbp(lim.cph[r])}`).join(', ')}. The plan stops adding spend to a location where its limit would be passed.`);
+    if (cpa.length) out.push(`Cost per application limits (media): ${cpa.join(', ')}. Each replaces that row’s spending cap: spend continues until the predicted cost per application reaches the limit.`);
     if (!out.length) out.push('Cost limits: none set for this plan.');
     return out;
   }
@@ -146,7 +147,7 @@
           const small = Array.isArray(v) ? v[1] : null;
           const ax = c.align === 'right' ? x + c.w - 1.5 : x + 1.5;
           const al = c.align === 'right' ? { align: 'right' } : {};
-          font(7.2, r.total || ci === 0 ? 'bold' : 'normal', r.warn && ci === cols.length - 1 ? WARN : INK);
+          font(7.2, r.total || ci === 0 ? 'bold' : 'normal', r.warn && ci === (o.warnCol !== undefined ? o.warnCol : cols.length - 1) ? WARN : INK);
           if (lines[ci] && lines[ci].length > 1) {
             // A wrapping column: first line, then the rest on a second line in the same style.
             T(lines[ci][0], ax, y, al);
@@ -165,9 +166,6 @@
     }
 
     const range = (lo, hi, dp = 0) => `${F.num(lo, dp)} to ${F.num(hi, dp)}`;
-    const hireRange = (r) => (r && r.hires ? range(r.hires.low, r.hires.high, 0) : '');
-    const appRange = (r) => (r && r.apps ? range(r.apps.low, r.apps.high, 0) : '');
-    const x2 = (v, dp = 2) => (v === null || v === undefined || !isFinite(v) ? '-' : 'x' + v.toFixed(dp));
 
     function commentary(d, title) {
       [['legacy', 'Notes on the legacy plan'], ['plan', 'Notes on this plan']].forEach(([k, label]) => {
@@ -190,7 +188,7 @@
       titles.push({ title, plan: p });
       const colW = (PAGE_W - 2 * M - 10) / 2;
       const top = y;
-      // Left: the money.
+      // Left: the money. Fees are kept separate (user decision, 22 September 2026).
       font(10, 'bold', NAVY); T('Budget', M, y); y += 5;
       const money = [
         [`Monthly budget${fees && fees.on ? ' (including platform fees)' : ''}`, F.gbp(p.budget)],
@@ -198,51 +196,64 @@
         ['Combined Activity reserve', '- ' + F.gbp(hb.combined)],
       ];
       if (hb.oneRac > 0) money.push(['OneRAC hold-back', '- ' + F.gbp(hb.oneRac)]);
+      const boldRow = money.length;
       money.push(['Deployable budget', F.gbp(p.deployable)]);
       money.push(['Placed in the plan', F.gbp(p.placed)]);
+      if (fees && fees.on) {
+        money.push(['  media', F.gbp(t.media)]);
+        money.push([`  platform fees (Indeed ${F.pct(fees.rates.indeed, 2)}, Meta ${F.pct(fees.rates.meta, 2)}, Google ${F.pct(fees.rates.google, 2)})`, F.gbp(fees.placed, 2)]);
+      }
       money.push(['Budget the plan could not place efficiently', F.gbp(p.unplaced.total)]);
-      // Fees on placed spend only: the Indeed Premium fee is already in its own line (X1).
-      if (fees && fees.on) money.push([`of which platform fees on placed spend (Indeed ${F.pct(fees.rates.indeed, 2)}, Meta ${F.pct(fees.rates.meta, 2)}, Google ${F.pct(fees.rates.google, 2)})`, F.gbp(fees.placed, 2)]);
       money.forEach(([a, b], i) => {
-        font(8.5, i === 3 + (hb.oneRac > 0 ? 1 : 0) ? 'bold' : 'normal', INK);
-        T(a, M, y); T(b, M + colW, y, { align: 'right' });
-        y += 5;
+        const sub = a.startsWith('  ');
+        font(8.5, i === boldRow ? 'bold' : 'normal', sub ? MUTED : INK);
+        T(a.trim(), M + (sub ? 4 : 0), y); T(b, M + colW, y, { align: 'right' });
+        y += 4.4;
       });
       const leftEnd = y;
       // Right: the results.
       y = top;
       const x = M + colW + 10;
       font(10, 'bold', NAVY); T('Predicted results', x, y); y += 5;
-      const target = p.hireTarget > 0 ? (p.otherSourcesMeetTarget ? 'met by other sources alone'
-        : p.unreachable ? `out of reach within the spending caps: at most ${F.num(p.maxAchievable)} hires, reached at ${F.gbp(p.saturationBudget)}`
-          : `${F.gbp(p.budgetForTarget)}`) : 'no hire target set';
+      const tt = RAC.text.targetText(p);
       const res = [
         ['Predicted hires', `${F.num(t.allHires)}`, `range ${range(r.allHires.low, r.allHires.high)}`],
         ['  from paid media', `${F.num(t.hires)}`, `range ${range(r.hires.low, r.hires.high)}`],
-        ['  expected from other sources', `${F.num(t.otherHires)}`, `range ${range(r.otherHires.low, r.otherHires.high)}`],
+        ['  expected from other sources, not modelled on the budget', `${F.num(t.otherHires)}`, `range ${range(r.otherHires.low, r.otherHires.high)}`],
         ['Predicted applications', F.int(t.apps), `range ${range(r.apps.low, r.apps.high)}`],
         ['Quality applications', F.int(t.passed), ''],
-        ['Cost per application (paid media)', F.gbp(t.cpa, 2), ''],
-        ['Cost per hire (paid media)', F.gbp(t.cph), ''],
-        [p.hireTarget > 0 ? `Budget for ${p.hireTarget} hires` : 'Budget for the target', target, ''],
+        ['Cost per application (media)', F.gbp(t.cpa, 2), ''],
+        ['Cost per hire, paid media (media)', F.gbp(t.cph), ''],
+        [p.hireTarget > 0 ? `Budget for ${p.hireTarget} hires` : 'Budget for the target', tt.value, ''],
       ];
       res.forEach(([a, b, c]) => {
-        font(8.5, a.startsWith('  ') ? 'normal' : 'bold', INK); T(a.trim(), x + (a.startsWith('  ') ? 4 : 0), y);
-        const bl = wrap(b, colW - 70);
+        const sub = a.startsWith('  ');
+        font(8.5, sub ? 'normal' : 'bold', INK);
+        const al = wrap(a.trim(), colW - 72);
+        T(al[0], x + (sub ? 4 : 0), y);
+        const bl = wrap(b, 58);
         font(8.5, 'normal', INK); T(bl[0], x + colW - 38, y, { align: 'right' });
-        if (bl[1]) { y += 4; T(bl.slice(1).join(' '), x + colW - 38, y, { align: 'right' }); }
         font(7.5, 'normal', MUTED); T(c, x + colW, y, { align: 'right' });
-        y += 5;
+        const extra = Math.max(al.length, bl.length) - 1;
+        for (let k = 1; k <= extra; k++) {
+          y += 3.6;
+          font(8.5, sub ? 'normal' : 'bold', INK); if (al[k]) T(al[k], x + (sub ? 4 : 0), y);
+          font(8.5, 'normal', INK); if (bl[k]) T(bl[k], x + colW - 38, y, { align: 'right' });
+        }
+        y += 4.4;
       });
-      y = Math.max(leftEnd, y) + 3;
+      y = Math.max(leftEnd, y) + 1;
+      // The budget for the target in steps (point 30).
+      tt.lines.filter(Boolean).forEach(l => para(l, M, PAGE_W - 2 * M, 8));
+      y += 1;
 
       if (p.reach) {
         heading('What the spending caps allow');
-        para(`The hire target could not be reached within the spending caps at a cap multiple of ${F.mult(p.capMultiple)}. Spend above ${F.gbp(p.reach.saturationBudget)} would add no hires, because every location and platform would be at its cap. The same plan at other cap multiples:`);
+        para(`The hire target could not be reached within the spending caps at a cap multiple of ${F.mult(p.capMultiple)}. The same plan at other cap multiples:`);
         table([
           { label: 'Cap multiple', w: 40 }, { label: `Hires at ${F.gbp(p.budget)}`, w: 40, align: 'right' },
           { label: 'Budget not placed', w: 40, align: 'right' }, { label: `Budget for ${p.hireTarget} hires`, w: 50, align: 'right' },
-          { label: 'Most hires (budget where they stop rising)', w: 70, align: 'right' },
+          { label: 'Most hires (total budget where they stop rising)', w: 70, align: 'right' },
         ], p.reach.byMultiple.map(m => ({ cells: [
           `${F.mult(m.multiple)}${m.current ? ' (this plan)' : ''}`, F.num(m.hiresAtBudget), F.gbp(m.unplacedAtBudget),
           m.budgetForTarget ? F.gbp(m.budgetForTarget) : 'out of reach',
@@ -268,151 +279,46 @@
         ...(aboveRun > 0.5 ? [`${F.gbp(aboveRun)} (${share(aboveRun)}) is above the largest month the location and platform ran since ${capFirst}`] : []),
         ...(unrun.length ? [`${F.gbp(unrunTotal)} (${share(unrunTotal)}) is in ${F.list(unrun.map(c => `${c.region} ${L()[c.platform]}`))}, which had no spend of ${unrun.length === 1 ? 'its' : 'their'} own since ${capFirst}`] : []),
       ].join('; ') + '. Predictions for spend above past levels are based on the rate at which cost per application rises with spend.';
+      const reEntry = RAC.assumptions.entry(p.A, 'remaining_error_factor', d.role) || {};
+      const reUsed = ca.remainingError, reTested = reEntry.testedValue;
       const lines = [
         pastLevels,
+        ...RAC.text.capsPoint(p),
         `Spending cap multiple: ${F.mult(s.capMultiple.value)}.`,
-        `Remaining-error adjustment: ${s.remainingError.value.toFixed(3)} (${src(s.remainingError)}; testing gave ${s.remainingError.tested !== null && s.remainingError.tested !== undefined ? s.remainingError.tested.toFixed(3) : 'n/a'}).`,
+        `Real-world CPA outcome adjustment: ${reUsed.toFixed(3)} (${RAC.text.sourceLabel(reEntry.source)}). When we predicted past months from the months before them, ${RAC.text.outcomeText(reTested)}${reUsed === 1 && reTested !== null && reTested !== undefined && Math.abs(reTested - 1) > 0.0005 ? ', but not in the same direction with every test month left out, so no adjustment is applied' : reUsed !== 1 ? ', consistently enough to plan for it, so planned costs are raised by that amount' : ''}.`,
         ...(ca.extra ? [`Cost adjustment: planned cost per application is multiplied by ${ca.used.toFixed(3)} (${ca.basis}).`] : []),
-        `Expected hires from other sources: ${F.num(s.otherHiresMonthly.value)} a month (${src(s.otherHiresMonthly)}), ${F.pct(s.otherHiresShare.value)} of them credited to paid media (${src(s.otherHiresShare)}).`,
+        `Expected hires from other sources: ${F.num(s.otherHiresMonthly.value)} a month (${src(s.otherHiresMonthly)}), counted towards the hire target. They are not modelled on the budget; we aim to model this in future.${s.otherHiresShare.value > 0 ? ` ${F.pct(s.otherHiresShare.value)} of them were credited to paid media (${src(s.otherHiresShare)}).` : ''}`,
         `Months used: ${RAC.text.monthsUsed(p.A, d.role, p, opts.backtest).map(r => r.short).join('; ')}. Quality and hire rates, caps, other-source hires and testing follow fixed rules, not the data window; the method pages give each in full.${p.settlingUsed.length ? ` Not yet settled, figures may change: ${p.settlingUsed.map(m => F.month(m.month)).join(', ')}.` : ''}`,
-        fees && fees.on ? `Platform fees: Indeed ${F.pct(fees.rates.indeed, 2)}, Meta ${F.pct(fees.rates.meta, 2)} and Google ${F.pct(fees.rates.google, 2)} of media spend (Appcast none): ${F.gbp(fees.total, 2)} in this plan, of which ${F.gbp(fees.premium, 2)} on Indeed Premium. Fees are paid from the budget, so less than the full budget reaches the platforms. Past costs were recorded without fees, so predictions use the spend after fees.`
+        fees && fees.on ? `Platform fees: Indeed ${F.pct(fees.rates.indeed, 2)}, Meta ${F.pct(fees.rates.meta, 2)} and Google ${F.pct(fees.rates.google, 2)} of media spend (Appcast none): ${F.gbp(fees.total, 2)} in this plan${fees.premium > 0 ? `, of which ${F.gbp(fees.premium, 2)} on Indeed Premium` : ''}. Fees are paid from the budget, so less than the full budget reaches the platforms. They are shown separately; cost per application and cost per hire are on media spend, because past costs were recorded without fees.`
           : 'Platform fees: none in this plan (fees apply to plans from ' + F.month(fees ? fees.firstMonth : '') + ').',
         'Attribution: quality and hire rates came from RAC’s applicant tracking data, which credited each application to the last source used; Meta and Google rates were moved towards the role average (see Method).',
         ...(p.oneRac && p.oneRac.second
-          ? [`Second scenario: at a self-competition improvement of ${F.pct(p.oneRac.second.selfCompetition)}, the same budget would be expected to deliver ${F.num(p.oneRac.second.hires)} hires against ${F.num(p.totals.allHires)}, at ${F.gbp(p.oneRac.second.cpa, 2)} an application. It is a comparison, not the plan.`]
+          ? [`Second scenario: at a self-competition improvement of ${F.pct(p.oneRac.second.selfCompetition)}, the same budget would be expected to deliver ${F.num(p.oneRac.second.hires)} hires against ${F.num(p.totals.allHires)}, at ${F.gbp(p.oneRac.second.cpa, 2)} an application (media). It is a comparison, not the plan.`]
           : []),
         ...(p.efficiency && p.efficiency.weight > 0
-          ? [`Efficiency: the split between locations was moved ${F.pct(p.efficiency.weight)} of the way from open roles towards where a hire is predicted to cost least (${p.efficiency.byLocation.map(x => `${x.region} ${F.pct(x.openRoles)} to ${F.pct(x.share)}`).join(', ')}). Every location maximum, spending cap and cost limit still applies.`]
+          ? [`Efficiency: the split between locations was moved ${F.pct(p.efficiency.weight)} of the way from VAFs towards where a hire is predicted to cost least (${p.efficiency.byLocation.map(x => `${x.region} ${F.pct(x.openRoles)} to ${F.pct(x.share)}`).join(', ')}). Every location maximum, spending cap, cost limit and the VAF rule still apply.`]
           : []),
-        ...limitLines(p, F),
+        ...limitLines(p, F).filter(l => !/^Cost limits: none/.test(l)),
         ...p.minimumShortfalls.map(x => x.text + '.'),
       ];
       const lowCells = p.locations.flatMap(l => P().map(q => l.cells[q])).filter(c => c.range && c.range.hires && c.range.hires.lowConfidence).length;
       if (lowCells) lines.push(`${lowCells} location and platform ${lowCells === 1 ? 'row is' : 'rows are'} marked low confidence (little evidence behind the hire rate or the cost per application).`);
       const flagged = p.locations.flatMap(l => P().map(q => l.cells[q])).filter(c => c.spend > 0 && c.ceilingFlagged);
-      if (flagged.length) lines.push(`No successful month, so capped at the usual monthly spend: ${flagged.map(c => `${c.region} ${L()[c.platform]}`).join(', ')}.`);
-      lines.forEach(l => { font(8.2, 'normal', INK); const w = wrap(l, PAGE_W - 2 * M - 5); ensure(w.length * 3.6 + 0.8); T('•', M, y); w.forEach(ln => { T(ln, M + 4, y); y += 3.6; }); y += 0.8; });
+      if (flagged.length) lines.push(`No successful month, so capped at the average monthly spend: ${flagged.map(c => `${c.region} ${L()[c.platform]}`).join(', ')}.`);
+      lines.forEach(l => { font(7.8, 'normal', INK); const w = wrap(l, PAGE_W - 2 * M - 5); ensure(w.length * 3.3 + 0.6); T('•', M, y); w.forEach(ln => { T(ln, M + 4, y); y += 3.3; }); y += 0.6; });
     }
 
-    function locations(d, title) {
-      const p = d.plan;
-      page(title, 'By location');
-      const NOTE = {
-        'location set to no spend': 'set to no spend', 'location maximum': 'at location maximum',
-        'location spending cap (largest month x multiple)': 'at location spending cap',
-        'spending caps (largest successful month x multiple)': 'at spending caps',
-        'spending caps and cost per application limits': 'at spending caps and cost limits', 'cost per hire limit': 'at cost per hire limit',
-      };
-      const spendR = U().roundToTotal(p.locations.map(l => l.spend));
-      const cols = [
-        { label: 'Location', w: 34 }, { label: 'Open roles', w: 16, align: 'right' }, { label: 'Spend', w: 22, align: 'right' },
-        { label: 'Spending room (caps and limits)', w: 28, align: 'right' },
-        { label: 'Applications (range)', w: 34, align: 'right' }, { label: 'Quality applications', w: 18, align: 'right' },
-        { label: 'Hires, paid media (range)', w: 30, align: 'right' }, { label: 'Cost per application', w: 20, align: 'right' },
-        { label: 'Cost per hire', w: 20, align: 'right' }, { label: 'Notes', w: 47, wrap: true },
-      ];
-      const body = p.locations.map((l, li) => {
-        const note = [];
-        if (l.capReason === 'location set to no spend') note.push('set to no spend');
-        else if (l.spend >= l.cap - 1 && l.cap < Infinity) note.push(NOTE[l.capReason] || 'at ' + l.capReason);
-        if (l.range && l.range.hires && l.range.hires.lowConfidence) note.push('low confidence');
-        const sf = p.minimumShortfalls.find(x => x.kind === 'location' && x.region === l.region);
-        if (sf) note.push(`minimum short by ${F.gbp(sf.short)}`);
-        return {
-          label: l.region, spend: l.spend, cph: l.spend > 0 && l.hires > 0 ? F.gbp(l.spend / l.hires) : '-', warn: note.length > 0,
-          cells: [l.region, F.int(l.vacancies), F.gbp(spendR[li]), isFinite(l.cap) ? F.gbp(l.cap) : 'no limit',
-            [F.int(l.apps), appRange(l.range)], F.int(l.passed), [F.num(l.hires), hireRange(l.range)],
-            l.spend > 0 && l.apps > 0 ? F.gbp(l.spend / l.apps, 2) : '-', l.spend > 0 && l.hires > 0 ? F.gbp(l.spend / l.hires) : '-', note.join('; ')],
-        };
-      });
-      const t = p.totals;
-      body.push({ total: true, label: 'Total', spend: t.spend, cph: F.gbp(t.cph), cells: ['Total', F.int(p.totalVac), F.gbp(t.spend), '',
-        [F.int(t.apps), range(t.range.apps.low, t.range.apps.high)], F.int(t.passed), [F.num(t.hires), range(t.range.hires.low, t.range.hires.high)],
-        F.gbp(t.cpa, 2), F.gbp(t.cph), `plus ${F.num(t.otherHires)} expected from other sources`] });
-      table(cols, body, { rowCheck: r => ({ label: r.label, spend: r.spend, cph: r.cph }) });
-      font(7.5, 'normal', MUTED);
-      para(`Budget is shared between locations by open roles, within location maximums, spending caps and any cost limits. At spending caps: every platform in the location is at its own spending cap. At location spending cap: the location is at the most it spent in one month, all platforms together, x the cap multiple. ${RAC.text.ROW_RANGE_LINE} Hires here are paid media only.`, M, PAGE_W - 2 * M, 7.5);
+    // A table page from RAC.tables (the Plan tab shows the same tables).
+    function tablePage(title, spec) {
+      page(title, spec.title);
+      table(spec.columns.map(c => ({ label: c.label, w: c.w, align: c.align, wrap: c.wrap })), spec.rows,
+        { warnCol: spec.warnCol, rowCheck: r => ({ label: r.label, spend: r.spend, cph: r.cph }) });
+      spec.notes.forEach(n => para(n, M, PAGE_W - 2 * M, 7.2));
     }
 
-    function platforms(d, title) {
-      const p = d.plan;
-      page(title, 'By platform');
-      const on = p.fees && p.fees.on;
-      const cols = [
-        { label: 'Platform', w: 24 }, { label: 'Spend', w: 22, align: 'right' },
-        { label: 'Media', w: 22, align: 'right' }, { label: 'Platform fee', w: 20, align: 'right' },
-        { label: 'Applications (range)', w: 30, align: 'right' }, { label: 'Quality applications', w: 18, align: 'right' },
-        { label: 'Quality rate used (basis)', w: 60 },
-        { label: 'Hires, paid media (range)', w: 29, align: 'right' }, { label: 'Cost per application', w: 22, align: 'right' },
-        { label: 'Cost per hire', w: 22, align: 'right' },
-      ];
-      const spendR = U().roundToTotal(P().map(q => p.platforms[q].spend));
-      const mediaR = U().roundToTotal(P().map(q => p.platforms[q].media));
-      const body = P().map((q, qi) => {
-        const x = p.platforms[q], rp = p.rates.platform[q];
-        return {
-          label: L()[q], spend: x.spend, cph: x.spend > 0 && x.hires > 0 ? F.gbp(x.spend / x.hires) : '-',
-          cells: [L()[q], F.gbp(spendR[qi]), F.gbp(mediaR[qi]), on && p.fees.rates[q] > 0 ? F.gbp(x.fee, 2) : '-',
-            [F.int(x.apps), appRange(x.range)], F.int(x.passed), [F.pct(rp.used, 1), rp.basis],
-            [F.num(x.hires), hireRange(x.range)], x.spend > 0 && x.apps > 0 ? F.gbp(x.spend / x.apps, 2) : '-',
-            x.spend > 0 && x.hires > 0 ? F.gbp(x.spend / x.hires) : '-'],
-        };
-      });
-      const t = p.totals;
-      body.push({ total: true, label: 'Total', spend: t.spend, cph: F.gbp(t.cph), cells: ['Total', F.gbp(t.spend), F.gbp(t.media), on ? F.gbp(t.fee, 2) : '-',
-        [F.int(t.apps), range(t.range.apps.low, t.range.apps.high)], F.int(t.passed), `role average ${F.pct(p.rates.roleScreen, 1)}`,
-        [F.num(t.hires), range(t.range.hires.low, t.range.hires.high)], F.gbp(t.cpa, 2), F.gbp(t.cph)] });
-      table(cols, body, { rowCheck: r => ({ label: r.label, spend: r.spend, cph: r.cph }) });
-      para(`Within each location, money goes where the next hire costs least, up to each platform's spending cap. Hire rate after quality: ${F.pct(p.rates.roleHire, 1)}, the role average for every location. ${RAC.text.ATTRIBUTION}`, M, PAGE_W - 2 * M, 7.5);
-    }
-
-    function cells(d, title) {
-      const p = d.plan;
-      P().forEach(q => {
-        page(title, `${L()[q]} by location`);
-        const fee = p.fees && p.fees.on ? p.fees.rates[q] : 0;
-        const spendR = U().roundToTotal(p.locations.map(l => l.cells[q].spend));
-        const cols = [
-          { label: 'Location', w: 27 }, { label: 'Spend', w: 19, align: 'right' },
-          { label: fee > 0 ? 'of which fee' : 'Platform fee', w: 15, align: 'right' },
-          { label: 'Spending cap (basis)', w: 23, align: 'right' },
-          { label: 'Historic cost per application', w: 21, align: 'right' },
-          { label: 'Thin-data adjustment', w: 16, align: 'right' }, { label: 'Spend-level adjustment', w: 16, align: 'right' },
-          { label: RAC.text.costAdjustment(p).label, w: 21, align: 'right' }, { label: 'Planned cost per application', w: 19, align: 'right' },
-          { label: 'Applications (range)', w: 23, align: 'right' },
-          { label: 'Quality rate', w: 16, align: 'right' }, { label: 'Hire rate after quality', w: 16, align: 'right' },
-          { label: 'Hires (range)', w: 20, align: 'right' }, { label: 'Cost per hire', w: 17, align: 'right' },
-        ];
-        const body = p.locations.map((l, li) => {
-          const c = l.cells[q];
-          const funded = c.spend > 0.005;
-          const capBasis = `${c.ceilingFlagged ? 'usual month' : c.ceilingRowLimited ? `${+(+RAC.assumptions.get(p.A, 'cap_row_usual_limit')).toFixed(2)}x usual` : 'largest'} ${F.gbp(c.ceilingBase)} ${F.mult(p.capMultiple)}`;
-          const cph = funded && c.hires > 0 ? F.gbp(c.spend / c.hires) : '-';
-          return {
-            label: `${l.region} ${L()[q]}`, spend: c.spend, cph,
-            cells: [
-              l.region, c.on ? F.gbp(spendR[li]) : 'off', fee > 0 && funded ? F.gbp(c.fee, 2) : '-',
-              [F.gbp(c.cap), c.cpaLimitSpend !== null && c.cpaLimitSpend < c.ceilingTotal ? 'cost limit' : capBasis],
-              [c.historicCpa !== null ? F.gbp(c.historicCpa, 2) : 'no data', c.historicCpa !== null ? `${F.int(c.historicApps)} applications` : `platform ${F.gbp(c.platformCpa, 2)}`],
-              c.thinAdjustment !== null ? x2(c.thinAdjustment) : 'platform', funded ? x2(c.spendAdjustment) : '-', x2(c.remainingError, 3),
-              funded ? F.gbp(c.plannedCpa, 2) : '-',
-              funded ? [F.num(c.apps), appRange(c.range)] : '-',
-              [F.pct(c.screenRate, 1), c.screenAdjustment !== 1 ? `location x${c.screenAdjustment.toFixed(2)}` : ''],
-              F.pct(c.hireAfterScreening, 1),
-              funded ? [F.num(c.hires), hireRange(c.range) + (c.range && c.range.hires && c.range.hires.lowConfidence ? ' low conf.' : '')] : '-',
-              cph,
-            ],
-          };
-        });
-        const x = p.platforms[q];
-        body.push({ total: true, label: `Total ${L()[q]}`, spend: x.spend, cph: x.spend > 0 && x.hires > 0 ? F.gbp(x.spend / x.hires) : '-',
-          cells: ['Total', F.gbp(x.spend), fee > 0 ? F.gbp(x.fee, 2) : '-', '', '', '', '', '', x.apps > 0 ? F.gbp(x.spend / x.apps, 2) : '-',
-            [F.num(x.apps), appRange(x.range)], '', '', [F.num(x.hires), hireRange(x.range)], x.spend > 0 && x.hires > 0 ? F.gbp(x.spend / x.hires) : '-'] });
-        table(cols, body, { rowCheck: r => ({ label: r.label, spend: r.spend, cph: r.cph }) });
-        para(`Planned cost per application = historic cost per application x thin-data adjustment x spend-level adjustment x remaining-error adjustment${fee > 0 ? ` x ${(1 + fee).toFixed(4)} (the ${L()[q]} fee)` : ''}. ` +
-          `The quality rate for ${L()[q]} was ${p.rates.platform[q].basis}. Spending caps: largest successful month since ${F.month(RAC.assumptions.get(p.A, 'ceiling_first_month'))} x the cap multiple${fee > 0 ? ', plus the fee' : ''}.`, M, PAGE_W - 2 * M, 7.2);
-      });
-    }
+    function locations(d, title) { tablePage(title, RAC.tables.locations(d.plan)); }
+    function platforms(d, title) { tablePage(title, RAC.tables.platforms(d.plan)); }
+    function cells(d, title) { P().forEach(q => tablePage(title, RAC.tables.cells(d.plan, q))); }
 
     function method(d, title) {
       page(title, 'Method and glossary');

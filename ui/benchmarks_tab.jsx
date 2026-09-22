@@ -29,9 +29,8 @@
     const mode = w.mode || 'all';
     const ctx = RAC.cost.context(ds, A, role, bench, { includeSettling: !!state.includeSettling });
     const rates = RAC.rates.build(eploy, A, role, { regions: ds.regions });
-    // The plan's own adjustment where Setup sets one, as the plan uses it.
-    const eb = state.remainingError && state.remainingError[role];
-    const bias = eb != null && eb >= 0.5 && eb <= 2 ? eb : RAC.assumptions.get(A, 'remaining_error_factor', role);
+    // The real-world CPA outcome adjustment, from the assumptions file as the plan uses it.
+    const bias = RAC.assumptions.get(A, 'remaining_error_factor', role);
     // Hires scaled as the plan scales them: reconciled to the hires Eploy
     // credited to the platforms, plus the plan's share of other-source hires.
     const s = state.otherHiresShare && state.otherHiresShare[role];
@@ -129,9 +128,9 @@
           <div>
             The plan uses {windowText}: {rangeLabel}.
             {excluded.length > 0 && <> Not yet counted: {excluded.map(mo => monthShort(mo) + ' (' + ctx.status[mo].reason + ')').join('; ')}.</>}
-            {' '}Cost per application is the usual figure the plan starts from, before it is adjusted for the planned
-            spend level. Cost per hire is at the usual spend, after the remaining-error adjustment
-            (x{bias.toFixed(3)}) and the reconciliation to the hires RAC recorded against the four platforms, including
+            {' '}Cost per application is the average figure the plan starts from (after the thin-data pull), before the
+            diminishing returns adjustment for the planned spend. Cost per hire is at the average monthly spend, after the
+            real-world CPA outcome adjustment (x{bias.toFixed(3)}) and the hire adjustment to the hires RAC recorded against the four platforms, including
             the {Math.round(share * 100)}% of other-source hires credited to paid media (x{recon.toFixed(3)}). Quality and hire rates came
             from {eploy.dataset.file} ({eploy.dataset.file_date}), applications {rates.screenMonths[0]} to {rates.screenMonths[rates.screenMonths.length - 1]}.
           </div>

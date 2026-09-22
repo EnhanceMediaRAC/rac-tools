@@ -39,17 +39,22 @@
     return { spend, leftover: 0, shortfall: 0, marginal: hi };
   }
 
-  // Predicted hires for a location at total spend X, split as above.
-  function locationHires(cells, X, fixed) {
+  // Predicted hires and media spend for a location at total spend X, split as above.
+  function locationForecast(cells, X, fixed) {
     const s = splitLocation(cells, X, fixed);
-    return U.sum(cells.map(c => RAC.forecast.at(c.pc, s.spend[c.plat] || 0).hires));
+    const fs = cells.map(c => RAC.forecast.at(c.pc, s.spend[c.plat] || 0));
+    return { hires: U.sum(fs.map(f => f.hires)), media: U.sum(fs.map(f => f.media)) };
+  }
+  function locationHires(cells, X, fixed) {
+    return locationForecast(cells, X, fixed).hires;
   }
 
-  // The most a location can spend with predicted cost per hire at or under a
-  // limit (D6). Cost per hire rises with spend, so this is a search.
+  // The most a location can spend with predicted cost per hire on media at
+  // or under a limit (D6; media cost, user decision 22 September 2026). Cost
+  // per hire rises with spend, so this is a search.
   function spendAtCphLimit(cells, capacity, limit) {
     if (!(limit > 0)) return Infinity;
-    const cph = (X) => { const h = locationHires(cells, X); return h > 0 ? X / h : Infinity; };
+    const cph = (X) => { const f = locationForecast(cells, X); return f.hires > 0 ? f.media / f.hires : Infinity; };
     if (!(capacity > 0)) return 0;
     if (cph(capacity) <= limit) return capacity;
     let lo = 0, hi = capacity;
@@ -57,6 +62,22 @@
     for (let i = 0; i < 60 && hi - lo > 0.5; i++) {
       const mid = (lo + hi) / 2;
       if (cph(mid) <= limit) lo = mid; else hi = mid;
+    }
+    return lo;
+  }
+
+  // The most a location can spend before its predicted paid-media hires
+  // reach its VAFs (open roles; user decision, 22 September 2026). Hires rise
+  // with spend, so this is a search.
+  function spendAtHires(cells, capacity, most) {
+    if (!(most > 0)) return 0;
+    if (!(capacity > 0)) return 0;
+    const cap = Number.isFinite(capacity) ? capacity : 1e7;
+    if (locationHires(cells, cap) <= most) return capacity;
+    let lo = 0, hi = cap;
+    for (let i = 0; i < 60 && hi - lo > 0.5; i++) {
+      const mid = (lo + hi) / 2;
+      if (locationHires(cells, mid) <= most) lo = mid; else hi = mid;
     }
     return lo;
   }
@@ -102,5 +123,5 @@
     return { unplaced: Math.max(0, pool), unfunded: Math.max(0, -pool), steps };
   }
 
-  RAC.allocate = { splitLocation, locationHires, spendAtCphLimit, settle };
+  RAC.allocate = { splitLocation, locationForecast, locationHires, spendAtCphLimit, spendAtHires, settle };
 })(window.RAC = window.RAC || {});

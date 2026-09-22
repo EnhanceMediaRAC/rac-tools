@@ -40,11 +40,11 @@ export default function (check, { assert }) {
       F.num(plan.totals.allHires), F.num(plan.totals.hires), F.num(plan.totals.otherHires), F.int(plan.totals.apps), F.int(plan.totals.passed),
       `${F.num(plan.totals.range.allHires.low, 0)} to ${F.num(plan.totals.range.allHires.high, 0)}`,
       'Budget the plan could not place efficiently', 'Assumptions and risks', 'What the spending caps allow', RAC.text.ATTRIBUTION.slice(0, 60),
-      'Cost limits: none set for this plan.'];
+      F.gbp(plan.totals.media), F.gbp(plan.totals.cpa, 2), F.gbp(plan.totals.cph), RAC.text.reachSentence(plan)];
     // Spend columns are rounded so the rows add to the printed total (feedback 6).
     const R = RAC.util.roundToTotal;
     const locR = R(plan.locations.map(l => l.spend));
-    plan.locations.forEach((l, i) => { must.push(l.region, F.gbp(locR[i])); RAC.PLATFORMS.forEach(p => { if (l.cells[p].spend > 0) must.push(F.gbp(l.cells[p].plannedCpa, 2)); }); });
+    plan.locations.forEach((l, i) => { must.push(l.region); if (l.spend > 0.005) must.push(F.gbp(locR[i])); RAC.PLATFORMS.forEach(p => { if (l.cells[p].spend > 0) must.push(F.gbp(l.cells[p].plannedCpaMedia, 2), 'x' + l.cells[p].cpaAdjustments.toFixed(3)); }); });
     RAC.PLATFORMS.forEach(p => { const cR = R(plan.locations.map(l => l.cells[p].spend)); plan.locations.forEach((l, i) => { if (l.cells[p].spend > 0) must.push(F.gbp(cR[i])); }); });
     const pR = R(RAC.PLATFORMS.map(p => plan.platforms[p].spend)), mR = R(RAC.PLATFORMS.map(p => plan.platforms[p].media));
     RAC.PLATFORMS.forEach((p, i) => must.push(F.gbp(pR[i]), F.gbp(mR[i])));
@@ -72,15 +72,15 @@ export default function (check, { assert }) {
     const out = RAC.pdf.build(FakePDF, [doc('SMR', plan)], opts);
     assert(!out.problems.length, out.problems.join('; '));
     const all = out.texts.join(String.fromCharCode(10));
-    assert(all.includes('Cost per hire limits: South East £4,000'), 'the cost per hire limit is not printed');
-    assert(all.includes('Cost per application limits: South East Indeed £45.00'), 'the cost per application limit is not printed');
+    assert(all.includes('Cost per hire limits (media): South East £4,000'), 'the cost per hire limit is not printed');
+    assert(all.includes('Cost per application limits (media): South East Indeed £45.00'), 'the cost per application limit is not printed');
     const w = RAC.workings.build([doc('SMR', plan)], opts);
     const summary = w.sheets[0].rows.map(r => String(r.cells[0]));
-    assert(summary.some(t => t === 'Most a hire may cost: South East'), 'the workings do not list the cost per hire limit');
-    assert(summary.some(t => t === 'Most an application may cost: South East Indeed'), 'the workings do not list the cost per application limit');
+    assert(summary.some(t => t === 'Most a hire may cost (media): South East'), 'the workings do not list the cost per hire limit');
+    assert(summary.some(t => t === 'Most an application may cost (media): South East Indeed'), 'the workings do not list the cost per application limit');
     const c = plan.locations.find(l => l.region === 'South East').cells.indeed;
-    assert(c.spend === 0 || c.plannedCpa <= 45 + 1e-6, `South East Indeed planned at £${c.plannedCpa.toFixed(2)} against a £45 limit`);
-    return `both limits printed in the PDF and the workings; South East Indeed planned at £${c.plannedCpa.toFixed(2)} within its £45 limit`;
+    assert(c.spend === 0 || c.plannedCpaMedia <= 45 + 1e-6, `South East Indeed planned at £${c.plannedCpaMedia.toFixed(2)} on media against a £45 limit`);
+    return `both limits printed in the PDF and the workings; South East Indeed planned at £${c.plannedCpaMedia.toFixed(2)} on media within its £45 limit`;
   });
 
   check('PDF: no cost per hire on £0 rows, no location application targets, title names the target', () => {

@@ -4,16 +4,17 @@ This traces one location and platform, **South East Indeed**, from the monthly
 figures the app holds to the hires the PDF prints, naming the sheet and column
 of the workings export at every step. Anyone can do the same for any other row.
 
-The figures below come from an October 2026 SMR plan built on 18 September 2026
+The figures below come from an October 2026 SMR plan built on 22 September 2026
 with the September plan's settings (budget £101,950, 30 hires, spending cap
 multiple 2, window "year to date, last three months x2"). Your own plan will
 show different numbers; the steps are the same. The workings export is the
-place to check a live plan, because every figure there is a live formula.
+place to check a live plan, because almost every figure there is a live
+formula.
 
 ## 1. The monthly figures. Sheet: **Data sources**
 
-Every monthly figure the plan read, with where it came from, the date the data
-was taken, whether it counts, and what it counts for.
+Every monthly figure the plan read, with the date the data was taken, whether
+it counts, and what it counts for.
 
 South East Indeed:
 
@@ -50,32 +51,35 @@ a month counted twice does not look like extra evidence:
 | Months in window | 7 | January to July |
 | Spend in the window | £40,552.31 | £57,931.87 x 7 / 10 |
 | Applications in the window | 406.7 | 581 x 7 / 10 |
-| **Historic cost per application** | **£99.71** | £40,552.31 / 406.7 |
-| Usual monthly spend | £5,793.19 | the weighted average of the months it ran |
+| **Base cost per application** | **£99.71** | £40,552.31 / 406.7 |
+| Average monthly spend | £5,793.19 | the weighted average of the months it ran |
 
 The same sheet, lower down, does this for every location on the platform
 together, which gives **Indeed's figure for the role**: 2,440.9 applications on
-£180,620.27, or £74.00, pulled towards the role benchmark of £48.20 by 35
-applications of evidence, giving **£73.63**.
+£180,620.27, or £74.00, pulled towards the role's average cost per application
+over the months the spending caps use (£74.97) by 35 applications of evidence,
+giving **£74.01**.
 
-## 3. From the window figure to the planned cost. Sheet: **Workings**
+## 3. From the base cost to the plan cost per application. Sheet: **Workings**
 
 Reading the South East Indeed row left to right:
 
 | Column | Figure | How |
 |---|---|---|
-| Historic cost per application | £99.71 | from Blend inputs, step 2 |
-| Platform figure for the role | £73.63 | from Blend inputs, step 2 |
-| Usual cost per application | £97.64 | (406.7 x £99.71 + 35 x £73.63) / (406.7 + 35) |
-| Thin-data adjustment | 0.979 | £97.64 / £99.71: this row has plenty of evidence, so it barely moved |
-| Usual monthly spend | £5,793.19 | from Blend inputs |
+| Base cost per application | £99.71 | from Blend inputs, step 2 |
+| Platform figure for the role | £74.01 | from Blend inputs, step 2 |
+| Cost per application after the thin-data pull | £97.67 | (406.7 x £99.71 + 35 x £74.01) / (406.7 + 35) |
+| Thin-data adjustment | 0.980 | £97.67 / £99.71: this row has plenty of evidence, so it barely moved |
+| Average monthly spend | £5,793.19 | from Blend inputs |
 | Cost rises with spend (rate) | 0.65 | the rate set by Enhance, shared across platforms |
-| Media spend | £5,492.82 | planned spend £5,588.95 / 1.0175, the Indeed fee taken off |
-| Spend-level adjustment | 0.982 | (£5,492.82 / £5,793.19) ^ (1 − 0.65): planned spend sits below usual, so cost comes down a little |
-| Remaining-error adjustment | 1.096 | what testing on past months still missed for SMR |
-| **Planned cost per application (media)** | **£105.04** | £97.64 x 0.982 x 1.096 |
-| Planned cost per application (total) | £106.88 | £105.04 x 1.0175, with the fee |
-| **Applications** | **52.3** | £5,492.82 / £105.04 |
+| Total spend | £5,597.07 | what the split gave this row, fee included |
+| Media | £5,500.80 | £5,597.07 / 1.0175, the Indeed fee taken off |
+| Fee | £96.26 | shown in its own column |
+| Diminishing returns adjustment | 0.982 | (£5,500.80 / £5,793.19) ^ (1 − 0.65): planned spend sits below average, so cost comes down a little |
+| Real-world CPA outcome adjustment | 1.000 | testing on past months found SMR costs about 8% higher than predicted, but not in the same direction with every test month left out, so no adjustment applies |
+| CPA adjustments | 0.962 | 0.980 x 0.982 x 1.000 |
+| **Plan CPA (media)** | **£95.92** | £99.71 x 0.962 |
+| **Predicted applies** | **57.3** | £5,500.80 / £95.92 |
 
 ## 4. From applications to hires. Sheets: **Rate build-up**, then **Workings**
 
@@ -83,60 +87,68 @@ Reading the South East Indeed row left to right:
 |---|---|---|
 | Indeed's own quality rate | 16.4% | 418 quality applications of 2,543, October 2025 to June 2026 |
 | Role average, every source | 20.9% | 1,598 of 7,660, all sources together, same months |
-| **Quality rate used** | **16.8%** | (418 + 200 x 20.9%) / (2,543 + 200): blended with the role average by 200 applications |
-| Location quality adjustment | 1.00 | location differences are not applied this release |
-| **Hire rate after quality** | **11.7%** | the role average (187 hires from 1,598 quality applications): 41 hires from 311 quality applications in the South East is its own figure, but regional differences did not carry forward in testing |
-| Matching factor | 0.954 | so past predictions match the hires Eploy credited to the four platforms |
-| Quality applications | 8.76 | 52.3 x 16.8% |
-| **Hires** | **0.98** | 52.3 x 16.8% x 11.7% x 0.954 |
+| **Quality rate** | **16.5%** | (418 + 35 x 20.9%) / (2,543 + 35): blended with the role average by 35 applications |
+| Location quality adjustment | 1.00 | location differences are not applied |
+| **Hire rate from quality applications** | **11.7%** | the role average (187 hires from 1,598 quality applications): 41 hires from 311 quality applications in the South East is its own figure, but regional differences did not carry forward in testing |
+| Hire adjustment | 0.980 | so past predictions match the hires Eploy credited to the four platforms |
+| Quality applications | 9.46 | 57.3 x 16.5% |
+| **Predicted hires** | **1.08** | 57.3 x 16.5% x 11.7% x 0.980 |
+| Plan CPH (media) | £5,072 | £5,500.80 / 1.08 |
 
 ## 5. What limited the spend. Sheet: **Successful months**
 
 Every month from January 2026 with at least £200 of spend and 5 applications is
-tested, the same way whatever data window the plan uses:
+tested, the same way whatever data window the plan uses. The Cost test,
+Quality test and Counted columns, and the cap each month sets, are formulas
+over the cells beside them.
 
-- **Cost:** was its cost per application at or below the benchmark at that
-  month's spend? The benchmark is this row's own usual cost per application over
-  the settled months from January 2026, each counted once (£97.22 on £5,359.88
-  a month), adjusted for the month's spend at the rate of 0.65, with no
-  remaining-error adjustment. In June 2026, at £7,192.78, the
-  benchmark was £107.76 and the month cost £83.64, so it passed. March (£187.60
-  against £107.43) and July (£161.87 against £107.39) did not.
-- **Limit:** was it within any cost per application limit? None was set.
+- **Cost:** was its actual cost per application at or below the success-test
+  benchmark at that month's spend? The benchmark is this row's own average cost
+  per application over the settled months from January 2026, each counted once
+  (£97.26 on £5,359.88 a month), adjusted for the month's spend at the rate of
+  0.65, with no real-world CPA outcome adjustment. In June 2026, at £7,192.78,
+  the benchmark was £107.80 and the month cost £83.64, so it passed. March
+  (£187.60 against £107.46) and July (£161.87 against £107.43) did not.
 - **Quality:** was the South East's quality rate that month no more than 25%
-  below what was expected for it that month? The expected rate is its usual
-  rate scaled by how that month's rate across all locations compared with usual.
-  In June it was 19.1% against 17.4% expected, so it passed; in January it was
-  15.0% against 21.7%, so January was set aside.
+  below what was expected for it that month? The expected rate is its average
+  rate scaled by how that month's rate across all locations compared with the
+  average. In June it was 19.1% against 17.4% expected, so it passed; in
+  January it was 15.0% against 21.7%, so January was set aside.
+
+The success-test benchmark and the plan cost per application differ on purpose:
+the benchmark ignores the plan's data window and the real-world CPA outcome
+adjustment, so the caps stay the same whichever window a plan uses.
 
 June 2026 was the largest month that passed, at £7,192.78. A cap may be based on
-no more than 2 x the row's usual monthly spend (2 x £5,359.88 = £10,719.76), so
-June stands, and the cap is £7,192.78 x 2 (the spending cap multiple) plus the
-Indeed fee: **£14,637.31**. This row was funded at £5,588.95, inside it.
+no more than 2 x the row's average monthly spend (2 x £5,359.88 = £10,719.76),
+so June stands, and the cap on media is £7,192.78 x 2 (the spending cap
+multiple): **£14,385.56**. Planned spend is held to that plus the Indeed fee.
+This row was funded at £5,500.80 of media, inside it.
 
 The South East also has a location cap. Its biggest month across all platforms
 was July 2026: £12,961.11 (Indeed £7,122.23, Meta £3,454.68, Google £2,264.20,
-Appcast £120.00). x 2, with each platform's fee added, that is £26,400.25. The
-South East was planned at £15,000.00, its location maximum for this plan, so
-neither cap held it. The table under the rows on the same sheet shows this for
-every location.
+Appcast £120.00). x 2, that is £25,922.22 of media. The South East was planned
+at £15,000.00, its location maximum for this plan, so neither cap held it. The
+table under the rows on the same sheet shows this for every location.
 
 ## 6. The range. Sheet: **Back-test**
 
 The plan's own range comes from how far it missed on past months, each
-predicted from the months before it: for SMR, −19.3% to +20.5%. A row's range
+predicted from the months before it: for SMR, −20.5% to +14.4%. A row's range
 starts there and widens where fewer applications sit behind its cost per
 application, and where planned spend sits further from past spend. South East
-Indeed, with 406.7 applications behind it, came out at **37 to 72
-applications**, and **0 to 2 hires** once the uncertainty in the rates and the
+Indeed, with 406.7 applications behind it, came out at **40 to 74
+applications**, and **0 to 3 hires** once the uncertainty in the rates and the
 chance variation in a small number of hires are added.
 
 ## 7. Where it appears
 
-- **Plan tab and Platforms tab:** in the location and platform totals.
-- **PDF:** on the Indeed page of "location and platform", one row per location,
-  with the cost build-up, the cap, the rates and the ranges. The summary adds it
-  into the plan totals.
+- **Plan tab and PDF:** the same tables, with the same columns. On the Indeed
+  table ("Indeed by location"), one row per location: total spend, fee, media,
+  base CPA, CPA adjustments (with the three parts under them), plan CPA,
+  predicted applies, the rates, the hire adjustment, plan CPH and predicted
+  hires, with the ranges under their figures. The location and platform tables
+  add it into their totals.
 - **Workings export:** the Workings sheet row above, with every figure a live
   formula pointing at the sheets in steps 1 to 6, so the arithmetic can be
   followed in the spreadsheet itself.
@@ -148,6 +160,7 @@ chance variation in a small number of hires are added.
 3. Click any figure: the formula bar shows where it comes from. Follow it back
    through Blend inputs to Data sources, and through Rate build-up to the
    applicant tracking counts.
-4. Nothing in the workbook is a pasted answer. Every formula is worked out when
-   the file opens, and an automatic check recalculates the whole workbook and
-   compares all of them with the plan.
+4. The few figures written as values (total spend from the split, the settings
+   and the ranges) are listed at the top of the Workings sheet. Every formula
+   is worked out when the file opens, and an automatic check recalculates the
+   whole workbook and compares all of them with the plan.

@@ -1,18 +1,24 @@
 // RAC planner: spending caps based on successful months (C1 to C5).
 //
 // For each location and platform:
-//   C3 Months considered: settled months from ceiling_first_month with at
+//   C3 Months considered: settled months from the caps' first month with at
 //      least ceiling_min_spend of spend and ceiling_min_apps applications.
+//      The first month is ceiling_first_month (January 2026); for plans from
+//      ceiling_rolling_from (January 2027) it is the first of the last
+//      ceiling_rolling_months settled months, never before
+//      ceiling_first_month (user decision, 22 September 2026). plan.js works
+//      it out and passes it in as opts.capFirst.
 //   C1 A month is successful when its cost per application was at or below
-//      a fixed benchmark at that month's spend, and at or below the location
-//      and platform's cost per application limit where one is set. The
-//      benchmark is the location and platform's usual cost per application
-//      over the same settled months from ceiling_first_month, each counted
-//      once, with the spend-level adjustment for that month's spend and no
-//      plan adjustment (user decisions, 18 September 2026), so the caps do
-//      not move when the plan's data window or its remaining-error
-//      adjustment changes. 2025 months were built differently and are not
-//      comparable, so they are left out of the benchmark as well.
+//      a fixed benchmark at that month's spend. The benchmark is the location
+//      and platform's average cost per application over the same settled
+//      months, each counted once, with the diminishing returns adjustment for
+//      that month's spend and no plan adjustment (user decisions, 18
+//      September 2026), so the caps do not move when the plan's data window
+//      changes. 2025 months were built differently and are not comparable, so
+//      they are left out of the benchmark as well. A cost per application
+//      limit no longer removes past months (user decision, 22 September
+//      2026): it applies only to the month being planned, where it replaces
+//      the row's spending cap (plan.js).
 //   C2 A successful month is set aside when the location's quality rate that
 //      month (every source, Eploy) was more than quality_test_drop below what
 //      was expected: its usual rate x that month's rate across all locations
@@ -22,11 +28,11 @@
 //      only where at least quality_test_min_expected applications would
 //      normally have been quality.
 //   C4 Cap = largest successful month x the spending cap multiple. With
-//      no successful month, the cell's usual monthly spend over those months
-//      (or the platform's typical month) x the multiple, flagged. The month
-//      a cap rests on is held to cap_row_usual_limit x the row's usual
-//      monthly spend, so a single unusual month cannot set a cap (user
-//      decision, 18 September 2026).
+//      no successful month, the cell's average monthly spend over those
+//      months (or the platform's typical month) x the multiple, flagged. The
+//      month a cap is based on is held to cap_row_usual_limit x the row's
+//      average monthly spend, so a single unusual month cannot set a cap
+//      (user decision, 18 September 2026).
 //   Location cap: cap_location_month_limit x the most the location spent in
 //      one of those months across all platforms, x the multiple. Row caps
 //      are set separately and summed, so without it a location could be
@@ -61,18 +67,18 @@
     };
   }
 
-  //   opts.benchmark: the location and platform prepared over every settled
-  //   month (RAC.forecast.prepare on an all-months context); pc otherwise.
+  //   opts.benchmark: the location and platform prepared over the caps'
+  //   months (RAC.forecast.prepare on that context); pc otherwise.
+  //   opts.capFirst: the caps' first month (default ceiling_first_month).
   function cell(ctx, pc, quality, opts) {
     const A = ctx.A;
-    const first = RAC.assumptions.get(A, 'ceiling_first_month');
+    const first = opts.capFirst || RAC.assumptions.get(A, 'ceiling_first_month');
     const minSpend = RAC.assumptions.get(A, 'ceiling_min_spend');
     const minApps = RAC.assumptions.get(A, 'ceiling_min_apps');
     const drop = RAC.assumptions.get(A, 'quality_test_drop');
     const minExpected = RAC.assumptions.get(A, 'quality_test_min_expected');
     const rowLimit = RAC.assumptions.get(A, 'cap_row_usual_limit');
     const multiple = opts.capMultiple;
-    const cpaLimit = opts.cpaLimit > 0 ? opts.cpaLimit : null;
     const m = RAC.data.monthly(ctx.ds, pc.plat, pc.region, ctx.role);
     const bench = { ...(opts.benchmark || pc), bias: opts.benchmark ? 1 : pc.bias };
     const months = [];
@@ -85,7 +91,6 @@
       // Past spend was media only, so this compares media with media.
       const expected = RAC.forecast.mediaCpa(bench, x.spend);
       const passCost = cpa <= expected + 1e-9;
-      const passLimit = cpaLimit === null || cpa <= cpaLimit + 1e-9;
       let q = { applied: false, pass: true, reason: '' };
       if (quality) {
         const t = quality.byMonth[pc.region + '|' + mo];
@@ -101,22 +106,22 @@
             monthRate: quality.monthRate ? quality.monthRate(mo) : null, reason: '' };
         }
       }
-      const successful = passCost && passLimit && q.pass;
+      const successful = passCost && q.pass;
       if (successful) largestSuccessful = Math.max(largestSuccessful, x.spend);
-      months.push({ month: mo, spend: x.spend, apps: x.apps, cpa, expected, passCost, passLimit, quality: q, successful });
+      months.push({ month: mo, spend: x.spend, apps: x.apps, cpa, expected, passCost, quality: q, successful });
     });
     let base, basis, flagged = false, rowLimited = false;
     const rowMax = rowLimit > 0 && bench.spendBasis === 'own' && bench.spendUsual > 0 ? rowLimit * bench.spendUsual : Infinity;
     if (largestSuccessful > rowMax + 1e-9) {
       base = rowMax; rowLimited = true;
-      basis = `largest successful month held to ${rowLimit} x usual monthly spend`;
+      basis = `largest successful month held to ${rowLimit} x average monthly spend`;
     } else if (largestSuccessful > 0) { base = largestSuccessful; basis = 'largest successful month'; }
     else {
       base = bench.spendUsual;
-      basis = bench.spendBasis === 'own' ? 'no successful month: usual monthly spend' : 'no successful month: platform typical month';
+      basis = bench.spendBasis === 'own' ? 'no successful month: average monthly spend' : 'no successful month: platform typical month';
       flagged = true;
     }
-    return { ceiling: base * multiple, base, basis, flagged, rowLimited, rowLimit: Number.isFinite(rowMax) ? rowMax : null, multiple, largestSuccessful, largestMonth, cpaLimit, months,
+    return { ceiling: base * multiple, base, basis, flagged, rowLimited, rowLimit: Number.isFinite(rowMax) ? rowMax : null, multiple, largestSuccessful, largestMonth, first, months,
       benchmark: { cpa: bench.cpaUsual, spend: bench.spendUsual, spendBasis: bench.spendBasis, b: bench.b } };
   }
 
@@ -145,15 +150,17 @@
       capMedia: best.media * limit * multiple, cap: best.total * limit * multiple };
   }
 
-  // Spend (including any fee) at which planned cost per application, on the
-  // total cost, reaches a limit (D6).
+  // Spend (including any fee) at which planned cost per application on media
+  // reaches a limit (D6). Judged on media cost (user decision, 22 September
+  // 2026), so a limit matches the cost per application the tables show.
   function spendAtCpaLimit(pc, limit) {
     if (!(limit > 0)) return Infinity;
     const g = 1 + (pc.fee || 0);
-    const atUsual = pc.cpaUsual * pc.bias * g;
-    if (pc.b >= 1 || !(pc.spendUsual > 0)) return atUsual <= limit ? Infinity : 0;
-    // cost = atUsual x (media / usual spend) ^ (1 - b), solved for cost = limit.
-    return g * pc.spendUsual * Math.pow(limit / atUsual, 1 / (1 - pc.b));
+    const atAverage = pc.cpaUsual * pc.bias;
+    if (pc.b >= 1 || !(pc.spendUsual > 0)) return atAverage <= limit ? Infinity : 0;
+    // media cost = atAverage x (media / average spend) ^ (1 - b), solved for
+    // media cost = limit; planned spend is that media plus the fee.
+    return g * pc.spendUsual * Math.pow(limit / atAverage, 1 / (1 - pc.b));
   }
 
   RAC.ceilings = { qualityByLocation, cell, location, spendAtCpaLimit };

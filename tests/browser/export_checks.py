@@ -65,7 +65,8 @@ FIGURES_JS = EXPECTED_JS.replace(
   if (plan.fees.on) figs.push(F.gbp(plan.fees.total, 2));
   // Spend columns are rounded so the rows add up to the total shown.
   const locR = RAC.util.roundToTotal(plan.locations.map(l => l.spend));
-  plan.locations.forEach((l, i) => { figs.push(F.gbp(locR[i])); RAC.PLATFORMS.forEach(p => { if (l.cells[p].spend > 0) figs.push(F.gbp(l.cells[p].plannedCpa, 2)); }); });
+  plan.locations.forEach((l, i) => { if (l.spend > 0.005) figs.push(F.gbp(locR[i])); RAC.PLATFORMS.forEach(p => { if (l.cells[p].spend > 0) figs.push(F.gbp(l.cells[p].plannedCpaMedia, 2), 'x' + l.cells[p].cpaAdjustments.toFixed(3)); }); });
+  figs.push(F.gbp(plan.totals.cpa, 2), F.gbp(plan.totals.cph), F.gbp(plan.totals.media));
   RAC.util.roundToTotal(RAC.PLATFORMS.map(p => plan.platforms[p].media)).forEach(m => figs.push(F.gbp(m)));
   const title = RAC.pdf.titleOf({ plan, roleName: role + ' (' + { SMR: 'Mobile Vehicle Tech', Patrol: 'Roadside Tech (incl. SuperFlex)' }[role] + ')' }, 'October 2026');
   return { figs, title, headings: RAC.text.method(plan.A, role, plan, RAC.app.state.backtest).map(s => s.heading),
@@ -230,7 +231,7 @@ with sync_playwright() as pw:
     # The assumptions box grew this release (cost limits, the efficiency
     # setting, the OneRAC second scenario). Check it still fits its page.
     summary = pages[1] if len(pages) > 1 else ''
-    for want in ['Assumptions and risks', 'Cost limits:']:
+    for want in ['Assumptions and risks', 'Spending caps:', 'Real-world CPA outcome adjustment:']:
         if want not in ' '.join(summary.split()):
             fails.append(f'the summary page does not show {want!r}')
     over = [i for i, p in enumerate(pages) if p.count('Assumptions and risks') > 1]
@@ -239,7 +240,7 @@ with sync_playwright() as pw:
     # The whole summary fits on one page (feedback 26): no "Summary (continued)".
     if any('Summary(continued)' in squash(p) for p in pages):
         fails.append('the summary runs onto a second page')
-    notes.append('summary on one page, with the assumptions and risks box, cost limits included; short stamp on the last page only')
+    notes.append('summary on one page, with the assumptions and risks box, the caps and the real-world CPA outcome adjustment; short stamp on the last page only')
 
     if dialogs:
         fails.append(f'alerts shown: {dialogs[:2]}')

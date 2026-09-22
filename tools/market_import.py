@@ -1,5 +1,5 @@
 """Market data import: what the advertising market and candidate interest were
-doing each month, as a guide beside the remaining-error adjustment (D2).
+doing each month, as a guide beside the real-world CPA outcome adjustment (D2).
 
 It is a guide, not part of the model. Nothing here changes a plan's figures.
 It sits on the Setup page only: never in the PDF, the workings export or the
@@ -149,7 +149,7 @@ def build(ads_path, trends_path):
             row['searches'] = {k: v for k, v in trends[mo].items()}
         rows.append(row)
     return {
-        'note': "A guide beside the remaining-error adjustment, not part of the model. Cost per click and per "
+        'note': "A guide beside the real-world CPA outcome adjustment, not part of the model. Cost per click and per "
                 "thousand impressions are in pounds, each month, with each platform's average over the whole period. "
                 "Google Trends search interest is as Google publishes it. Written by tools/market_import.py. The "
                 "Indeed Hiring Lab series is deliberately not here: its access terms have not been checked.",

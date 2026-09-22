@@ -32,6 +32,7 @@
 <script src="planner/app.js"></script>
 <script src="exports/text.js"></script>
 <script src="exports/stamp.js"></script>
+<script src="exports/tables.js"></script>
 <script src="exports/checks.js"></script>
 <script src="exports/pdf.js"></script>
 <script src="exports/workings.js"></script>
@@ -2314,7 +2315,6 @@ function planParams(role, s) {
     capMultiple: s.capMultiple || 1.0,
     otherHiresShare: (s.otherHiresShare && s.otherHiresShare[role] != null) ? s.otherHiresShare[role] : null,
     otherHiresMonthly: (s.otherHiresMonthly && s.otherHiresMonthly[role] != null) ? s.otherHiresMonthly[role] : null,
-    remainingError: (s.remainingError && s.remainingError[role] != null) ? s.remainingError[role] : null,
     includeSettling: !!s.includeSettling,
     efficiency: s.efficiency != null ? s.efficiency : assumptionOr('efficiency_weight', 0),
     bench: (s.bench && s.bench[role]) || null,
@@ -2640,22 +2640,37 @@ async function readChanges() {
 
 // The plan settings worth recording: the ones that change the figures and are
 // set per plan rather than in the assumptions file.
+// Cost limits and the data window are recorded too (X5, 22 September 2026).
+// Cost limits are held by kind, then role: { cph: { SMR: {..} }, cpa: {..} }.
 const LOGGED_SETTINGS = [
   { key: 'capMultiple', name: 'Spending cap multiple', perRole: false, unit: 'multiple' },
   { key: 'includeSettling', name: 'Include months still settling', perRole: false, unit: 'yes/no' },
+  { key: 'efficiency', name: 'Efficiency', perRole: false, unit: 'share' },
   { key: 'otherHiresShare', name: 'Other-source hires credited to paid media', perRole: true, unit: 'share' },
   { key: 'otherHiresMonthly', name: 'Expected hires from other sources per month', perRole: true, unit: 'number' },
-  { key: 'remainingError', name: 'Remaining-error adjustment', perRole: true, unit: 'number' },
+  { key: 'bench', name: 'Data window', perRole: true, unit: 'window' },
+  { key: 'limits', name: 'Cost limits', perRole: true, unit: 'limits',
+    pick: (s, role) => ({ cph: (((s || {}).cph || {})[role]) || {}, cpa: (((s || {}).cpa || {})[role]) || {} }) },
   { key: 'budget', name: 'Budget', perRole: true, unit: 'gbp' },
   { key: 'hireTarget', name: 'Hire target', perRole: true, unit: 'number' },
 ];
 
+function limitsText(v) {
+  const parts = [];
+  Object.keys(v.cph || {}).filter(r => v.cph[r] > 0).forEach(r => parts.push(`${r} ${fmtGBP(v.cph[r])} a hire`));
+  Object.keys(v.cpa || {}).forEach(r => Object.keys(v.cpa[r] || {}).filter(q => v.cpa[r][q] > 0)
+    .forEach(q => parts.push(`${r} ${RAC.PLATFORM_LABELS[q] || q} ${fmtGBP(v.cpa[r][q])} an application`)));
+  return parts.length ? parts.join(', ') : 'none';
+}
+
 function changeText(v, unit) {
+  if (unit === 'limits') return limitsText(v || {});
   if (v === null || v === undefined || v === '') return 'not set';
   if (unit === 'yes/no') return v ? 'yes' : 'no';
   if (unit === 'share') return Math.round(Number(v) * 100) + '%';
   if (unit === 'multiple') return RAC.text.fmt.mult(Number(v));
   if (unit === 'gbp') return fmtGBP(Number(v));
+  if (unit === 'window') return RAC.text.fmt.windowName(v) + (v && v.mode === 'custom' ? ` (${v.from || 'start'} to ${v.to || 'latest'})` : '');
   return String(v);
 }
 
@@ -2665,7 +2680,8 @@ function settingChanges(before, after, month) {
   LOGGED_SETTINGS.forEach(f => {
     if (f.perRole) {
       ROLES.forEach(role => {
-        const a = (before[f.key] || {})[role], b = (after[f.key] || {})[role];
+        const a = f.pick ? f.pick(before[f.key], role) : (before[f.key] || {})[role];
+        const b = f.pick ? f.pick(after[f.key], role) : (after[f.key] || {})[role];
         if (JSON.stringify(a === undefined ? null : a) !== JSON.stringify(b === undefined ? null : b)) {
           out.push({ kind: 'plan setting', month, role, name: f.name, key: f.key,
             from: changeText(a, f.unit), to: changeText(b, f.unit) });
@@ -2788,7 +2804,7 @@ async function sbSendLink(email) {
 // deliberately not in here: it lives in the shared workspace, so a link that
 // set it would move everyone else's month too.
 const ROUTE_TOOLS = ['planner', 'priorities', 'pacing', 'data', 'changelog'];
-const ROUTE_TABS = ['setup', 'plan', 'platforms', 'benchmarks', 'onerac', 'assumptions', 'method'];
+const ROUTE_TABS = ['setup', 'plan', 'benchmarks', 'onerac', 'assumptions', 'method'];
 
 function routeFromHash() {
   const h = (window.location.hash || '').replace(/^#\/?/, '');
@@ -3439,32 +3455,26 @@ function SetupTab({ state, setState, onOpenPriorities, container }) {
 // ====================================================================
 function PlanTab({ state, setState, role: roleView, setRole: setRoleView }) {
   const role = roleView;
-  const days = (DATA.days_in_month && DATA.days_in_month[state.planMonth]) || 30;
 
   // One builder, so the data period and the spend ceiling cannot be left off.
   const plan = useMemo(() => buildFundingPlan(role, {
     ...planParams(role, state),
     appTarget: state.appTarget[role] || 0,
   }), [role, state]);
+  const v2 = plan.v2;
 
   const budget = state.budget[role] || 0;
   const liveCount = plan.totalCount;
-  const covPct = Math.round(plan.coverageRate * 100);
-  const pct = Math.round(plan.pctOfTarget * 100);
   const budgetGap = plan.budgetForTarget - budget;
-  const rows = plan.locations.slice().sort((a, b) => (b.vacancies - a.vacancies) || (b.predApps - a.predApps));
-  // Budgets rounded so the rows add up to the total shown (feedback 6).
-  const spendR = RAC.util.roundToTotal(rows.map(l => l.spend));
+  const target = RAC.text.targetText(v2);
+  const t = v2.totals;
 
-  const applyBudget = () => setState(s => ({ ...s, budget: { ...s.budget, [role]: plan.budgetForTarget } }));
-
-  // Verdict tier: on target / close (range reaches it) / short.
-  const tier = plan.appTarget <= 0 ? 'none'
-    : plan.onTarget ? 'good'
-    : (plan.predHigh >= plan.appTarget ? 'close' : 'short');
-  const bannerClass = tier === 'good' ? 'banner-good'
-    : tier === 'close' ? 'banner-warn'
-    : tier === 'short' ? 'banner-bad' : 'banner-info';
+  const setBudget = (b) => setState(s => ({ ...s, budget: { ...s.budget, [role]: b } }));
+  // The budget the plan can place, rounded up to £50 (feedback 8). A little
+  // can still be left over where a platform maximum holds (for example the
+  // Appcast maximum at a higher cap multiple).
+  const placeable = Math.ceil((budget - plan.unplacedBudget) / 50) * 50;
+  const minimumsOverspend = plan.locations.reduce((s, l) => s + l.spend, 0) > plan.deployable + 1;
 
   return (
     <div>
@@ -3475,7 +3485,7 @@ function PlanTab({ state, setState, role: roleView, setRole: setRoleView }) {
               onClick={() => setRoleView(r)}>{r}</button>
           ))}
         </div>
-        <span className="help-text">{ROLE_FULL[role]} &middot; {liveCount} live locations &middot; {plan.totalVac} open roles</span>
+        <span className="help-text">{ROLE_FULL[role]} &middot; {liveCount} live locations &middot; {plan.totalVac} VAFs (open roles)</span>
       </div>
 
       {liveCount === 0 && (
@@ -3485,72 +3495,36 @@ function PlanTab({ state, setState, role: roleView, setRole: setRoleView }) {
         </div>
       )}
 
-      {/* Confidence verdict -- applications vs the client's target */}
-      {liveCount > 0 && (
-        <div className={'banner ' + bannerClass}>
-          <div className="banner-icon">{tier === 'good' ? '\u2713' : tier === 'none' ? 'i' : '!'}</div>
-          <div>
-            {tier === 'none' && (
-              <>
-                <strong>No application target set for {role} yet.</strong> This budget is predicted to deliver
-                {' '}<strong>~{fmtInt(plan.predictedApps)} applications</strong> (likely range
-                {' '}{fmtInt(plan.predLow)}&ndash;{fmtInt(plan.predHigh)}). Add RAC&rsquo;s target on the Setup
-                tab to see confidence against it.
-              </>
-            )}
-            {tier === 'good' && (
-              <>
-                <strong>On track to hit your application target.</strong> The plan is predicted to deliver
-                {' '}<strong>~{fmtInt(plan.predictedApps)} applications</strong> against RAC&rsquo;s target of
-                {' '}{fmtInt(plan.appTarget)} ({pct}%), with every one of the {liveCount} locations funded.
-                Likely range {fmtInt(plan.predLow)}&ndash;{fmtInt(plan.predHigh)}.
-              </>
-            )}
-            {tier === 'close' && (
-              <>
-                <strong>Close to target, just not centred on it yet.</strong> Central estimate is
-                {' '}<strong>~{fmtInt(plan.predictedApps)} applications</strong> vs the {fmtInt(plan.appTarget)}
-                {' '}target ({pct}%). The likely range ({fmtInt(plan.predLow)}&ndash;{fmtInt(plan.predHigh)})
-                reaches the target but doesn&rsquo;t centre on it. About
-                {' '}<strong>{fmtGBP(Math.max(0, budgetGap))}</strong> more budget would put the plan firmly on target.
-              </>
-            )}
-            {tier === 'short' && (
-              <>
-                <strong>The budget is set to fall short of your target.</strong> Predicted
-                {' '}<strong>~{fmtInt(plan.predictedApps)} applications</strong> against {fmtInt(plan.appTarget)}
-                {' '}({pct}%). Even the top of the likely range ({fmtInt(plan.predHigh)}) is below target.
-                Hitting it needs about <strong>{fmtGBP(plan.budgetForTarget)}</strong>.
-              </>
-            )}
-          </div>
-        </div>
-      )}
-
-      {/* Region limit warnings: money that could not be placed, or floors that
-          overspend the deployable budget. Both are silent otherwise. */}
-      {liveCount > 0 && (plan.unplacedBudget > 1 || (plan.v2 && plan.v2.minimumShortfalls.length > 0) ||
-        plan.locations.reduce((s, l) => s + l.spend, 0) > plan.deployable + 1) && (
-        <div className="banner banner-warn">
+      {/* Money that could not be placed, minimums not met, or minimums that
+          overspend the deployable budget. Silent otherwise. */}
+      {liveCount > 0 && (plan.unplacedBudget > 1 || v2.minimumShortfalls.length > 0 || minimumsOverspend) && (
+        <div className="banner banner-warn" data-panel="not-placed">
           <div className="banner-icon">!</div>
-          <div>
+          <div style={{ flex: 1 }}>
             {plan.unplacedBudget > 1 && (
-              <>
-                <strong>{fmtGBP(plan.unplacedBudget)} could not be placed efficiently.</strong> Every location that
-                could take it has reached its maximum budget, its spending cap or its cost limit, so this money has
-                nowhere to go. Raise a limit, or lower the budget to
-                {' '}{fmtGBP(plan.budget - plan.unplacedBudget)}.
-              </>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+                <span style={{ flex: 1, minWidth: 280 }}>
+                  <strong>{fmtGBP(plan.unplacedBudget)} could not be placed efficiently.</strong> Every location that
+                  could take it has reached its maximum budget, its spending cap, its cost limit or its VAFs, so this
+                  money has nowhere to go. The Notes column below says what held each location. Raise a limit, or
+                  lower the budget to {fmtGBP(placeable)}.
+                </span>
+                {placeable < budget && (
+                  <button className="btn btn-primary btn-sm" data-action="use-placeable" onClick={() => setBudget(placeable)}>
+                    Use {fmtGBP(placeable)}
+                  </button>
+                )}
+              </div>
             )}
-            {plan.v2 && plan.v2.minimumShortfalls.length > 0 && (
+            {v2.minimumShortfalls.length > 0 && (
               <div data-panel="minimum-shortfalls" style={{ marginTop: plan.unplacedBudget > 1 ? 6 : 0 }}>
                 <strong>Minimums not met.</strong> The plan never spends above a spending cap, so these were placed in part:
                 <ul style={{ margin: '4px 0 0 18px' }}>
-                  {plan.v2.minimumShortfalls.map((x, i) => <li key={i}>{x.text}.</li>)}
+                  {v2.minimumShortfalls.map((x, i) => <li key={i}>{x.text}.</li>)}
                 </ul>
               </div>
             )}
-            {plan.locations.reduce((s, l) => s + l.spend, 0) > plan.deployable + 1 && (
+            {minimumsOverspend && (
               <>
                 <strong>Minimum budgets exceed the deployable budget.</strong> The location minimums add up to
                 {' '}{fmtGBP(plan.locations.reduce((s, l) => s + l.spend, 0))} against a deployable budget of
@@ -3562,22 +3536,22 @@ function PlanTab({ state, setState, role: roleView, setRole: setRoleView }) {
         </div>
       )}
 
-      {/* Four headline numbers */}
+      {/* Headline numbers, two rows of three (feedback 5). */}
       {liveCount > 0 && (
-        <div className="kpi-row" style={{ marginBottom: 18 }}>
+        <div className="kpi-row" style={{ marginBottom: 18, gridTemplateColumns: 'repeat(3, 1fr)' }}>
           <div className="kpi kpi-accent-orange">
             <div className="kpi-label">Predicted applications</div>
             <div className="kpi-value mono">{fmtInt(plan.predictedApps)}</div>
             <div className="kpi-sub">likely {fmtInt(plan.predLow)}&ndash;{fmtInt(plan.predHigh)}
-              {plan.predictedApps > 0 ? ' \u00B7 ' + fmtGBP2(plan.placed / plan.predictedApps) + ' an application' : ''}</div>
+              {t.apps > 0 ? ' · ' + fmtGBP2(t.cpa) + ' an application (media)' : ''}</div>
           </div>
           <div className="kpi kpi-accent-blue">
             <div className="kpi-label">Predicted hires</div>
             <div className="kpi-value mono">{plan.predictedHires.toFixed(1)}</div>
             <div className="kpi-sub">
               likely {plan.predictedHiresLow.toFixed(1)}&ndash;{plan.predictedHiresHigh.toFixed(1)}
-              {' \u00B7 paid media ' + plan.paidHires.toFixed(1) + ', expected from other sources ' + plan.otherSourcesHires.toFixed(1)}
-              {plan.paidHires > 0 ? ' \u00B7 ' + fmtGBP(plan.placed / plan.paidHires) + ' per paid-media hire' : ''}
+              {' · paid media ' + plan.paidHires.toFixed(1) + ', expected from other sources ' + plan.otherSourcesHires.toFixed(1) + ' (not modelled on the budget)'}
+              {t.hires > 0 ? ' · ' + fmtGBP(t.cph) + ' per paid-media hire (media)' : ''}
             </div>
           </div>
           <div className="kpi kpi-accent-navy">
@@ -3586,19 +3560,22 @@ function PlanTab({ state, setState, role: roleView, setRole: setRoleView }) {
             <div className="kpi-sub">{plan.appTarget > 0 ? '' : 'set this on the Setup tab'}</div>
           </div>
           <div className="kpi kpi-accent-blue">
-            <div className="kpi-label">Total open roles</div>
+            <div className="kpi-label">Total VAFs</div>
             <div className="kpi-value mono">{fmtInt(plan.totalVac)}</div>
-            <div className="kpi-sub">across {liveCount} live locations</div>
+            <div className="kpi-sub">open roles across {liveCount} live locations</div>
           </div>
-          <div className="kpi kpi-accent-good">
-            <div className="kpi-label">{plan.budgetPinned ? 'Budget your caps require' : 'Budget to hit target'}</div>
-            <div className="kpi-value mono">{plan.budgetForTarget > 0 ? fmtGBP(plan.budgetForTarget)
-              : plan.targetUnreachable ? 'Most ' + (plan.mostHires || 0).toFixed(1) + ' hires' : '-'}</div>
+          <div className="kpi kpi-accent-navy" data-panel="current-budget">
+            <div className="kpi-label">Current budget</div>
+            <div className="kpi-value mono">{fmtGBP(budget)}</div>
+            <div className="kpi-sub">deployable {fmtGBP(plan.deployable)} &middot; placed {fmtGBP(plan.placed)}</div>
+          </div>
+          <div className="kpi kpi-accent-good" data-panel="budget-for-target">
+            <div className="kpi-label">{plan.budgetPinned ? 'Budget your minimums require' : 'Budget to hit target'}</div>
+            <div className="kpi-value mono">{plan.targetUnreachable ? 'Most ' + (plan.mostHires || 0).toFixed(1) + ' hires'
+              : plan.budgetForTarget > 0 ? fmtGBP(plan.budgetForTarget) : '-'}</div>
             <div className="kpi-sub">
-              {plan.budgetPinned ? 'every location is set to a minimum, so this is the sum of them plus hold-backs'
-                : plan.targetUnreachable ? 'out of reach within the spending caps; hires stop rising at ' + fmtGBP(plan.saturationBudget || 0) + ' (details below)'
+              {plan.targetUnreachable ? 'needing a total budget of ' + fmtGBP(v2.saturationBudget) + ' (' + fmtGBP(v2.atSaturation.placed) + ' placed plus ' + fmtGBP(v2.atSaturation.holdbacks) + ' held back)'
                 : plan.budgetForTarget <= 0 ? 'no target set'
-                : plan.capsBinding && Math.abs(budgetGap) <= 50 ? 'every location is at its cap, so more budget would not be spent'
                 : budgetGap > 50 ? fmtGBP(budgetGap) + ' more than now'
                 : budgetGap < -50 ? fmtGBP(-budgetGap) + ' less than now'
                 : 'matches your budget'}
@@ -3607,52 +3584,73 @@ function PlanTab({ state, setState, role: roleView, setRole: setRoleView }) {
         </div>
       )}
 
+      {/* The budget for the target, in steps (feedback 30). */}
+      {liveCount > 0 && target.lines.length > 0 && (
+        <div className="help-text" data-panel="target-steps" style={{ marginBottom: 14 }}>
+          {target.lines.filter(Boolean).map((l, i) => <div key={i}>{l}</div>)}
+        </div>
+      )}
+
       {liveCount > 0 && plan.targetUnreachable && <RACUI.ReachPanel plan={plan} fmt={{ fmtGBP, fmtInt, monthShort }} />}
       {liveCount > 0 && <RACUI.FeesNote plan={plan} fmt={{ fmtGBP }} />}
 
       {/* Apply-budget nudge */}
-      {liveCount > 0 && !plan.budgetPinned && plan.budgetForTarget > 0 && budgetGap > 50 && (
+      {liveCount > 0 && !plan.budgetPinned && !plan.targetUnreachable && plan.budgetForTarget > 0 && budgetGap > 50 && (
         <div className="help-text" style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 18, flexWrap: 'wrap' }}>
-          <button className="btn btn-primary btn-sm" onClick={applyBudget}>
+          <button className="btn btn-primary btn-sm" onClick={() => setBudget(plan.budgetForTarget)}>
             Use {fmtGBP(plan.budgetForTarget)} as the {role} budget
           </button>
           <span style={{ flex: 1, minWidth: 240 }}>
-            Predicted applications scale with the deployable budget, so this is the spend that puts the central
-            estimate on RAC&rsquo;s target, with hold-backs included.
+            The lowest budget, in steps of £50, at which the plan reaches the hire target, with hold-backs included.
           </span>
         </div>
       )}
 
-      {/* Budget breakdown */}
+      {/* Budget breakdown: fees kept separate; placed and not placed. */}
       {liveCount > 0 && (
-        <div className="card">
+        <div className="card" data-panel="where-budget-goes">
           <div className="card-head">
             <div className="card-title">Where the budget goes</div>
-            
           </div>
           <div className="card-body" style={{ padding: 0 }}>
             <table className="alloc-table">
               <tbody>
-                <tr><td>Monthly budget</td><td style={{ textAlign: 'right' }}>{fmtGBP(budget)}</td></tr>
+                <tr><td>Monthly budget{v2.fees.on ? ' (including platform fees)' : ''}</td><td style={{ textAlign: 'right' }}>{fmtGBP(budget)}</td></tr>
                 <tr>
-                  <td>&minus; Indeed Premium ({(state.premiumCampaigns && state.premiumCampaigns[role]) || 0} campaigns &times; {days}d &times; &pound;44)</td>
+                  <td>&minus; Indeed Premium ({(state.premiumCampaigns && state.premiumCampaigns[role]) || 0} campaigns &times; {v2.daysInMonth} days &times; &pound;{RAC.assumptions.get(v2.A, 'indeed_premium_rate')}{v2.holdbacks.premiumFee > 0 ? ', plus the Indeed fee' : ''})</td>
                   <td style={{ textAlign: 'right' }}>&minus;{fmtGBP(plan.premiumHoldback)}</td>
                 </tr>
                 <tr>
                   <td>&minus; Combined Activity reserve</td>
                   <td style={{ textAlign: 'right' }}>&minus;{fmtGBP(plan.acHoldback)}</td>
                 </tr>
+                {plan.oneRacHoldback > 0 && (
+                  <tr>
+                    <td>&minus; OneRAC hold-back</td>
+                    <td style={{ textAlign: 'right' }}>&minus;{fmtGBP(plan.oneRacHoldback)}</td>
+                  </tr>
+                )}
                 <tr className="total-row">
                   <td>Deployable budget</td>
                   <td style={{ textAlign: 'right' }}>{fmtGBP(plan.deployable)}</td>
                 </tr>
                 <tr>
-                  <td>Split across {liveCount} locations by open roles</td>
-                  <td style={{ textAlign: 'right' }}>{fmtGBP(plan.demandPool)}</td>
+                  <td>Placed in the plan</td>
+                  <td style={{ textAlign: 'right' }}>{fmtGBP(plan.placed)}</td>
+                </tr>
+                {v2.fees.on && (
+                  <>
+                    <tr><td style={{ paddingLeft: 28 }}>of which media</td><td style={{ textAlign: 'right' }}>{fmtGBP(t.media)}</td></tr>
+                    <tr><td style={{ paddingLeft: 28 }}>of which platform fees</td><td style={{ textAlign: 'right' }}>{fmtGBP(v2.fees.placed)}</td></tr>
+                  </>
+                )}
+                <tr>
+                  <td>Not placed</td>
+                  <td style={{ textAlign: 'right', color: plan.unplacedBudget > 1 ? 'var(--warn)' : 'inherit' }}>{fmtGBP(plan.unplacedBudget)}</td>
                 </tr>
                 {plan.beyondProven > 1 && (
                   <tr>
-                    <td>Of which above spend levels already run</td>
+                    <td>Of which placed above the month each cap was based on</td>
                     <td style={{ textAlign: 'right', color: 'var(--warn)' }}>{fmtGBP(plan.beyondProven)}</td>
                   </tr>
                 )}
@@ -3662,217 +3660,8 @@ function PlanTab({ state, setState, role: roleView, setRole: setRoleView }) {
         </div>
       )}
 
-      {/* Per-location plan */}
-      {liveCount > 0 && (
-        <div className="card">
-          <div className="card-head">
-            <div className="card-title">Applications by location</div>
-            <div className="card-sub">Each location’s share of the target and what the plan is set to deliver</div>
-          </div>
-          <div className="card-body" style={{ padding: 0 }}>
-            <table className="alloc-table">
-              <thead>
-                <tr>
-                  <th>Location</th><th>Open roles</th><th>Budget</th>
-                  <th>App target</th><th>Predicted apps</th><th>Likely applications range</th>
-                  <th>Cost per application</th><th>Hire CVR</th><th>Predicted hires</th>
-                </tr>
-              </thead>
-              <tbody>
-                {rows.map((l, li) => {
-                  const hit = l.appSubTarget > 0 && l.predApps >= l.appSubTarget;
-                  return (
-                    <tr key={l.region}>
-                      <td>{l.region}</td>
-                      <td>{l.vacancies}</td>
-                      <td>{fmtGBP(spendR[li])}</td>
-                      <td>{fmtInt(l.appSubTarget)}</td>
-                      <td style={{ color: l.appSubTarget > 0 ? (hit ? 'var(--good)' : 'var(--warn)') : 'inherit', fontWeight: 600 }}
-                        title={'Blended CPA \u00A3' + Math.round(l.cpa) +
-                          (l.cpaSource === 'shrunk' ? ' (thin data, adjusted toward the benchmark)' :
-                           l.cpaSource === 'benchmark' ? ' (no historic data, benchmark used)' : '')}>
-                        {fmtInt(l.predApps)}
-                        {l.cpaSource === 'shrunk' && <span style={{ color: 'var(--warn)' }}> *</span>}
-                        {l.cpaSource === 'benchmark' && <span style={{ color: 'var(--ink-35)' }}> &dagger;</span>}
-                      </td>
-                      <td className="band-text">{fmtInt(l.predLow)}&ndash;{fmtInt(l.predHigh)}
-                        {' '}<span style={{ opacity: 0.7 }}>(&plusmn;{l.bandPct}%)</span></td>
-                      <td>{l.predApps > 0 ? fmtGBP2(l.spend / l.predApps) : '\u2013'}</td>
-                      <td>{l.predApps > 0 ? (l.hireCvr * 100).toFixed(2) + '%' : '\u2013'}</td>
-                      <td style={{ fontWeight: 600 }}>{l.predHires > 0 ? l.predHires.toFixed(1) : '0'}</td>
-                    </tr>
-                  );
-                })}
-                <tr className="total-row">
-                  <td>Total</td>
-                  <td>{plan.totalVac}</td>
-                  <td>{fmtGBP(spendR.reduce((s, x) => s + x, 0))}</td>
-                  <td>{fmtInt(plan.appTarget)}</td>
-                  <td>{fmtInt(plan.predictedApps)}</td>
-                  <td className="band-text">{fmtInt(plan.predLow)}&ndash;{fmtInt(plan.predHigh)}</td>
-                  <td>{plan.predictedApps > 0 ? fmtGBP2(plan.placed / plan.predictedApps) : '\u2013'}</td>
-                  <td>{plan.predictedApps > 0 ? (plan.paidHires / plan.predictedApps * 100).toFixed(2) + '%' : '\u2013'}</td>
-                  <td style={{ fontWeight: 600 }}>{plan.paidHires.toFixed(1)}</td>
-                </tr>
-                <tr>
-                  <td colSpan={8}>Expected hires from other sources (not driven by budget)</td>
-                  <td>{plan.otherSourcesHires.toFixed(1)}</td>
-                </tr>
-                <tr className="total-row">
-                  <td colSpan={8}>All hires</td>
-                  <td style={{ fontWeight: 600 }}>{plan.predictedHires.toFixed(1)}</td>
-                </tr>
-              </tbody>
-            </table>
-            <div className="help-text" style={{ padding: '12px 16px' }}>
-              Each location gets a share of the budget in proportion to its open roles, within its spending
-              caps and any limits. Predicted apps = media spend &divide; planned cost per application, and cost
-              per application here is the budget over predicted applications. The likely applications range
-              shows how far the model has missed in testing, and is wider where there is less evidence.
-              {' '}{RAC.text.ROW_RANGE_LINE}
-              {' '}<span style={{ color: 'var(--warn)' }}>*</span> thin data, cost per application adjusted
-              toward the platform figure; <span style={{ color: 'var(--ink-35)' }}>&dagger;</span> no historic data.
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
-
-// ====================================================================
-// TAB 3 - PLATFORMS: per-location platform recommendation + rationale
-// ====================================================================
-function PlatformsTab({ state, role: roleView, setRole: setRoleView }) {
-  const role = roleView;
-  const days = (DATA.days_in_month && DATA.days_in_month[state.planMonth]) || 30;
-
-  // One builder, so the data period and the spend ceiling cannot be left off.
-  const plan = useMemo(() => buildFundingPlan(role, {
-    ...planParams(role, state),
-    appTarget: state.appTarget[role] || 0,
-  }), [role, state]);
-
-  const liveCount = plan.totalCount;
-  const deployable = plan.deployable;
-  const rows = plan.locations.slice().sort((a, b) => (b.vacancies - a.vacancies) || (b.spend - a.spend));
-  // Rounded so each column adds up to the total shown (feedback 6).
-  const locR = RAC.util.roundToTotal(rows.map(l => l.spend));
-  const cellR = Object.fromEntries(PLATFORMS.map(p => [p, RAC.util.roundToTotal(rows.map(l => l.platSpend[p] || 0))]));
-  const platR = PLATFORMS.map(p => cellR[p].reduce((s, x) => s + x, 0));
-  const PLAT_ACCENT = { indeed: 'orange', meta: 'navy', google: 'blue', appcast: 'good' };
-
-  function sharePct(v) { return Math.round(v * 100); }
-
-  return (
-    <div>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
-        <div className="role-switch">
-          {ROLES.map(r => (
-            <button key={r} className={r === roleView ? 'active' : ''}
-              onClick={() => setRoleView(r)}>{r}</button>
-          ))}
-        </div>
-        <span className="help-text">Where your budget goes across the four platforms</span>
-      </div>
-
-      <div className="banner banner-info">
-        <div className="banner-icon">i</div>
-        <div>
-          Within each location, money goes to whichever platform delivers the next hire most cheaply, up to
-          each platform's spending cap. The totals below add up to the budget placed in the plan.
-        </div>
-      </div>
-
-      {liveCount === 0 && (
-        <div className="banner banner-warn">
-          <div className="banner-icon">!</div>
-          <div>No live locations with open roles for {role}. Set them on the Setup tab.</div>
-        </div>
-      )}
-
-      {liveCount > 0 && (
-        <>
-          {/* Per-platform totals */}
-          <div className="kpi-row" style={{ marginBottom: 18 }}>
-            {PLATFORMS.map((p, pi) => {
-              const total = platR[pi];
-              const share = plan.placed > 0 ? (plan.platformTotals[p] / plan.placed) * 100 : 0;
-              return (
-                <div key={p} className={'kpi kpi-accent-' + PLAT_ACCENT[p]}>
-                  <div className="kpi-label">{PLATFORM_LABELS[p]}</div>
-                  <div className="kpi-value mono">{fmtGBP(total)}</div>
-                  <div className="kpi-sub">{Math.round(share)}% of the budget placed</div>
-                </div>
-              );
-            })}
-          </div>
-
-          {/* Per-location-by-platform table */}
-          <div className="card">
-            <div className="card-head">
-              <div className="card-title">By location and platform</div>
-              
-            </div>
-            <div className="card-body" style={{ padding: 0 }}>
-              <table className="alloc-table">
-                <thead>
-                  <tr>
-                    <th>Location</th>
-                    <th>Open roles</th>
-                    <th>Indeed</th>
-                    <th>Meta</th>
-                    <th>Google</th>
-                    <th>Appcast</th>
-                    <th>Budget</th>
-                    <th>Predicted apps</th>
-                    <th>Predicted hires</th>
-                    <th>Cost per hire</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {rows.map((l, li) => (
-                    <tr key={l.region}>
-                      <td>{l.region}</td>
-                      <td>{l.vacancies}</td>
-                      {PLATFORMS.map(p => (
-                        <td key={p}>
-                          {fmtGBP(cellR[p][li])}
-                          {' '}<span style={{ color: 'var(--ink-35)', fontSize: 11 }}>
-                            {sharePct(l.platShare[p])}%
-                          </span>
-                        </td>
-                      ))}
-                      <td style={{ fontWeight: 600 }}>{fmtGBP(locR[li])}</td>
-                      <td>{fmtInt(l.predApps)}</td>
-                      <td>{l.predHires > 0 ? l.predHires.toFixed(1) : '0'}</td>
-                      <td>{l.cph ? fmtGBP(l.cph) : 'n/a'}</td>
-                    </tr>
-                  ))}
-                  <tr className="total-row">
-                    <td>Total</td>
-                    <td>{plan.totalVac}</td>
-                    {PLATFORMS.map((p, pi) => (
-                      <td key={p}>{fmtGBP(platR[pi])}</td>
-                    ))}
-                    <td>{fmtGBP(locR.reduce((s, x) => s + x, 0))}</td>
-                    <td>{fmtInt(plan.predictedApps)}</td>
-                    <td>{plan.paidHires.toFixed(1)}</td>
-                    <td>{plan.paidHires > 0 ? fmtGBP(plan.placed / plan.paidHires) : 'n/a'}</td>
-                  </tr>
-                </tbody>
-              </table>
-              <div className="help-text" style={{ padding: '12px 16px' }}>
-                The small percentage next to each platform spend is that platform&rsquo;s share of the
-                location&rsquo;s budget in this plan. The column totals add up to the budget placed,
-                {' '}{fmtGBP(plan.placed)}, out of a deployable budget of {fmtGBP(deployable)}; the rest is
-                budget the plan could not place. Figures are rounded to the pound so each column adds up
-                to its total.
-              </div>
-            </div>
-          </div>
-        </>
-      )}
+      {/* The same tables as the PDF (user decision, 22 September 2026). */}
+      {liveCount > 0 && <RACUI.PlanTables plan={v2} />}
     </div>
   );
 }
@@ -5734,6 +5523,14 @@ function exportPlanPDF(state, roleFilter, opts) {
 // ====================================================================
 const CHANGELOG = [
   { date: '22 Sep', items: [
+    'Plan tab and PDF now show the same tables, with the same columns in the same order: total spend, fee, media, plan cost per application (media), predicted applications, quality rate, hire rate from quality applications, hire adjustment, plan cost per hire (media) and predicted hires, with ranges under their figures. The location table adds notes and VAFs; each platform table adds the base cost per application and the CPA adjustments that multiply it to the plan figure. Totals are the sums of the rows. The Platforms tab has gone.',
+    'Cost per application and cost per hire are now on media spend, with platform fees shown separately everywhere, including the summary. Cost limits are judged on media cost.',
+    'Renamed everywhere: the spend-level adjustment is now the diminishing returns adjustment, and the remaining-error adjustment is now the real-world CPA outcome adjustment. It comes from the assumptions file only; Setup no longer has a field for it.',
+    'A cost per application limit set for a location and platform now replaces that row’s spending cap: spend continues until the predicted cost per application reaches the limit. Setup shows the spend each limit produced. Limits no longer change which past months count as successful.',
+    'A location’s predicted paid-media hires can no longer exceed its VAFs; spend there stops when they reach them and the money moves to other locations.',
+    'The budget for the hire target is shown in steps (target, less expected hires from other sources, paid-media hires needed, hold-backs plus placed), and where it is out of reach as a total budget (placed plus held back). The search no longer accepts a budget that its own location minimums overspend.',
+    'The quality blend for Indeed and Appcast is 35 applications for both roles, and each role’s benchmark cost per application is its average over the months the spending caps use. Tested values were worked out again: SMR’s real-world CPA outcome adjustment is now 1.00. From plans for January 2027 the spending caps will use the last 12 settled months.',
+    'Plan tab: a Current budget box, the headline figures in two rows of three, placed and not placed in Where the budget goes, and a Use button that sets the budget to what the plan can place. The record of changes now includes cost limits, the data window and the efficiency setting.',
     'PDF: each page now leads with the part that changes (Summary, By location, Indeed by location and so on), with the plan title smaller above it. The version stamp is shorter, names no file, and is printed once, on the last page; the workings keep it in full. The summary fits on one page again, and text carried onto a new page is no longer drawn in pale grey.',
     'PDF: the fees line on the summary shows only the fees on placed spend, since the Indeed Premium fee already has its own line. The assumptions box states the spending cap multiple on its own, says where values came from in plain words (set by Enhance, set by Enhance and informed by testing, or measured from RAC’s data), explains the fees in plain terms, and names any location and platform planned with no spend of its own since January 2026.',
     'PDF tables: rows are rounded so they add up to the total shown; location notes are shorter and run onto a second line rather than being cut off; column headings no longer split a word across lines.',
@@ -10145,7 +9942,6 @@ function App() {
   const tabs = [
     { id: 'setup', label: 'Setup' },
     { id: 'plan', label: 'Plan' },
-    { id: 'platforms', label: 'Platforms' },
     { id: 'benchmarks', label: 'Benchmarks' },
     { id: 'onerac', label: 'OneRAC' },
     { id: 'assumptions', label: 'Assumptions' },
@@ -10357,7 +10153,6 @@ function App() {
                 {tab === 'setup' && <SetupTab state={plannerState} setState={setPlannerState} container={container}
                   onOpenPriorities={() => setTool('priorities')} />}
                 {tab === 'plan' && <PlanTab state={plannerState} setState={setPlannerState} role={roleView} setRole={setRoleView} />}
-                {tab === 'platforms' && <PlatformsTab state={plannerState} role={roleView} setRole={setRoleView} />}
                 {tab === 'benchmarks' && <RACUI.BenchmarksTab state={plannerState} setState={setPlannerState} role={roleView} setRole={setRoleView}
                   dataVersion={DATA_VERSION} fmt={{ fmtGBP, fmtInt, monthShort }} />}
                 {tab === 'onerac' && <RACUI.OneRacTab state={plannerState} update={patch => setPlannerState(st => ({ ...st, ...patch }))}

@@ -1,5 +1,5 @@
 {
- "note": "A guide beside the remaining-error adjustment, not part of the model. Cost per click and per thousand impressions are in pounds, each month, with each platform's average over the whole period. Google Trends search interest is as Google publishes it. Written by tools/market_import.py. The Indeed Hiring Lab series is deliberately not here: its access terms have not been checked.",
+ "note": "A guide beside the real-world CPA outcome adjustment, not part of the model. Cost per click and per thousand impressions are in pounds, each month, with each platform's average over the whole period. Google Trends search interest is as Google publishes it. Written by tools/market_import.py. The Indeed Hiring Lab series is deliberately not here: its access terms have not been checked.",
  "averages": {
   "google": {
    "cpc": 1.49,

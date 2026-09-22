@@ -27,6 +27,10 @@
     { re: /\b(rests?|rested|resting) on\b/i, why: 'says "rest on" (use "based on")' },
     // The Display remarketing note stays internal (user, 22 September 2026).
     { re: /display remarketing|dynamic remarketing/i, why: 'mentions the Display remarketing campaign' },
+    // Terms renamed on 22 September 2026: the real-world CPA outcome
+    // adjustment, the diminishing returns adjustment, and "average" with the
+    // months stated in place of "usual".
+    { re: /remaining[- ]error|spend[- ]level adjustment|\busual (cost|monthly|spend|rate|month|quality)/i, why: 'uses a renamed term (remaining-error, spend-level or usual)' },
     { re: /\bNaN\b|\bundefined\b|\bInfinity\b/, why: 'broken figure' },
   ];
 

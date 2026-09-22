@@ -59,11 +59,15 @@ export default function (check, { assert }) {
     const bullets = out.texts.filter(t => t.length > 0);
     assert(all.includes('Spending cap multiple: x1.'), 'cap multiple bullet');
     assert(!/Spending cap multiple: x1\. \S/.test(all), 'text after the cap multiple');
-    // X1: the fee line is fees on placed spend only; the Indeed Premium fee is in its own line.
-    assert(all.includes('of which platform fees on placed spend'), 'fee line label');
+    // X1: the fee line is fees on placed spend only; the Indeed Premium fee is
+    // in its own line. Fees are kept separate (22 September 2026): placed =
+    // media + platform fees, each on its own line.
+    assert(all.includes('platform fees (Indeed 1.75%'), 'fee line label');
     assert(Math.abs(plan.fees.placed + plan.fees.premium - plan.fees.total) < 0.005, 'fees do not add up');
-    const at = bullets.findIndex(t => t.startsWith('of which platform fees on placed spend'));
+    const at = bullets.findIndex(t => t.startsWith('platform fees (Indeed'));
     assert(bullets[at + 1] === F.gbp(plan.fees.placed, 2), `fee line shows ${bullets[at + 1]}, not the fees on placed spend ${F.gbp(plan.fees.placed, 2)}`);
+    const media = bullets.findIndex(t => t === 'media');
+    assert(media >= 0 && bullets[media + 1] === F.gbp(plan.totals.media), 'media line');
     assert(all.includes(`of which ${F.gbp(plan.fees.premium, 2)} on Indeed Premium`), 'fees bullet names the Premium fee');
     // 13: spend above past levels, in parts that add up; the row with no spend of its own is named.
     const cells = plan.locations.flatMap(l => RAC.PLATFORMS.map(q => l.cells[q])).filter(c => c.spend > 0.005);
@@ -113,10 +117,12 @@ export default function (check, { assert }) {
     const out = pdfOf(plan);
     const page = out.pdf.pages.find(pg => pg[1] && pg[1].s === 'By location');
     const words = page.map(t => t.s);
-    ['at spending caps', 'at location spending cap', 'set to no spend'].forEach(n => assert(words.includes(n), 'note missing: ' + n));
+    // Wording from 22 September 2026 (walk-through Q11, with the user's changes).
+    const flat = words.join(' ');
+    ['Every platform at its spending', 'At the most this location has', 'No spend in this plan'].forEach(n => assert(flat.includes(n), 'note missing: ' + n));
     assert(!words.some(w => /\(largest (successful )?month x multiple\)/.test(w)), 'long cap reason in the notes');
-    assert(words.includes('plus 10.1 expected from other') && words.includes('sources'), 'the total row note is not carried to a second line');
-    return 'notes: at spending caps, at location spending cap, set to no spend; the total row note runs onto a second line';
+    assert(words.some(w => w.startsWith('Paid media only; plus 10.1')) && words.includes('expected from other sources'), 'the total row note is not carried to a second line');
+    return 'notes: Every platform at its spending cap, At the most this location has spent in a month, No spend in this plan; the total row note runs onto a second line';
   });
 
   check('28 and 38: the workings Assumptions sheet in RAC\'s words, with the months the plan used', () => {
@@ -125,7 +131,7 @@ export default function (check, { assert }) {
     const sheet = w.sheets.find(s => s.name === 'Assumptions');
     const body = sheet.rows.filter(r => r.kind !== 'head' && r.kind !== 'title' && r.kind !== 'sub' && r.kind !== 'note' && r.kind !== 'blank');
     assert(!body.some(r => r.cells[0] === 'combined_activity_includes_display'), 'the Display setting is listed');
-    const allowed = new Set(['Set by Enhance', 'Set by Enhance, informed by testing', "Measured from RAC's data", "RAC's data", 'set for this plan', 'blended by open roles']);
+    const allowed = new Set(['Set by Enhance', 'Set by Enhance, informed by testing', "Set by Enhance, informed by RAC's data", "Measured from RAC's data", "RAC's data", 'set for this plan', 'blended by open roles']);
     const bad = body.filter(r => !allowed.has(r.cells[6]));
     assert(!bad.length, 'unexpected source: ' + bad.slice(0, 3).map(r => `${r.cells[0]} "${r.cells[6]}"`).join('; '));
     const used = Object.fromEntries(RAC.text.monthsUsed(plan.A, 'SMR', plan).map(r => [r.key, r]));

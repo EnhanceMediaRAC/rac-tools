@@ -48,8 +48,8 @@ BUILD_PROGRESS.md for the numbers):
   locations. June's quality was lower everywhere, so June months are no longer
   set aside for that alone.
 - A month counts towards a cap if its cost per application was at or below the
-  location and platform's own usual cost across the settled 2026 months,
-  adjusted for that month's spend, with no remaining-error adjustment. 2025
+  location and platform's own average cost across the settled 2026 months,
+  adjusted for that month's spend, with no real-world CPA outcome adjustment. 2025
   months are left out because that data was put together differently and does
   not compare (the same reason they are left out of the months the caps look
   at). This does not depend on the data window, so the caps are the same
@@ -59,7 +59,7 @@ BUILD_PROGRESS.md for the numbers):
     platforms together, x the spending cap multiple (settled 2026 months).
     Row caps are set separately and added up, so without this a location
     could be allowed more than it has ever run.
-  - A row's cap cannot be based on a month above twice its usual monthly spend
+  - A row's cap cannot be based on a month above twice its average monthly spend
     (the average of the 2026 months it spent in), so one unusual month cannot
     set a cap.
   Both values are in assumptions.csv (cap_location_month_limit 1,
@@ -93,7 +93,7 @@ Now sanity-check the figures with the new caps in place:
      month. On the locations page of the PDF their notes read "at location
      spending cap". Patrol South East and North East
      had location caps below their row caps, but the plan did not reach them.
-   - The row limit held 12 rows to twice their usual monthly spend. SMR: South
+   - The row limit held 12 rows to twice their average monthly spend. SMR: South
      East Appcast, London Appcast (London is set to no spend in those
      settings), North West Indeed, North West Meta, Yorkshire & Humber Indeed,
      Yorkshire & Humber Appcast. Patrol: South East Appcast, West Midlands
@@ -124,12 +124,12 @@ Now sanity-check the figures with the new caps in place:
      looked at (January to July 2026) and say the cost benchmark used the same
      months. No 2025 month should appear on it.
    - The "Spending caps" section should describe the benchmark (each location
-     and platform's own usual cost over the settled months since January 2026,
+     and platform's own average cost over the settled months since January 2026,
      adjusted for that month's spend, with the reason earlier months were left
      out) and the quality test (against what was expected for that location
      that month, given quality across all locations).
    - The same section, and the spending caps line in "Months used", should
-     state both limits: a cap is based on no more than 2 x usual monthly spend,
+     state both limits: a cap is based on no more than 2 x average monthly spend,
      and each location has its own cap of the most it spent in one month, all
      platforms together, x the multiple. It should say there is no limit on
      the plan as a whole.
@@ -172,10 +172,10 @@ Now sanity-check the figures with the new caps in place:
    "[object Object]".)
 7. On the Successful months sheet, the column after cost per application is
    "Benchmark at that spend", and the quality test reads, for example, "19.1%
-   against 17.4% expected (usual 22.3% x 0.78 for the month): passed". Pick one
+   against 17.4% expected (average 22.3% x 0.78 for the month): passed". Pick one
    row and check the month was counted only if its cost was at or below the
    benchmark and the quality test passed. A row whose cap is held by the
-   usual-spend limit says "largest successful month held to 2 x usual monthly
+   usual-spend limit says "largest successful month held to 2 x average monthly
    spend" on its cap line.
    Below the rows, "Location spending caps" lists each location's biggest
    month by platform, the location cap, the platform caps added up and which

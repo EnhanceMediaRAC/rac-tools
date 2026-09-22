@@ -2,16 +2,17 @@
 
 1. The app loads the planner files and plans with no page errors.
 2. The Plan tab's predicted applications and hires equal RAC.plan.build for
-   the same settings, worked out in the page.
+   the same settings, worked out in the page, and its tables are RAC.tables
+   (the PDF's tables) cell for cell. There is no Platforms tab.
 3. The Benchmarks tab shows the planner's figures. Changing Patrol's data
    window there, then going back to the SMR plan, leaves the SMR figures
    unchanged (settings do not leak between screens).
 4. The SMR and Patrol buttons in the header switch the role on every screen.
 5. The Setup share of other-source hires credited to paid media reaches the
    plan (Plan tab hires equal the planner at 50%).
-6. The other core Setup fields (expected hires from other sources, the
-   remaining-error adjustment, include months still settling) reach the plan,
-   and a month still settling is flagged on Setup.
+6. The other core Setup fields (expected hires from other sources, include
+   months still settling) reach the plan, a month still settling is flagged on
+   Setup, and the real-world CPA outcome adjustment is no longer a field.
 7. Where the spending caps put the target out of reach, the Plan tab shows the
    most hires, the budget where hires stop rising and multiples 1 to 3, equal
    to the planner.
@@ -81,63 +82,66 @@ with sync_playwright() as pw:
     else:
         notes.append(f"October plan fees: Plan tab shows {fee_text}, as the planner")
 
-    # Plan and Platforms tabs (feedback 6, 7, 8, 10, 39, X3, X4): location
-    # budgets add up to the total shown, cost per application is shown, the
-    # per-hire figure and the suggested lower budget use placed spend, and the
-    # Platforms tab adds up to placed spend.
+    # Plan tab (feedback 6, 7, 8, 10, 39, X3, X4, and the 22 September
+    # decisions): the same tables as the PDF, built by RAC.tables, with every
+    # cell the planner's; money columns add to their totals; costs on media;
+    # the not-placed notice suggests the placeable budget; no Platforms tab.
     gbp = lambda t: int(re.sub(r'[^0-9]', '', t) or 0)
-    table = page.locator('.card:has(.card-title:has-text("Applications by location")) table')
-    heads = [h.strip().lower() for h in table.locator('thead th').all_inner_texts()]
-    body = table.locator('tbody tr').all()
-    budget_col = heads.index('budget')
-    loc_rows = [r.locator('td').all_inner_texts() for r in body if 'total-row' not in (r.get_attribute('class') or '')]
-    loc_rows = [r for r in loc_rows if len(r) == len(heads)]
-    total_row = table.locator('tbody tr.total-row').first.locator('td').all_inner_texts()
-    rows_sum = sum(gbp(r[budget_col]) for r in loc_rows)
-    if rows_sum != gbp(total_row[budget_col]) or gbp(total_row[budget_col]) != round(want['placed']):
-        fails.append(f"location budgets add to £{rows_sum:,}, total shows {total_row[budget_col]}, placed £{want['placed']:,.0f}")
-    if 'likely applications range' not in heads or 'cost per application' not in heads:
-        fails.append('location table headings: ' + ', '.join(heads))
-    cpa_col = heads.index('cost per application') if 'cost per application' in heads else None
-    want_cpa = f"£{want['placed'] / want['apps']:,.2f}"
-    if cpa_col is None or total_row[cpa_col] != want_cpa:
-        fails.append(f"total cost per application {total_row[cpa_col] if cpa_col is not None else 'missing'}, planner {want_cpa}")
+    if page.locator('.tab-btn', has_text='Platforms').count():
+        fails.append('the Platforms tab is still there')
+    tables = page.locator('[data-panel="plan-tables"] [data-table]')
+    keys = tables.evaluate_all('els => els.map(e => e.getAttribute("data-table"))')
+    want_keys = [t['key'] for t in want['tables']]
+    if keys != want_keys:
+        fails.append(f'Plan tab tables {keys}, expected {want_keys}')
+    mismatched = []
+    for t in want['tables']:
+        el = page.locator(f'[data-table="{t["key"]}"] table')
+        if not el.count():
+            continue
+        heads = [h.strip() for h in el.locator('thead th').all_inner_texts()]
+        if [h.lower() for h in heads] != [l.lower() for l in t['labels']]:   # the page upper-cases headings
+            mismatched.append(f"{t['key']} headings {heads}")
+        shown_rows = el.locator('tbody tr').evaluate_all(
+            'rows => rows.map(r => Array.from(r.children).map(td => (td.childNodes[0] ? td.childNodes[0].textContent : "").trim()))')
+        for ri, (a, b) in enumerate(zip(shown_rows, t['rows'])):
+            if [x.strip() for x in a] != [str(x).strip() for x in b]:
+                mismatched.append(f"{t['key']} row {ri + 1}: screen {a[:6]} planner {b[:6]}")
+                break
+        if len(shown_rows) != len(t['rows']):
+            mismatched.append(f"{t['key']}: {len(shown_rows)} rows, planner {len(t['rows'])}")
+    if mismatched:
+        fails.append('Plan tab tables differ from RAC.tables: ' + '; '.join(mismatched[:4]))
+    loc = next(t for t in want['tables'] if t['key'] == 'locations')
+    ci = loc['labels'].index('Total spend')
+    body = [r for r in loc['rows'][:-1] if r[ci] != '-']
+    rows_sum = sum(gbp(r[ci]) for r in body)
+    if rows_sum != gbp(loc['rows'][-1][ci]) or gbp(loc['rows'][-1][ci]) != round(want['placed']):
+        fails.append(f"location spend adds to £{rows_sum:,}, total {loc['rows'][-1][ci]}, placed £{want['placed']:,.0f}")
     kpi_apps = page.locator('.kpi:has(.kpi-label:has-text("Predicted applications")) .kpi-sub').inner_text()
     kpi_hires = page.locator('.kpi:has(.kpi-label:has-text("Predicted hires")) .kpi-sub').inner_text()
-    per_hire = f"£{want['placed'] / want['paid']:,.0f} per paid-media hire"
-    if want_cpa + ' an application' not in kpi_apps or per_hire not in kpi_hires:
-        fails.append(f'KPI lines: {kpi_apps!r} / {kpi_hires!r}; expected {want_cpa} an application and {per_hire}')
-    if 'volatility' in table.locator('xpath=../..').inner_text() or 'guardrail' in page.locator('.main').inner_text():
-        fails.append('the location table help text still describes the previous method')
-    warn = page.locator('.banner-warn:has-text("could not be placed efficiently")')
+    want_cpa = f"£{want['cpa']:,.2f} an application (media)"
+    per_hire = f"£{want['cph']:,.0f} per paid-media hire (media)"
+    if want_cpa not in kpi_apps or per_hire not in kpi_hires:
+        fails.append(f'KPI lines: {kpi_apps!r} / {kpi_hires!r}; expected {want_cpa} and {per_hire}')
+    cur = page.locator('[data-panel="current-budget"]')
+    if cur.count() != 1 or f"£{want['budget']:,.0f}" not in cur.inner_text() or f"deployable £{want['deployable']:,.0f}" not in cur.inner_text():
+        fails.append('current budget box: ' + (cur.inner_text() if cur.count() else 'not shown'))
+    kpi_cols = page.locator('.kpi-row').first.evaluate('e => getComputedStyle(e).gridTemplateColumns.split(" ").length')
+    if kpi_cols != 3:
+        fails.append(f'headline boxes in {kpi_cols} columns, not two rows of three')
+    where = page.locator('[data-panel="where-budget-goes"]').inner_text()
+    for line in ('Placed in the plan', 'Not placed', 'of which platform fees'):
+        if line not in where:
+            fails.append(f'"Where the budget goes" lacks {line!r}')
+    warn = page.locator('[data-panel="not-placed"]')
+    placeable = -(-(want['budget'] - want['unplaced']) // 50) * 50
     if want['unplaced'] > 1:
-        lower = f"lower the budget to £{want['budget'] - want['unplaced']:,.0f}"
-        if warn.count() != 1 or lower not in ' '.join(warn.inner_text().split()):
-            fails.append(f"not-placed notice should say {lower!r}: {warn.inner_text()[:200] if warn.count() else 'not shown'}")
-    notes.append(f"Plan tab: {len(loc_rows)} location budgets add to £{rows_sum:,} = placed; cost per application {want_cpa}; {per_hire}"
-                 + (f"; not placed £{want['unplaced']:,.0f}, suggests £{want['budget'] - want['unplaced']:,.0f}" if want['unplaced'] > 1 else ''))
-    page.locator('.tab-btn', has_text='Platforms').click()
-    page.wait_for_selector('text=By location and platform', timeout=30000)
-    ptable = page.locator('.card:has(.card-title:has-text("By location and platform")) table')
-    pheads = [h.strip().lower() for h in ptable.locator('thead th').all_inner_texts()]
-    prow_cells = [r.locator('td').all_inner_texts() for r in ptable.locator('tbody tr').all() if 'total-row' not in (r.get_attribute('class') or '')]
-    ptotal = ptable.locator('tbody tr.total-row td').all_inner_texts()
-    bad_cols = []
-    for ci, h in enumerate(pheads):
-        if h in ('indeed', 'meta', 'google', 'appcast', 'budget'):
-            col = sum(gbp(r[ci].split()[0]) for r in prow_cells)
-            if col != gbp(ptotal[ci]):
-                bad_cols.append(f'{h} rows £{col:,} against total {ptotal[ci]}')
-    if bad_cols:
-        fails.append('Platforms tab columns do not add up: ' + '; '.join(bad_cols))
-    if gbp(ptotal[pheads.index('budget')]) != round(want['placed']):
-        fails.append(f"Platforms tab total {ptotal[pheads.index('budget')]} is not the placed £{want['placed']:,.0f}")
-    ptext = page.locator('.main').inner_text()
-    if 'historically' in ptext or 'all-time spend' in ptext or 'of deployable budget' in ptext:
-        fails.append('Platforms tab text still describes the previous method')
-    notes.append(f"Platforms tab: every column adds to its total; total {ptotal[pheads.index('budget')]} = placed")
-    page.locator('.tab-btn', has_text='Plan').first.click()
-    page.wait_for_selector('.kpi-label:has-text("Predicted applications")', timeout=30000)
+        text = ' '.join(warn.inner_text().split()) if warn.count() else ''
+        if f"lower the budget to £{placeable:,.0f}" not in text or page.locator('[data-action="use-placeable"]').count() != 1:
+            fails.append(f"not-placed notice should suggest £{placeable:,.0f} with a Use button: {text[:200] or 'not shown'}")
+    notes.append(f"Plan tab: {len(keys)} tables equal RAC.tables cell for cell; location spend adds to £{rows_sum:,} = placed; "
+                 f"{want_cpa}; {per_hire}; current budget box; not placed £{want['unplaced']:,.0f}, suggests £{placeable:,.0f}")
 
     # Out of reach at a 200% multiple on this data: the panel shows the planner's figures.
     reach = want['reach']
@@ -216,7 +220,9 @@ with sync_playwright() as pw:
     # The other core Setup fields.
     page.locator('.tab-btn', has_text='Setup').first.click()
     page.locator('input[data-field="other-hires-share-SMR"]').wait_for(timeout=30000)
-    for field, value in (('other-hires-monthly-SMR', '12'), ('remaining-error-SMR', '1.2')):
+    if page.locator('input[data-field="remaining-error-SMR"]').count():
+        fails.append('Setup still has the real-world CPA outcome adjustment field')
+    for field, value in (('other-hires-monthly-SMR', '12'),):
         f = page.locator(f'input[data-field="{field}"]')
         f.fill(value)
         f.press('Enter')
@@ -236,12 +242,11 @@ with sync_playwright() as pw:
         'p.otherHiresShare = (w.otherHiresShare || {})[role] ?? null;',
         'p.otherHiresShare = role === "SMR" ? 0.5 : null;'
     ).replace('p.otherHiresMonthly = (w.otherHiresMonthly || {})[role] ?? null;', 'p.otherHiresMonthly = role === "SMR" ? 12 : null;'
-    ).replace('p.remainingError = (w.remainingError || {})[role] ?? null;', 'p.remainingError = role === "SMR" ? 1.2 : null;'
     ).replace('p.includeSettling = !!w.includeSettling;', 'p.includeSettling = true;'), 'SMR')
-    notes.append(f"Setup 12 other-source hires a month, adjustment 1.2, months still settling on: SMR {core_shown} (planner {core_want['apps']:.1f}, {core_want['hires']:.2f}; months still settling used {core_want['settling']})")
+    notes.append(f"Setup 12 other-source hires a month, months still settling on: SMR {core_shown} (planner {core_want['apps']:.1f}, {core_want['hires']:.2f}; months still settling used {core_want['settling']})")
     if core_shown != (round(core_want['apps']), round(core_want['hires'], 1)) or core_want['settling'] != ['2026-08']:
         fails.append(f'Plan tab after the core fields {core_shown} differs from the planner {core_want}')
-    for tab in ('Setup', 'Platforms', 'Method'):
+    for tab in ('Setup', 'Method'):
         page.locator('.tab-btn', has_text=tab).first.click()
         page.wait_for_timeout(600)
     page.screenshot(path=os.path.join(OUT, 'method.png'))
@@ -251,7 +256,7 @@ with sync_playwright() as pw:
         fails.append('Method tab not shown')
     else:
         mt = method.inner_text()
-        needed = ['Platform fees', 'Spending caps', 'Testing and the settings used', 'Code b0a7d5c', 'rate of 0.65', '1.096']
+        needed = ['Platform fees', 'Spending caps', 'Testing and the settings used', 'Code b0a7d5c', 'rate of 0.65', 'real-world CPA outcome adjustment (1.000)', 'Cost limits']
         missing = [n for n in needed if n not in mt]
         if missing:
             fails.append(f'Method tab lacks {missing}')
@@ -441,11 +446,46 @@ with sync_playwright() as pw:
             fails.append(f'with a cost per application limit the screen showed {after[0]} applications, the planner {want_limit["apps"]:.0f}')
         if abs(want_limit['apps'] - before_plan['apps']) < 1:
             fails.append('the cost per application limit changed nothing, so this check proves nothing')
+        page.locator('.tab-btn', has_text='Setup').first.click()
+        page.wait_for_timeout(800)
+        cell = page.locator('[data-panel="cost-limits-SMR"] [data-limit="cpa-South East-indeed"]').inner_text()
+        if 'limit applied: spend' not in cell:
+            fails.append('Setup does not show the spend the limit produced: ' + cell)
         notes.append(f"cost limits: South East Indeed held to £45 an application moved the plan from "
-                     f"{before_plan['apps']:.0f} to {after[0]} applications, as the planner says")
+                     f"{before_plan['apps']:.0f} to {after[0]} applications, as the planner says; Setup shows \"{' '.join(cell.split())}\"")
     if errors or guard.blocked or guard.writes:
         fails.append(f'cost limits run: errors {errors[:2]}, blocked {guard.blocked[:3]}, writes {guard.writes[:3]}')
     page.screenshot(path=os.path.join(OUT, 'cost_limits.png'), full_page=True)
+    ctx.close()
+
+    # "Use £X" on the Plan tab (feedback 8): sets the budget to what the plan
+    # can place, rounded up to £50, and the notice goes (or leaves under £50
+    # where a platform maximum holds). The test link saves nothing.
+    ctx, page, guard, errors = new_page(browser, TEST, db=copy.deepcopy(DB), libs=LIBS)
+    page.goto(TEST + '#planner/plan')
+    page.wait_for_selector('.app-header', timeout=60000)
+    role_button(page, 'SMR')
+    kpis(page)
+    w0 = page.evaluate(EXPECTED_JS, 'SMR')
+    placeable = -(-(w0['budget'] - w0['unplaced']) // 50) * 50
+    btn = page.locator('[data-action="use-placeable"]')
+    if w0['unplaced'] <= 1 or btn.count() != 1:
+        fails.append(f"expected a Use button for £{placeable:,.0f} (not placed £{w0['unplaced']:,.0f})")
+    else:
+        btn.click()
+        page.wait_for_timeout(1200)
+        cur = page.locator('[data-panel="current-budget"]').inner_text()
+        left = page.locator('[data-panel="not-placed"]')
+        left_text = left.inner_text() if left.count() else ''
+        m = re.search(r'£([0-9,]+) could not be placed', left_text)
+        left_amt = int(m.group(1).replace(',', '')) if m else 0
+        # A little can be left where a platform maximum holds (the Appcast
+        # maximum here): the triage expected up to about £300.
+        if f"£{placeable:,.0f}" not in cur or left_amt >= 400:
+            fails.append(f"after Use £{placeable:,.0f}: current budget {cur!r}, still not placed £{left_amt}")
+        notes.append(f"Use £{placeable:,.0f}: budget set; not placed now £{left_amt}")
+    if errors or guard.blocked or guard.writes:
+        fails.append(f'use-placeable run: errors {errors[:2]}, blocked {guard.blocked[:3]}, writes {guard.writes[:3]}')
     ctx.close()
     browser.close()
 

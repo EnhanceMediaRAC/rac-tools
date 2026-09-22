@@ -23,6 +23,8 @@
 // current data, and show where this file is out of date.
 //
 // Steps, in the order they depend on each other:
+//   benchmark  each role's average cost per application over the months the
+//           spending caps use (role_cpa_benchmark; user decision, 22 September 2026)
 //   blend   blend strengths for the hire calculation
 //   recon   reconciliation of predicted hires to the hires Eploy credited to
 //           the four platforms, and the hires it recorded from other sources
@@ -50,15 +52,18 @@ const loo = (x) => x.loo.map(l => `${l.month} ${l.value}`).join(', ');
 const pct = (x) => `${x >= 0 ? '+' : ''}${(x * 100).toFixed(1)}%`;
 const AGREED = RAC.assumptions.AGREED_TESTED;
 const isAgreed = (key, role) => { const e = RAC.assumptions.entry(A, key, role); return !!e && e.source === AGREED; };
+// A value set by Enhance (any source but "tested") keeps its value; only its
+// tested figure and notes move.
+const isSet = (key, role) => { const e = RAC.assumptions.entry(A, key, role); return !!e && e.source !== 'tested'; };
 const switchMin = RAC.assumptions.get(A, 'switch_min_test_months');
 // Why each agreed value was chosen (kept at the start of its notes).
 const AGREED_NOTE = {
-  screen_blend_n: 'Agreed 17 Sep 2026 for this release: 200 applications for both roles.',
+  screen_blend_n: 'Agreed 22 Sep 2026: 35 applications for both roles, the same strength as the cost per application blend (cpa_prior_apps), so a platform with plenty of evidence is not pulled towards the average. A consistency choice, not a tested one; the tested figures are recorded beside it.',
   location_screen_blend_n: 'Agreed 17 Sep 2026 for this release: off for both roles (100000 means no location adjustment).',
   region_hire_blend_n: 'Agreed 17 Sep 2026 for this release: role average for both roles (100000).',
   d1_role_rate: 'Agreed 17 Sep 2026 for this release: 0.65 for both roles.',
   d1_prior_strength: 'Agreed 17 Sep 2026 for this release: shared across platforms (100000) for both roles.',
-  remaining_error_factor: 'Agreed 17 Sep 2026: the tested figure applies only if it stays on the same side of 1 with any one test month left out; otherwise 1.00. It is the default for each plan, which a plan can change.',
+  remaining_error_factor: 'Agreed 17 Sep 2026: the tested figure applies only if it stays on the same side of 1 with any one test month left out; otherwise 1.00. Set in this file only: since 22 Sep 2026 a plan cannot change it.',
   row_widen_apps: 'Agreed 17 Sep 2026: one strength for both roles, the one whose widened row ranges held closest to 80% of both roles\' location and platform misses together, used when SMR and Patrol each hold at least 70% at it; otherwise 800.',
 };
 const switchText = (months, unstable) => (months >= switchMin && !unstable
@@ -67,15 +72,36 @@ const switchText = (months, unstable) => (months >= switchMin && !unstable
 // tested: what the test gave. value: what the planner uses, for "tested" rows
 // and the remaining-error rule; other agreed rows keep their value.
 const set = (key, role, tested, notes, value = tested) => {
-  const agreed = isAgreed(key, role);
+  const agreed = isSet(key, role);
   // These two agreed values follow an agreed rule applied to the test results.
   const keepValue = agreed && key !== 'remaining_error_factor' && key !== 'row_widen_apps';
-  changes.push({ key, role, value: keepValue ? null : value, tested, notes: agreed ? `${AGREED_NOTE[key]} ${notes}` : notes });
+  changes.push({ key, role, value: keepValue ? null : value, tested, notes: agreed && AGREED_NOTE[key] ? `${AGREED_NOTE[key]} ${notes}` : notes });
   if (!keepValue) A = RAC.assumptions.withValues(A, { [key]: { [role]: value } });
 };
 const run = (step) => !only || only.includes(step);
 
 for (const role of RAC.ROLES) {
+  if (run('benchmark')) {
+    // The role's average cost per application over the months the spending
+    // caps use: total spend over total applications, each month once.
+    const ds = DATA[role].ds;
+    const status = RAC.data.monthStatus(ds, A);
+    const first = RAC.assumptions.get(A, 'ceiling_first_month');
+    let months = ds.months.filter(mo => status[mo].settled && mo >= first);
+    if (today.slice(0, 7) >= RAC.assumptions.get(A, 'ceiling_rolling_from')) months = months.slice(-RAC.assumptions.get(A, 'ceiling_rolling_months'));
+    let spend = 0, apps = 0;
+    ds.regions.forEach(r => RAC.PLATFORMS.forEach(p => {
+      const m = RAC.data.monthly(ds, p, r, role);
+      months.forEach(mo => { if (m[mo]) { spend += m[mo].spend; apps += m[mo].apps; } });
+    }));
+    const v = Math.round((spend / apps) * 100) / 100;
+    const gbp = (x, dp) => '£' + x.toLocaleString('en-GB', { minimumFractionDigits: dp, maximumFractionDigits: dp });
+    const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+    const name = (mo) => `${MONTHS[Number(mo.slice(5)) - 1]} ${mo.slice(0, 4)}`;
+    set('role_cpa_benchmark', role, v,
+      `Measured ${today}: the role's average cost per application over the months the spending caps use, total spend over total applications, each month once (${name(months[0])} to ${name(months[months.length - 1])}: ${gbp(spend, 2)} over ${apps.toLocaleString('en-GB', { maximumFractionDigits: 1 })} applications). ` +
+      "Anchors the platform figure where a platform has few applications. Replaced the previous method's figure (SMR £48.20, Patrol £63.46) on 22 Sep 2026. It is recalculated each month.");
+  }
   if (run('blend')) {
     const t = RAC.testing.blendStrengths(eploy, A, role);
     const note = (k, what) => {
@@ -150,10 +176,11 @@ if (run('backtest')) {
   const WIDEN_FALLBACK = 800, WIDEN_MIN_HELD = 0.7;
   const heldAt = (c) => Object.fromEntries(RAC.ROLES.map(r => [r, backtests[r].rowWiden.table.find(x => x.c === c).coverage]));
   const bestHeld = heldAt(pooledBest.c);
-  const widenValue = RAC.ROLES.every(r => bestHeld[r] >= WIDEN_MIN_HELD) ? pooledBest.c : WIDEN_FALLBACK;
-  const heldText = (c) => RAC.ROLES.map(r => `${r} ${(heldAt(c)[r] * 100).toFixed(0)}%`).join(', ');
+  const eachHolds = RAC.ROLES.every(r => bestHeld[r] >= WIDEN_MIN_HELD);
+  const widenValue = eachHolds ? pooledBest.c : WIDEN_FALLBACK;
+  const heldText = (c) => RAC.ROLES.map(r => `${r} ${(heldAt(c)[r] * 100).toFixed(1)}%`).join(', ');
   const widenRule = `Rule: combined best ${pooledBest.c} (${heldText(pooledBest.c)}); ` +
-    (widenValue === pooledBest.c ? `each role holds at least 70% there, so ${widenValue} is used.` : `a role holds under 70% there, so ${WIDEN_FALLBACK} is used (${heldText(WIDEN_FALLBACK)}).`) +
+    (eachHolds ? `each role holds at least 70% there, so ${widenValue} is used.` : `a role holds under 70% there, so ${WIDEN_FALLBACK} is used (${heldText(WIDEN_FALLBACK)}).`) +
     ` At 400: ${heldText(400)}; at 800: ${heldText(800)}.`;
   console.log(widenRule);
   for (const role of RAC.ROLES) {

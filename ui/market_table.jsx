@@ -1,5 +1,5 @@
 // The market data table on Setup (D2): what the advertising market and
-// candidate interest were doing each month, beside the remaining-error
+// candidate interest were doing each month, beside the real-world CPA outcome
 // adjustment. Loaded by index.html as a Babel script before the app; exposed
 // as window.RACUI.MarketTable.
 //

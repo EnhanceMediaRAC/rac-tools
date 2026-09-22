@@ -95,11 +95,13 @@ export default function (check, { assert, near }) {
   });
 
   check('Agreed settings for this release are in place, with the tested figure beside each', () => {
-    const want = { screen_blend_n: 200, location_screen_blend_n: 100000, region_hire_blend_n: 100000, d1_role_rate: 0.65, d1_prior_strength: 100000 };
+    // The quality blend became 35 for both roles on 22 September 2026, set by
+    // Enhance (source "agreed") with the tested figures still beside it.
+    const want = { screen_blend_n: [35, 'agreed'], location_screen_blend_n: [100000], region_hire_blend_n: [100000], d1_role_rate: [0.65], d1_prior_strength: [100000] };
     const out = [];
-    for (const [key, v] of Object.entries(want)) for (const role of RAC.ROLES) {
+    for (const [key, [v, source = RAC.assumptions.AGREED_TESTED]] of Object.entries(want)) for (const role of RAC.ROLES) {
       const e = RAC.assumptions.entry(A, key, role);
-      assert(e.source === RAC.assumptions.AGREED_TESTED && e.parsed === v, `${key} ${role}: ${e.parsed} (${e.source}), agreed ${v}`);
+      assert(e.source === source && e.parsed === v, `${key} ${role}: ${e.parsed} (${e.source}), agreed ${v}`);
       assert(e.testedValue !== null, `${key} ${role}: no tested figure`);
       out.push(`${key} ${role} ${e.parsed} (tested ${e.testedValue})`);
     }

@@ -188,7 +188,7 @@ export default function (check, { assert, near }) {
       return { m, g, mu };
     };
     const t = texts(on, A);
-    for (const [k, v] of Object.entries(t)) assert(/held to 2 x the location and platform’s usual monthly spend|held to 2 x its usual monthly spend/.test(v), `${k}: row limit not stated`);
+    for (const [k, v] of Object.entries(t)) assert(/held to 2 x the location and platform’s average monthly spend|held to 2 x its average monthly spend/.test(v), `${k}: row limit not stated`);
     assert(/its own cap: the most it spent in one of those months, all platforms together, x the spending cap multiple/.test(t.m) && /its own cap/.test(t.mu), 'location cap not stated');
     assert(/Location spending cap: /.test(t.g) && /no limit on the plan as a whole/.test(t.m), 'glossary or plan-level wording');
     const t0 = texts(off, RAC.assumptions.withValues(A, { cap_row_usual_limit: 0, cap_location_month_limit: 0 }));
@@ -205,7 +205,8 @@ export default function (check, { assert, near }) {
     const limited = RAC.plan.build('SMR', { ...SEPT, limits: { cph: { 'South East': cphLimit }, cpa: { 'South East': { meta: cpaLimit } } } }, env);
     const se2 = limited.locations.find(l => l.region === 'South East');
     assert(se2.cph <= cphLimit * 1.001, `South East cost per hire £${se2.cph.toFixed(0)} above limit £${cphLimit}`);
-    assert(se2.cells.meta.spend === 0 || se2.cells.meta.plannedCpa <= cpaLimit + 0.01, `South East Meta £${se2.cells.meta.plannedCpa} above £${cpaLimit}`);
+    // Cost limits are judged on media cost (user decision, 22 September 2026).
+    assert(se2.cells.meta.spend === 0 || se2.cells.meta.plannedCpaMedia <= cpaLimit + 0.01, `South East Meta £${se2.cells.meta.plannedCpaMedia} above £${cpaLimit}`);
     assert(se2.spend < se.spend - 100, 'South East spend did not fall');
     near(limited.holdbacks.total + limited.placed + limited.unplaced.total, SEPT.budget, 0.01, 'budget conserved');
     return `South East: cost per hire limit £${cphLimit} held (£${se2.cph.toFixed(0)}), Meta cost per application limit £${cpaLimit} held; spend £${se.spend.toFixed(0)} to £${se2.spend.toFixed(0)}, unplaced £${plain.unplaced.total.toFixed(0)} to £${limited.unplaced.total.toFixed(0)}`;
@@ -277,8 +278,11 @@ export default function (check, { assert, near }) {
   });
 
   check('Credited share: changes hires and budget, not the split; 100% equals the earlier full scaling', () => {
-    const none = RAC.plan.build('SMR', { ...SEPT, otherHiresShare: 0 }, env);
-    const half = RAC.plan.build('SMR', { ...SEPT, otherHiresShare: 0.5 }, env);
+    // VAFs scaled up a hundredfold (same shares), so the VAF rule, which
+    // does depend on hires, cannot bind and the split can be compared.
+    const big = { ...SEPT, vacancies: Object.fromEntries(Object.entries(SEPT.vacancies).map(([k, v]) => [k, v * 100])) };
+    const none = RAC.plan.build('SMR', { ...big, otherHiresShare: 0 }, env);
+    const half = RAC.plan.build('SMR', { ...big, otherHiresShare: 0.5 }, env);
     for (const l of none.locations) for (const p of P) {
       const h = half.locations.find(x => x.region === l.region).cells[p];
       near(h.spend, l.cells[p].spend, 1e-6, `${l.region} ${p} spend moved with the share`);
@@ -311,25 +315,27 @@ export default function (check, { assert, near }) {
 
   check('Core Setup fields reach the plan and are recorded with their defaults', () => {
     const plain = RAC.plan.build('SMR', SEPT, env);
+    // The real-world CPA outcome adjustment is no longer a Setup field (user
+    // decision, 22 September 2026): a value passed in is ignored.
     const set = RAC.plan.build('SMR', { ...SEPT, capMultiple: 1.5, otherHiresShare: 0.25, otherHiresMonthly: 12, remainingError: 1.2, includeSettling: true }, env);
     const byKey = (p) => Object.fromEntries(p.settings.map(x => [x.key, x]));
     const a = byKey(plain), b = byKey(set);
-    assert(Object.keys(a).join() === 'capMultiple,otherHiresShare,otherHiresMonthly,remainingError,includeSettling', 'fields ' + Object.keys(a));
-    near(a.remainingError.default, RAC.assumptions.get(A, 'remaining_error_factor', 'SMR'), 0, 'adjustment default is the tested value');
+    assert(Object.keys(a).join() === 'capMultiple,otherHiresShare,otherHiresMonthly,includeSettling', 'fields ' + Object.keys(a));
     near(a.otherHiresMonthly.default, RAC.assumptions.get(A, 'other_hires_monthly', 'SMR'), 0, 'other-source default is the tested value');
     assert(a.includeSettling.value === false && a.includeSettling.default === false, 'include settling should be off by default');
-    assert(b.capMultiple.value === 1.5 && b.otherHiresShare.value === 0.25 && b.otherHiresMonthly.value === 12 && b.remainingError.value === 1.2 && b.includeSettling.value === true, 'values not recorded');
+    assert(b.capMultiple.value === 1.5 && b.otherHiresShare.value === 0.25 && b.otherHiresMonthly.value === 12 && b.includeSettling.value === true, 'values not recorded');
     assert(Object.values(b).every(x => x.changed), 'changed flags');
     near(set.totals.otherHires, 0.75 * 12, 1e-12, 'edited other-source hires');
-    near(set.factors.bias, 1.2, 0, 'edited adjustment');
+    const fileValue = RAC.assumptions.get(A, 'remaining_error_factor', 'SMR');
+    near(set.factors.bias, fileValue, 0, 'a plan cannot set the real-world CPA outcome adjustment');
     const c = set.locations[0].cells.indeed;
-    near(c.remainingError, 1.2, 0, 'adjustment reaches the rows');
+    near(c.remainingError, fileValue, 0, 'the file value reaches the rows');
     assert(set.settlingUsed.length === 1 && set.settlingUsed[0].month === '2026-08' && /not yet settled, figures may change/.test(set.settlingUsed[0].note), 'August not flagged: ' + JSON.stringify(set.settlingUsed));
     assert(plain.settlingUsed.length === 0 && !plain.windowMonths.includes('2026-08'), 'August used with the option off');
-    const bad = RAC.plan.build('SMR', { ...SEPT, capMultiple: 7, remainingError: 9, otherHiresMonthly: -1 }, env);
+    const bad = RAC.plan.build('SMR', { ...SEPT, capMultiple: 7, otherHiresMonthly: -1 }, env);
     const bk = byKey(bad);
-    assert(bk.capMultiple.value === 1 && bk.remainingError.value === bk.remainingError.default && bk.otherHiresMonthly.value === bk.otherHiresMonthly.default, 'out-of-range values should fall back to the defaults');
-    return `defaults: multiple ${a.capMultiple.default}, share ${a.otherHiresShare.default}, other sources ${a.otherHiresMonthly.default} a month (since ${plain.otherSources.recentFrom}: ${plain.otherSources.recentMean.toFixed(2)}), adjustment ${a.remainingError.default}; with the option on, August counted and flagged`;
+    assert(bk.capMultiple.value === 1 && bk.otherHiresMonthly.value === bk.otherHiresMonthly.default, 'out-of-range values should fall back to the defaults');
+    return `defaults: multiple ${a.capMultiple.default}, share ${a.otherHiresShare.default}, other sources ${a.otherHiresMonthly.default} a month (since ${plain.otherSources.recentFrom}: ${plain.otherSources.recentMean.toFixed(2)}); the real-world CPA outcome adjustment stays at the file's ${fileValue} when a plan passes 1.2; with the option on, August counted and flagged`;
   });
 
   check('Matching factor to platform hires applies at every share, including 0%', () => {

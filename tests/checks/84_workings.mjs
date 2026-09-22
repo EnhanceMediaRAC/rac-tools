@@ -77,23 +77,28 @@ export default function (check, { assert, near }) {
       const c = loc.cells[plat];
       const row = sheet.rows.find(r => r.kind === 'body' && r.cells[0] === loc.region && r.cells[1] === RAC.PLATFORM_LABELS[plat]);
       assert(row, `no row for ${loc.region} ${plat}`);
-      near(get(row, 'Planned spend'), c.spend, 1e-9, `${loc.region} ${plat} spend`);
-      near(get(row, 'Hires'), c.hires, 1e-9, `${loc.region} ${plat} hires`);
-      near(get(row, 'Applications'), c.apps, 1e-9, `${loc.region} ${plat} applications`);
+      near(get(row, 'Total spend'), c.spend, 1e-9, `${loc.region} ${plat} spend`);
+      near(get(row, 'Predicted hires'), c.hires, 1e-9, `${loc.region} ${plat} hires`);
+      near(get(row, 'Predicted applies'), c.apps, 1e-9, `${loc.region} ${plat} applications`);
       near(get(row, 'Quality applications'), c.passed, 1e-9, `${loc.region} ${plat} quality applications`);
-      near(get(row, 'Spending cap'), c.cap, 1e-9, `${loc.region} ${plat} cap`);
+      // The cap on media spend (point 18), read from the Successful months sheet.
+      near(get(row, 'Spending cap (media)'), c.capByLimit ? c.cap / (1 + c.feeRate) : c.ceiling, 1e-9, `${loc.region} ${plat} cap`);
       if (c.spend > 0.005) {
-        near(get(row, 'Planned cost per application (total)'), c.plannedCpa, 1e-9, `${loc.region} ${plat} planned cost`);
-        near(get(row, 'Media spend'), c.media, 1e-9, `${loc.region} ${plat} media`);
-        near(get(row, 'Platform fee'), c.fee, 1e-9, `${loc.region} ${plat} fee`);
+        near(get(row, 'Plan CPA (media)'), c.plannedCpaMedia, 1e-9, `${loc.region} ${plat} plan cost per application`);
+        near(get(row, 'CPA adjustments'), c.cpaAdjustments, 1e-9, `${loc.region} ${plat} CPA adjustments`);
+        near(get(row, 'Base cost per application') * get(row, 'CPA adjustments'), c.plannedCpaMedia, 1e-9, `${loc.region} ${plat} base x adjustments`);
+        near(get(row, 'Media'), c.media, 1e-9, `${loc.region} ${plat} media`);
+        near(get(row, 'Fee'), c.fee, 1e-9, `${loc.region} ${plat} fee`);
+        if (c.hires >= RAC.tables.MIN_HIRES_FOR_CPH) near(get(row, 'Plan CPH (media)'), c.media / c.hires, 1e-9, `${loc.region} ${plat} cost per hire on media`);
       }
       n += 1;
     }));
     const total = sheet.rows[out.totalRow - 1];
-    near(get(total, 'Planned spend'), plan.totals.spend, 1e-9, 'plan total spend');
-    near(get(total, 'Hires'), plan.totals.hires, 1e-9, 'plan total hires');
-    near(get(total, 'Applications'), plan.totals.apps, 1e-9, 'plan total applications');
-    return `${n} location and platform rows and the plan total match the planner`;
+    near(get(total, 'Total spend'), plan.totals.spend, 1e-9, 'plan total spend');
+    near(get(total, 'Predicted hires'), plan.totals.hires, 1e-9, 'plan total hires');
+    near(get(total, 'Predicted applies'), plan.totals.apps, 1e-9, 'plan total applications');
+    near(get(total, 'Plan CPA (media)'), plan.totals.cpa, 1e-9, 'plan cost per application on media');
+    return `${n} location and platform rows and the plan total match the planner; base cost x CPA adjustments = plan cost per application on every funded row; caps on media`;
   });
 
   check('Workings export: the monthly figures and their weights are the ones the plan used', () => {
@@ -106,9 +111,9 @@ export default function (check, { assert, near }) {
     let checked = 0;
     RAC.PLATFORMS.forEach(plat => plan.allRegions.forEach(region => {
       const mine = body.filter(r => r.cells[0] === RAC.PLATFORM_LABELS[plat] && r.cells[1] === region);
-      const w = mine.reduce((a, r) => a + r.cells[9], 0);
-      const spend = mine.reduce((a, r) => a + r.cells[9] * r.cells[3], 0);
-      const apps = mine.reduce((a, r) => a + r.cells[9] * r.cells[4], 0);
+      const w = mine.reduce((a, r) => a + r.cells[8], 0);
+      const spend = mine.reduce((a, r) => a + r.cells[8] * r.cells[3], 0);
+      const apps = mine.reduce((a, r) => a + r.cells[8] * r.cells[4], 0);
       const st = plan.blend.window[plat][region];
       near(w, st.wsum, 1e-9, `${region} ${plat} weight`);
       near(spend, st.wspend, 1e-6, `${region} ${plat} weighted spend`);
@@ -116,7 +121,10 @@ export default function (check, { assert, near }) {
       near(w > 0 ? spend * plan.raw.monthCount / w : 0, st.spend, 1e-6, `${region} ${plat} spend in the window`);
       checked += 1;
     }));
-    const weights = [...new Set(body.map(r => r.cells[9]))].sort();
+    const weights = [...new Set(body.map(r => r.cells[8]))].sort();
+    // One "Data taken on" column (C5, user decision 22 September 2026).
+    const head = sheet.rows.find(r => r.kind === 'head').cells;
+    assert(head.includes('Data taken on') && !head.includes('Where it came from') && !head.includes('Date taken'), 'data sources columns: ' + head.join(', '));
     return `${body.length} monthly figures over ${checked} location and platform cells add up to the plan's window figures; weights used: ${weights.join(', ')}`;
   });
 
@@ -125,7 +133,7 @@ export default function (check, { assert, near }) {
       { ...opts, monthLabel: 'September 2026' });
     assert(!sept.problems.length, 'September: ' + sept.problems.join('; '));
     const summary = sept.sheets[0].rows.map(r => r.cells[0]).filter(x => typeof x === 'string');
-    assert(summary.some(t => t === 'of which platform fees on placed spend'), 'the fees line is missing');
+    assert(summary.some(t => t === '  of which platform fees') && summary.some(t => t === '  of which media'), 'the media and fees lines are missing');
     const patrol = RAC.workings.build([doc('Patrol', build('Patrol'))], opts);
     assert(!patrol.problems.length, 'Patrol: ' + patrol.problems.join('; '));
     assert(RAC.workings.fileName([doc('SMR', build('SMR'))], opts) === 'RAC_October_2026_SMR_Workings.xlsx', 'file name');

@@ -62,13 +62,15 @@ EXPECTED_JS = """(role) => {
   };
   p.otherHiresShare = (w.otherHiresShare || {})[role] ?? null;
   p.otherHiresMonthly = (w.otherHiresMonthly || {})[role] ?? null;
-  p.remainingError = (w.remainingError || {})[role] ?? null;
   p.includeSettling = !!w.includeSettling;
   const plan = RAC.plan.build(role, p, RAC.app.env(window.__AVP_DATA__, 'browser-check'));
   return { apps: plan.totals.apps, hires: plan.totals.allHires, paid: plan.totals.hires, other: plan.totals.otherHires,
     deployable: plan.deployable, settledTo: plan.stamps.data.settledTo, reach: plan.reach,
     settling: plan.settlingUsed.map(x => x.month), shortfalls: plan.minimumShortfalls.map(x => x.text), fees: plan.fees.total, feesOn: plan.fees.on,
-    budget: plan.budget, placed: plan.placed, unplaced: plan.unplaced.total };
+    budget: plan.budget, placed: plan.placed, unplaced: plan.unplaced.total,
+    media: plan.totals.media, cpa: plan.totals.cpa, cph: plan.totals.cph, deployableShown: plan.deployable,
+    tables: RAC.tables.all(plan).map(t => ({ key: t.key, labels: t.columns.map(c => c.label),
+      rows: t.rows.map(r => r.cells.map(v => (Array.isArray(v) ? v[0] : v))) })) };
 }""" % (json.dumps(working), json.dumps({'SMR': SMR_VAC, 'Patrol': PATROL_VAC}))
 
 

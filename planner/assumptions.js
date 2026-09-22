@@ -75,6 +75,8 @@
     range_high_percentile:    { unit: 'share', min: 0.5, max: 1 },
     range_hit_rate_min_months:{ unit: 'count', min: 1, max: 120, integer: true },
     ceiling_first_month:      { unit: 'month' },
+    ceiling_rolling_from:     { unit: 'month' },
+    ceiling_rolling_months:   { unit: 'months', min: 1, max: 36, integer: true },
     ceiling_min_spend:        { unit: 'gbp', min: 0, max: 100000 },
     ceiling_min_apps:         { unit: 'count', min: 0, max: 10000 },
     quality_test_drop:        { unit: 'share', min: 0, max: 1 },

@@ -3,10 +3,14 @@
 // index.html as a Babel script before the app; exposed as
 // window.RACUI.CostLimits.
 //
-// The plan stops adding spend to a location or platform where a limit would be
-// passed, moves that money to locations still within their limits, and reports
-// anything it could not place. Cost per hire limits are by location only: the
-// data does not support a cost per hire by platform.
+// Limits are on media cost (user decision, 22 September 2026). A cost per
+// application limit replaces that row's spending cap: spend continues until
+// the predicted cost per application reaches the limit. A cost per hire limit
+// stops adding spend to a location where its limit would be passed. Money a
+// limit removes moves to locations still within theirs; anything left is
+// reported. Cost per hire limits are by location only: the data does not
+// support a cost per hire by platform. Under each limit set, the panel shows
+// the spend it produced.
 //
 // Blank means no limit. Limits are saved with the plan and printed in the PDF
 // assumptions and the workings.
@@ -46,53 +50,57 @@
       + Object.keys(cpa).reduce((a, r) => a + Object.keys(cpa[r] || {}).filter(p => cpa[r][p] > 0).length, 0);
     const v2 = plan && plan.v2;
     const L = RAC.PLATFORM_LABELS;
-    // What each location is actually costing in this plan, so a limit can be
-    // set against something real.
+    // What each location is costing in this plan (on media), and what it
+    // spends, so a limit can be set against something real and its effect seen.
     const now = {};
     (v2 ? v2.locations : []).forEach(l => {
-      now[l.region] = { cph: l.hires > 0 ? l.spend / l.hires : null, cells: {} };
-      RAC.PLATFORMS.forEach(p => { const c = l.cells[p]; now[l.region].cells[p] = c.spend > 0 && c.apps > 0 ? c.spend / c.apps : null; });
+      now[l.region] = { cph: l.hires > 0 ? l.media / l.hires : null, spend: l.spend, cells: {} };
+      RAC.PLATFORMS.forEach(p => { const c = l.cells[p]; now[l.region].cells[p] = { cpa: c.spend > 0 && c.apps > 0 ? c.media / c.apps : null, spend: c.spend, capNormal: c.capNormal }; });
     });
+    const note = (text, strong) => <div className="help-text" style={{ marginTop: 2, textAlign: 'right', fontWeight: strong ? 600 : 400 }}>{text}</div>;
     const unplaced = v2 && v2.unplaced && v2.unplaced.reasons.some(r => /limit/i.test(r));
     return (
       <div data-panel={'cost-limits-' + role}>
         <div className="help-text" style={{ marginBottom: 10 }}>
-          The most a hire may cost in a location, and the most an application may cost on a platform there. Leave a box
-          empty for no limit. The plan stops adding spend where a limit would be passed, moves that money to locations
-          still within theirs, and shows anything it could not place. Cost per hire is by location only: the data does
-          not support a cost per hire by platform. This plan has {set === 0 ? 'no limits set' : set + ' limit' + (set === 1 ? '' : 's') + ' set'}.
+          The most a hire may cost in a location, and the most an application may cost on a platform there, both on media
+          spend. Leave a box empty for no limit. A cost per application limit replaces that row&rsquo;s spending cap: spend
+          continues until the predicted cost per application reaches the limit, so a limit above today&rsquo;s cost can raise
+          spend beyond anything the row has run, and one below it lowers spend. A cost per hire limit stops adding spend to
+          the location where it would be passed. Money a limit removes moves to other locations; anything left is shown as
+          not placed. Cost per hire is by location only: the data does not support a cost per hire by platform.
+          This plan has {set === 0 ? 'no limits set' : set + ' limit' + (set === 1 ? '' : 's') + ' set'}.
           {unplaced && <strong> Some budget could not be placed within these limits; the Plan tab says how much.</strong>}
         </div>
         <table className="alloc-table" style={{ maxWidth: 900 }}>
           <thead>
             <tr>
               <th>Location</th>
-              <th className="num">Most a hire may cost</th>
-              {RAC.PLATFORMS.map(p => <th key={p} className="num">Most an application may cost: {L[p]}</th>)}
+              <th className="num">Most a hire may cost (media)</th>
+              {RAC.PLATFORMS.map(p => <th key={p} className="num">Most an application may cost (media): {L[p]}</th>)}
             </tr>
           </thead>
           <tbody>
             {regions.map(region => (
               <tr key={region}>
-                <td>
-                  {region}
-                  {now[region] && now[region].cph && (
-                    <div className="help-text" style={{ marginTop: 2 }}>now {fmt.fmtGBP(now[region].cph)} a hire</div>
-                  )}
-                </td>
-                <td className="num">
+                <td>{region}</td>
+                <td className="num" data-limit={'cph-' + region}>
                   <MoneyField field={'cph-' + role + '-' + region} value={cph[region] || 0} width={96}
                     onCommit={v => setCph(region, v)} />
+                  {now[region] && now[region].cph && note(`now ${fmt.fmtGBP(now[region].cph)} a hire`)}
+                  {cph[region] > 0 && now[region] && note(`limit applied: location spend ${fmt.fmtGBP(now[region].spend)}`, true)}
                 </td>
-                {RAC.PLATFORMS.map(p => (
-                  <td key={p} className="num">
-                    <MoneyField field={'cpa-' + role + '-' + region + '-' + p} value={(cpa[region] || {})[p] || 0}
-                      onCommit={v => setCpa(region, p, v)} />
-                    {now[region] && now[region].cells[p] && (
-                      <div className="help-text" style={{ marginTop: 2 }}>now {fmt.fmtGBP(now[region].cells[p])}</div>
-                    )}
-                  </td>
-                ))}
+                {RAC.PLATFORMS.map(p => {
+                  const c = now[region] && now[region].cells[p];
+                  const lim = (cpa[region] || {})[p] || 0;
+                  return (
+                    <td key={p} className="num" data-limit={'cpa-' + region + '-' + p}>
+                      <MoneyField field={'cpa-' + role + '-' + region + '-' + p} value={lim}
+                        onCommit={v => setCpa(region, p, v)} />
+                      {c && c.cpa && note(`now ${fmt.fmtGBP(c.cpa)}`)}
+                      {lim > 0 && c && note(`limit applied: spend ${fmt.fmtGBP(c.spend)} (cap without it ${fmt.fmtGBP(c.capNormal)})`, true)}
+                    </td>
+                  );
+                })}
               </tr>
             ))}
           </tbody>

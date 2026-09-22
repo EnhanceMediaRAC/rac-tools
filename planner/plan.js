@@ -7,14 +7,21 @@
 //
 // Order of work:
 //   1. Hold-backs off the top (Indeed Premium, Combined Activity, OneRAC).
-//   2. Every location and platform: usual cost per application, diminishing
+//   2. Every location and platform: average cost per application, diminishing
 //      returns, screening and hire rates, spending cap (C1 to C5), and the
-//      spend at which any cost per application limit binds (D6).
-//   3. Deployable budget split between live locations by open roles, within
-//      location minimums and maximums, spending caps and any cost per hire
-//      limit. Money a location cannot take moves to locations with room, by
-//      open roles; what none can take is reported as budget the plan could
-//      not place efficiently.
+//      spend at which any cost per application limit binds (D6). A cost per
+//      application limit set on a location and platform replaces that row's
+//      spending cap: spend continues until the predicted cost per application
+//      on media reaches the limit, with the same diminishing returns, and the
+//      location cap is raised by the extra the row is allowed (user decision,
+//      22 September 2026).
+//   3. Deployable budget split between live locations by open roles (VAFs),
+//      within location minimums and maximums, spending caps, any cost per
+//      hire limit, and the VAF rule: a location's predicted paid-media hires
+//      may not exceed its VAFs (user decision, 22 September 2026). Money a
+//      location cannot take moves to locations with room, by open roles; what
+//      none can take is reported as budget the plan could not place
+//      efficiently.
 //   4. Within each location, spend goes where the next hire costs least, up
 //      to each platform's spending cap. Floors set on Setup and platform
 //      minimums and maximums are then applied. No minimum or floor takes a
@@ -23,11 +30,15 @@
 //   5. The forecast for every location and platform, totals and ranges.
 //      Platform fees (plans from fees_first_month): Indeed, Meta and Google spend,
 //      including the Indeed Premium hold-back, is media plus fee; forecasts
-//      and spending caps work on media, costs are reported on the total.
+//      and spending caps work on media. Cost per application and cost per
+//      hire are on media alone, and cost limits are judged on media (user
+//      decision, 22 September 2026); fees are shown separately.
 //   6. Budget needed for the hire target, by running the plan at trial budgets.
-//      Where the caps make the target unreachable, the plan reports the most
-//      hires achievable, the budget at which extra spend stops adding hires,
-//      and the same figures at cap multiples 1, 2 and 3 (reach).
+//      A trial budget whose own location minimums overspend it is never
+//      accepted (X6). Where the caps make the target unreachable, the plan
+//      reports the most hires achievable, the total budget at which extra
+//      spend stops adding hires (placed plus held back), and the same figures
+//      at cap multiples 1, 2 and 3 (reach).
 //
 // Hire ranges (user decision, 17 September 2026). Not from the hire test on
 // past months (kept as a check only). Each range combines, in hire_range_draws
@@ -59,8 +70,10 @@
 //   - The rest is a fixed line, "Expected hires from other sources":
 //     (1 - share) x expected other-source hires a month (Setup; default
 //     other_hires_monthly, the average of every settled month). It counts towards the hire target but
-//     does not depend on the budget, so the budget solves for the remainder.
-//     Location and platform rows show paid-media hires only.
+//     does not depend on the budget, so the budget solves for the remainder
+//     (user decision, 22 September 2026: option A; the outputs say they are
+//     not modelled on the budget). Location and platform rows show
+//     paid-media hires only.
 // At a share of 100% the plan equals the earlier scaling to every hire Eploy
 // recorded (checked in tests/checks/60_plan.mjs).
 //
@@ -70,7 +83,6 @@
 //   regionMin, regionMax (-1 means no spend), daysInMonth, capMultiple (spending cap multiple, 1 to 3),
 //   otherHiresShare (0 to 1; blank uses the file default),
 //   otherHiresMonthly (hires a month; blank uses the file default),
-//   remainingError (0.5 to 2; blank uses the assumptions file's value),
 //   includeSettling (count complete months still inside the settle period),
 //   bench (data window), limits: { cph: { region }, cpa: { region: { plat } } },
 //   oneRacHoldback, overrides (per-plan assumption values),
@@ -108,7 +120,9 @@
     };
     const share = pick(inputs.otherHiresShare, 0, 1, get('other_hires_credited_share'));
     const otherMonthly = pick(inputs.otherHiresMonthly, 0, 10000, get('other_hires_monthly'));
-    const bias = pick(inputs.remainingError, 0.5, 2, get('remaining_error_factor'));
+    // The real-world CPA outcome adjustment comes from the assumptions file
+    // only; Setup no longer sets it (user decision, 22 September 2026).
+    const bias = get('remaining_error_factor');
     // Comparison switches, used only by tools/stage2_report.mjs to show the
     // effect of each change against the previous version. No screen sets them.
     const cmp = inputs.compare || {};
@@ -141,17 +155,23 @@
       { key: 'capMultiple', name: 'Spending cap multiple', value: capMultiple, default: get('cap_multiple_default'), source: entry('cap_multiple_default').source, unit: 'multiple' },
       { key: 'otherHiresShare', name: 'Share of other-source hires credited to paid media', value: share, default: get('other_hires_credited_share'), source: entry('other_hires_credited_share').source, unit: 'share' },
       { key: 'otherHiresMonthly', name: 'Expected hires from other sources per month', value: otherMonthly, default: get('other_hires_monthly'), source: entry('other_hires_monthly').source, unit: 'hires' },
-      { key: 'remainingError', name: 'Remaining-error adjustment', value: bias, default: get('remaining_error_factor'), source: entry('remaining_error_factor').source, unit: 'multiple' },
       { key: 'includeSettling', name: 'Include months still settling', value: !!inputs.includeSettling, default: false, source: 'agreed', unit: 'yes/no' },
-    ].map(x => ({ ...x, tested: x.key === 'remainingError' ? entry('remaining_error_factor').testedValue : null, changed: x.value !== x.default }));
+    ].map(x => ({ ...x, tested: null, changed: x.value !== x.default }));
     const quality = RAC.ceilings.qualityByLocation(env.eploy, hireRates, role);
+    // The months the spending caps consider: settled months from
+    // ceiling_first_month (2026). For plans from ceiling_rolling_from, the
+    // last ceiling_rolling_months settled months instead, never reaching back
+    // before ceiling_first_month (user decision, 22 September 2026: rolling
+    // 12-month caps from January 2027; 2025 months were built differently).
+    const capFirstFixed = get('ceiling_first_month');
+    const rolling = !!inputs.planMonth && inputs.planMonth >= get('ceiling_rolling_from');
+    const lastN = ctx.settled.slice(-get('ceiling_rolling_months'));
+    const capFirst = rolling && lastN.length && lastN[0] > capFirstFixed ? lastN[0] : capFirstFixed;
     // The spending caps judge a successful month against a fixed benchmark:
-    // each location and platform over the settled months from
-    // ceiling_first_month (2026), each counted once, whatever the plan's data
-    // window. 2025 months were built differently and are not comparable, the
-    // same reason C3 leaves them out of the months considered (user decisions,
-    // 18 September 2026).
-    const ctxCaps = RAC.cost.context(ds, A, role, { mode: 'custom', from: get('ceiling_first_month') }, { includeSettling: !!inputs.includeSettling });
+    // each location and platform over the same settled months, each counted
+    // once, whatever the plan's data window (user decisions, 18 September
+    // 2026).
+    const ctxCaps = RAC.cost.context(ds, A, role, { mode: 'custom', from: capFirst }, { includeSettling: !!inputs.includeSettling });
     const cpaLimits = (inputs.limits && inputs.limits.cpa) || {};
     const cells = {};
     ds.regions.forEach(region => {
@@ -165,9 +185,9 @@
           Object.assign(pc, { screen: 1, hireAfterScreening: rate, recon: 1, hirePerApplication: rate,
             rates: { platformScreen: null, platformBasis: 'previous static hire rate', screenAdjustment: 1, screen: 1, hireAfterScreening: rate, hirePerApplication: rate } });
         }
-        const cpaLimit = (cpaLimits[region] || {})[plat] || null;
+        const cpaLimit = (cpaLimits[region] || {})[plat] > 0 ? (cpaLimits[region] || {})[plat] : null;
         const benchmark = RAC.forecast.prepare(ctxCaps, null, d1, factors, plat, region);
-        let ceiling = RAC.ceilings.cell(ctx, pc, quality, { capMultiple, cpaLimit, benchmark });
+        let ceiling = RAC.ceilings.cell(ctx, pc, quality, { capMultiple, benchmark, capFirst });
         if (cmp.previousCeilings) {
           // The previous version: the biggest month on record x the multiple, and
           // money above it spread anyway rather than moved or left unplaced.
@@ -179,13 +199,16 @@
         const cpaCap = RAC.ceilings.spendAtCpaLimit(pc, cpaLimit);
         // Caps come from past media spend; the plan's spend includes the fee.
         const capTotal = ceiling.ceiling * (1 + pc.fee);
-        cells[region][plat] = { pc, ceiling, cpaLimit, cpaCap, cap: Math.max(0, Math.min(capTotal, cpaCap)) };
+        // A cost per application limit replaces the row's spending cap (user
+        // decision, 22 September 2026). capNormal is the cap without it.
+        const cap = cpaLimit !== null && !cmp.previousCeilings ? Math.max(0, cpaCap) : capTotal;
+        cells[region][plat] = { pc, ceiling, cpaLimit, cpaCap, capNormal: capTotal, cap };
       });
     });
     // Location spending caps: the most each location spent in one of the
     // months the caps consider, every platform together (user decision, 18
     // September 2026). The previous version had none.
-    const capMonthList = ctx.settled.filter(mo => mo >= get('ceiling_first_month'));
+    const capMonthList = ctx.settled.filter(mo => mo >= capFirst);
     const locationCaps = {};
     ds.regions.forEach(region => {
       locationCaps[region] = cmp.previousCeilings ? { on: false, cap: Infinity }
@@ -201,7 +224,8 @@
     const feeInfo = { on: feesOn, planMonth: inputs.planMonth || null, firstMonth: get('fees_first_month'), rates: fees, fileRates: feeRates,
       source: { indeed: entry('fee_rate_indeed').source, meta: entry('fee_rate_meta').source, google: entry('fee_rate_google').source } };
     const base = { role, A, ds, ctx, hireRates, d1, factors, baseline, capMultiple, settings, cells, locationCaps, ranges, softCaps: !!cmp.previousCeilings,
-      premiumRate: RAC.assumptions.get(A, 'indeed_premium_rate'), feeInfo };
+      capFirst, capMonths: capMonthList, capsRolling: rolling && capFirst !== capFirstFixed,
+      premiumRate: RAC.assumptions.get(A, 'indeed_premium_rate'), feeInfo, memo: new Map() };
     base.draws = hireDraws(base, env, !!cmp.previousHireRates);
     return base;
   }
@@ -371,18 +395,29 @@
     }
 
     locs.forEach(l => {
-      const ceilingSum = U.sum(l.on.map(plat => base.cells[l.region][plat].ceiling.ceiling));
       l.capacity = U.sum(l.cells.map(c => c.cap));
+      l.limited = l.cells.filter(c => base.cells[l.region][c.plat].cpaLimit !== null).map(c => c.plat);
       l.cphLimit = cphLimits[l.region] > 0 ? cphLimits[l.region] : null;
-      l.cphCap = RAC.allocate.spendAtCphLimit(l.cells, l.capacity, l.cphLimit);
+      const memo = (key, fn) => { if (!base.memo.has(key)) base.memo.set(key, fn()); return base.memo.get(key); };
+      const cellKey = l.region + '|' + l.on.join(',') + '|' + l.capacity;
+      l.cphCap = memo('cph|' + cellKey + '|' + l.cphLimit, () => RAC.allocate.spendAtCphLimit(l.cells, l.capacity, l.cphLimit));
+      // The VAF rule (user decision, 22 September 2026): the location's
+      // predicted paid-media hires may not exceed its VAFs.
+      l.vafCap = base.softCaps ? Infinity : memo('vaf|' + cellKey + '|' + l.vacancies, () => RAC.allocate.spendAtHires(l.cells, l.capacity, l.vacancies));
       const maxCap = regionMax[l.region] === NO_SPEND ? 0 : (regionMax[l.region] > 0 ? regionMax[l.region] : Infinity);
       l.locationCap = base.locationCaps[l.region];
-      const locCap = base.softCaps || !l.locationCap.on ? Infinity : l.locationCap.cap;
+      // A cost per application limit that allows a row more than its
+      // spending cap raises the location cap by that extra, so the location
+      // cap does not undo the limit (user decision, 22 September 2026).
+      l.limitExtra = U.sum(l.cells.map(c => { const x = base.cells[l.region][c.plat]; return x.cpaLimit !== null ? Math.max(0, x.cap - x.capNormal) : 0; }));
+      const locCap = base.softCaps || !l.locationCap.on ? Infinity : l.locationCap.cap + l.limitExtra;
+      l.locationCapUsed = locCap;
       const options = [
         [maxCap, regionMax[l.region] === NO_SPEND ? 'location set to no spend' : 'location maximum'],
         [locCap, 'location spending cap (largest month x multiple)'],
-        [base.softCaps ? Infinity : l.capacity, l.capacity < ceilingSum - 0.005 ? 'spending caps and cost per application limits' : 'spending caps (largest successful month x multiple)'],
+        [base.softCaps ? Infinity : l.capacity, l.limited.length ? 'spending caps and cost per application limits' : 'spending caps (largest successful month x multiple)'],
         [l.cphCap, 'cost per hire limit'],
+        [l.vafCap, 'hires held to its VAFs'],
       ];
       const [cap, reason] = options.reduce((a, b) => (b[0] < a[0] ? b : a));
       l.cap = cap; l.capReason = reason;
@@ -392,13 +427,19 @@
         // Two instructions disagree. The minimum is applied, as before, and said.
         steps.push({ step: 'between locations', region: l.region, amount: 0, reason: `location minimum £${Math.round(l.floor)} is above its maximum; the minimum was applied` });
       }
-      // A minimum never takes a location above its spending caps or cost
-      // limits (user decision, 17 September 2026). The shortfall is reported.
-      const room = base.softCaps ? Infinity : Math.min(l.capacity, l.cphCap, locCap);
+      // A minimum never takes a location above its spending caps, cost
+      // limits or the VAF rule (user decisions, 17 and 22 September 2026).
+      // The shortfall is reported.
+      const capsRoom = Math.min(l.capacity, locCap);
+      const room = base.softCaps ? Infinity : Math.min(capsRoom, l.cphCap, l.vafCap);
+      // Which rule held it: the VAF rule or a cost per hire limit only when
+      // it is tighter than the caps.
+      l.floorHeldBy = l.vafCap < Math.min(capsRoom, l.cphCap) - 0.005 ? 'vaf' : l.cphCap < capsRoom - 0.005 ? 'cph' : 'caps';
       if (l.floor > room + 0.005) {
         l.floor = room;
+        const by = l.floorHeldBy === 'vaf' ? 'the VAF rule' : l.floorHeldBy === 'cph' ? 'its spending caps and cost per hire limit' : 'its spending caps';
         steps.push({ step: 'between locations', region: l.region, amount: 0,
-          reason: `location minimum £${Math.round(l.floorAsked)} is above what its spending caps${l.cphCap < Math.min(l.capacity, locCap) ? ' and cost per hire limit' : ''} allow (£${Math.round(room)}); the caps held` });
+          reason: `location minimum £${Math.round(l.floorAsked)} is above what ${by} allow${by === 'the VAF rule' ? 's' : ''} (£${Math.round(room)}); the ${by === 'the VAF rule' ? 'rule' : 'caps'} held` });
       }
       l.base = (locs.length ? coverageReserve / locs.length : 0) + demandPool * share[l.region];
       l.spend = l.base;
@@ -519,7 +560,8 @@
     locs.forEach(l => {
       const placed = U.sum(Object.values(l.split));
       if (!(l.floorAsked > 0 && l.floorAsked > placed + 0.5)) return;
-      const because = l.floorAsked > l.floor + 0.005 ? (l.cphCap < l.capacity ? 'spending caps and the cost per hire limit' : 'spending caps')
+      const because = l.floorAsked > l.floor + 0.005
+        ? (l.floorHeldBy === 'vaf' ? 'the VAF rule' : l.floorHeldBy === 'cph' ? 'spending caps and the cost per hire limit' : 'spending caps')
         : l.trimmedBy > 0.005 ? 'spending caps, after the platform maximum' : 'the budget available';
       shortfalls.push({ kind: 'location', region: l.region, asked: l.floorAsked, placed, short: l.floorAsked - placed, because });
     });
@@ -552,9 +594,11 @@
       const cs = P().map(plat => l.cellResults[plat]);
       const out = rollUp(base, cs, { region: l.region, vacancies: l.vacancies });
       return { ...out, cells: l.cellResults, cap: l.cap, capReason: l.capReason, cphLimit: l.cphLimit, locationCap: l.locationCap,
+        locationCapUsed: l.locationCapUsed, limitExtra: l.limitExtra, vafCap: l.vafCap, limited: l.limited,
         capacity: l.capacity, base: l.base, floor: l.floor, floorShortfall: l.floorShortfall || 0, fixed: l.fixed };
     });
     if (withRanges) locations.forEach(loc => { loc.range = rowRanges(base, loc.cellsList); });
+    locations.forEach(loc => { loc.notes = locationNotes(loc, shortfalls, regionMax); });
     const platforms = {};
     P().forEach(plat => {
       const cs = locations.map(l => l.cells[plat]);
@@ -617,6 +661,29 @@
     };
   }
 
+  // What held a location, in the words RAC sees (user decision, 22 September
+  // 2026). One list for the PDF, the Plan tab and the workings.
+  const NOTE_TEXT = {
+    'location set to no spend': 'No spend in this plan',
+    'location maximum': 'At the maximum set for this plan',
+    'location spending cap (largest month x multiple)': 'At the most this location has spent in a month',
+    'spending caps (largest successful month x multiple)': 'Every platform at its spending cap',
+    'spending caps and cost per application limits': 'Held by caps and cost limits',
+    'cost per hire limit': 'At the cost per hire limit set for this plan',
+    'hires held to its VAFs': 'Hires held to its VAFs',
+  };
+  function locationNotes(loc, shortfalls, regionMax) {
+    const out = [];
+    if (regionMax[loc.region] === NO_SPEND) out.push(NOTE_TEXT['location set to no spend']);
+    else if (loc.cap < Infinity && loc.spend >= loc.cap - 1) out.push(NOTE_TEXT[loc.capReason] || loc.capReason);
+    if ((loc.limited || []).some(q => loc.cells[q].spend > 0.005)) out.push('Spend set by the cost limit for this plan');
+    const sf = shortfalls.find(x => x.kind === 'location' && x.region === loc.region);
+    if (sf) out.push(`Minimum £${Math.round(sf.asked).toLocaleString('en-GB')} not met: £${Math.round(sf.short).toLocaleString('en-GB')} short, held by ${sf.because === 'the budget available' ? 'the budget available' : sf.because === 'the VAF rule' ? 'the VAF rule' : 'caps'}`);
+    if (loc.range && loc.range.hires && loc.range.hires.lowConfidence) out.push('Low confidence: little evidence behind the hires');
+    if (!out.length) out.push('Full share of budget placed');
+    return out;
+  }
+
   function cellResult(base, c, S, f, on, aboveByInstruction, withRanges) {
     const pc = c.pc;
     const r = base.ranges;
@@ -629,10 +696,16 @@
       // Platform fee: spend = media + fee.
       media: f.media, fee: f.fee, feeRate: pc.fee,
       apps: f.apps, passed: f.passed, hires: f.hires,
-      cpa: f.apps > 0 ? f.cpa : null,
-      cph: f.hires > 0 ? S / f.hires : null,
-      // Cost per application build-up.
+      // Cost per application and per hire on media alone (user decision,
+      // 22 September 2026); the fee is its own column.
+      cpa: f.apps > 0 ? f.cpaMedia : null,
+      cph: f.hires > 0 ? f.media / f.hires : null,
+      // Cost per application build-up. The base cost is the row's own past
+      // cost per application, or the platform's figure where it had none;
+      // the adjustments multiply it to the planned cost on media.
       historicCpa: u.rawCpa, historicApps: u.apps, historicSpend: u.spend,
+      baseCpa: u.rawCpa !== null ? u.rawCpa : u.platform.cpa, baseCpaSource: u.rawCpa !== null ? 'own' : 'platform',
+      cpaAdjustments: (u.rawCpa !== null ? u.cpa / u.rawCpa : 1) * f.spendAdjustment * pc.bias,
       applyRate: ws.clicks > 0 ? ws.apps / ws.clicks : null,
       platformCpa: u.platform.cpa, thinAdjustment: u.thinAdjustment, usualCpa: u.cpa, cpaSource: u.source,
       spendUsual: pc.spendUsual, spendBasis: pc.spendBasis, diminishingRate: pc.b,
@@ -649,7 +722,8 @@
       // with the fee added (ceilingTotal, what planned spend is held to).
       ceiling: c.ceiling.ceiling, ceilingTotal: c.ceiling.ceiling * (1 + pc.fee), ceilingBase: c.ceiling.base, ceilingBasis: c.ceiling.basis, ceilingFlagged: c.ceiling.flagged, ceilingRowLimited: !!c.ceiling.rowLimited, ceilingRowLimit: c.ceiling.rowLimit === undefined ? null : c.ceiling.rowLimit,
       largestSuccessful: c.ceiling.largestSuccessful, largestMonth: c.ceiling.largestMonth, ceilingMonths: c.ceiling.months, capBenchmark: c.ceiling.benchmark,
-      cpaLimit: c.cpaLimit, cpaLimitSpend: Number.isFinite(c.cpaCap) ? c.cpaCap : null, cap: c.cap,
+      cpaLimit: c.cpaLimit, cpaLimitSpend: Number.isFinite(c.cpaCap) ? c.cpaCap : null, cap: c.cap, capNormal: c.capNormal,
+      capByLimit: c.cpaLimit !== null && !base.softCaps,
       aboveLimitByInstruction: aboveByInstruction,
       aboveLargestSuccessful: Math.max(0, f.media - c.ceiling.base),
       aboveLargestMonth: Math.max(0, f.media - c.ceiling.largestMonth),
@@ -676,11 +750,17 @@
     const apps = U.sum(cells.map(c => c.apps));
     const passed = U.sum(cells.map(c => c.passed));
     const hires = U.sum(cells.map(c => c.hires));
+    // Totals over totals (user decision, 22 September 2026): costs on media;
+    // the hire rate from quality applications before the hire adjustment,
+    // which is the same for every row of a role.
+    const adj = base.factors.recon;
     return {
       ...extra, spend, media, fee, apps, passed, hires,
-      cpa: apps > 0 ? spend / apps : null,
-      cph: hires > 0 ? spend / hires : null,
+      cpa: apps > 0 ? media / apps : null,
+      cph: hires > 0 ? media / hires : null,
       screenRate: apps > 0 ? passed / apps : null,
+      hireRate: passed > 0 && adj > 0 ? hires / (passed * adj) : null,
+      hireAdjustment: adj,
       hirePerApplication: apps > 0 ? hires / apps : null,
       cellsList: cells,
     };
@@ -714,33 +794,48 @@
     const solveOnHires = target > 0;
     const other = base.baseline.hires;
     const goal = solveOnHires ? target - other : appTarget;
-    const out = { goal: solveOnHires ? target : appTarget, paidGoal: solveOnHires ? Math.max(0, goal) : null, solveOnHires,
-      budgetForTarget: 0, pinned: false, unreachable: false, maxAchievable: null, saturationBudget: null, otherSourcesMeetTarget: false };
+    const out = { goal: solveOnHires ? target : appTarget, paidGoal: solveOnHires ? Math.max(0, goal) : null, solveOnHires, otherHires: solveOnHires ? other : 0,
+      budgetForTarget: 0, pinned: false, unreachable: false, maxAchievable: null, saturationBudget: null, otherSourcesMeetTarget: false,
+      atTarget: null, atSaturation: null };
     if (!((solveOnHires ? target : appTarget) > 0)) return out;
     const holdbacks = plan.holdbacks.total;
+    // What the budget for the target is made of: hold-backs plus the spend
+    // placed, and the paid-media hires that spend buys (point 30).
+    const parts = (q) => ({ holdbacks: q.holdbacks.total, placed: q.placed, paidHires: q.totals.hires, apps: q.totals.apps });
     if (solveOnHires && goal <= 0) {
       // Other sources alone are expected to reach the target.
       out.otherSourcesMeetTarget = true;
       out.budgetForTarget = Math.ceil(holdbacks / 50) * 50;
+      out.atTarget = { holdbacks, placed: 0, paidHires: 0, apps: 0 };
       return out;
     }
     const minTotal = U.sum(plan.locations.map(l => l.floor || 0));
+    const trial = (b) => allocate(base, { ...p, budget: b }, false);
     if (plan.locations.length && minTotal >= plan.deployable - 1) {
       out.pinned = true;
       out.budgetForTarget = Math.ceil((minTotal + holdbacks) / 50) * 50;
+      out.atTarget = parts(trial(out.budgetForTarget));
       return out;
     }
-    const trial = (b) => allocate(base, { ...p, budget: b }, false);
-    const at = (b) => { const q = trial(b); return solveOnHires ? q.totals.hires : q.totals.apps; };
-    let lo = holdbacks, hi = lo + 500000;
+    // A trial budget whose own location minimums place more than it has is
+    // never accepted (X6): at £5,000 for Patrol the minimums still placed
+    // £13,310 and the plan appeared to reach its target.
+    const at = (b) => {
+      const q = trial(b);
+      if (q.placed > q.deployable + 0.5) return -Infinity;
+      return solveOnHires ? q.totals.hires : q.totals.apps;
+    };
+    let lo = holdbacks, hi = lo + minTotal + 500000;
     for (let i = 0; i < 8 && at(hi) < goal; i++) hi *= 1.6;
     const most = at(hi);
     if (most < goal) {
       // Within the caps, spend above what every location can take adds
       // nothing: that budget is where hires stop rising.
+      const q = trial(hi);
       out.unreachable = true;
       out.maxAchievable = solveOnHires ? most + other : most;
-      out.saturationBudget = Math.ceil((holdbacks + trial(hi).placed) / 50) * 50;
+      out.saturationBudget = Math.ceil((holdbacks + q.placed) / 50) * 50;
+      out.atSaturation = parts(q);
       return out;
     }
     for (let i = 0; i < 60 && hi - lo > 2; i++) {
@@ -751,6 +846,10 @@
     let answer = Math.ceil(hi / 50) * 50;
     if (answer - 50 >= holdbacks && at(answer - 50) >= goal) answer -= 50;
     out.budgetForTarget = answer;
+    out.atTarget = parts(trial(answer));
+    // Where the location minimums alone need this budget, paid media can
+    // deliver more than the target asks.
+    out.minimumsSetBudget = minTotal > 0 && answer <= Math.ceil((holdbacks + minTotal) / 50) * 50 + 50;
     return out;
   }
 
@@ -803,7 +902,7 @@
     const hit = RAC.cache.get(key);
     if (hit) return hit;
     const baseKey = 'base|' + role + '|' + U.stableKey({ bench: inputs.bench, capMultiple: inputs.capMultiple, otherHiresShare: inputs.otherHiresShare,
-      otherHiresMonthly: inputs.otherHiresMonthly, remainingError: inputs.remainingError, includeSettling: !!inputs.includeSettling, planMonth: inputs.planMonth || null,
+      otherHiresMonthly: inputs.otherHiresMonthly, includeSettling: !!inputs.includeSettling, planMonth: inputs.planMonth || null,
       roleMixAdjustment: inputs.roleMixAdjustment, selfCompetition: inputs.selfCompetition,
       cpa: inputs.limits && inputs.limits.cpa, overrides: inputs.overrides, compare: inputs.compare }) + '|' + envStamp(env);
     let base = RAC.cache.get(baseKey);
@@ -817,6 +916,7 @@
     if (target.unreachable && !inputs.noReach) {
       reach = {
         mostHires: target.maxAchievable, saturationBudget: target.saturationBudget, unplaced: plan.unplaced.total,
+        saturationPlaced: target.atSaturation.placed, saturationHoldbacks: target.atSaturation.holdbacks,
         byMultiple: [1, 2, 3].map(m => {
           const q = m === base.capMultiple ? { ...plan, ...target } : build(role, { ...inputs, capMultiple: m, noReach: true }, env);
           return {
@@ -844,10 +944,11 @@
       window: base.ctx.window,
       windowMonths: base.ctx.windowMonths,
       weights: base.ctx.weights,
-      // Months the spending caps looked at (C3): settled months from ceiling_first_month.
-      capMonths: base.ctx.settled.filter(mo => mo >= RAC.assumptions.get(A, 'ceiling_first_month')),
-      // Months behind the caps' fixed benchmark: the same settled 2026 months.
-      capBenchmarkMonths: base.ctx.settled.filter(mo => mo >= RAC.assumptions.get(A, 'ceiling_first_month')),
+      // Months the spending caps looked at (C3): settled months from the
+      // caps' first month (fixed, or the last 12 from ceiling_rolling_from).
+      capMonths: base.capMonths.slice(), capFirst: base.capFirst, capsRolling: base.capsRolling,
+      // Months behind the caps' fixed benchmark: the same settled months.
+      capBenchmarkMonths: base.capMonths.slice(),
       factors: base.factors,
       otherHiresShare: base.factors.share,
       otherHiresMonthly: base.baseline.monthly,

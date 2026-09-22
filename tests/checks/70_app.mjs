@@ -89,13 +89,17 @@ export default function (check, { assert, near }) {
   });
 
   check('Setup passes the core fields and the multiple to the planner; the file defaults are 0% and 1', () => {
-    for (const f of ['otherHiresShare', 'otherHiresMonthly', 'remainingError']) {
+    for (const f of ['otherHiresShare', 'otherHiresMonthly']) {
       assert(html.includes(`${f}: (s.${f} && s.${f}[role] != null) ? s.${f}[role] : null,`), 'planParams does not pass ' + f);
     }
+    // The real-world CPA outcome adjustment is no longer set on Setup (user
+    // decision, 22 September 2026): nothing passes it and there is no field.
+    assert(!/remainingError: \(s\.remainingError/.test(html), 'planParams still passes remainingError');
+    assert(!readRoot('ui/plan_panels.jsx').includes("'remaining-error-' + role"), 'Setup still has the adjustment field');
     assert(/includeSettling: !!s\.includeSettling,/.test(html), 'planParams does not pass includeSettling');
     assert(/<RACUI\.CoreSettings role=\{role\}/.test(html), 'Setup core settings panel missing');
     const ui = readRoot('ui/plan_panels.jsx');
-    for (const f of ["'other-hires-share-' + role", "'other-hires-monthly-' + role", "'remaining-error-' + role", '"include-settling"', '"cap-multiple"']) {
+    for (const f of ["'other-hires-share-' + role", "'other-hires-monthly-' + role", '"include-settling"', '"cap-multiple"']) {
       assert(ui.includes('field=' + (f.startsWith('"') ? f : '{' + f + '}')) || ui.includes('data-field=' + f), 'Setup field missing: ' + f);
     }
     const { RAC } = appWith();

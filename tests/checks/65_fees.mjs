@@ -60,7 +60,9 @@ export default function (check, { assert, near }) {
     return out.join('; ');
   });
 
-  check('Predictions use media after the fee; costs use the total including it', () => {
+  check('Predictions use media after the fee; costs are on media, with the fee separate', () => {
+    // User decision, 22 September 2026: cost per application, cost per hire
+    // and cost limits are on media spend; fees are shown separately.
     const plan = RAC.plan.build('SMR', OCT, env);
     const base = RAC.plan.prepare('SMR', OCT, env);
     const bare = RAC.plan.prepare('SMR', { ...OCT, overrides: { fee_rate_indeed: 0, fee_rate_meta: 0, fee_rate_google: 0 } }, env);
@@ -68,24 +70,30 @@ export default function (check, { assert, near }) {
     for (const c of cells(plan).filter(x => x.spend > 0)) {
       const noFee = RAC.forecast.at(bare.cells[c.region][c.platform].pc, c.media);
       near(c.apps, noFee.apps, 1e-9, `${c.region} ${c.platform}: applications at media`);
-      near(c.plannedCpa, c.spend / c.apps, 1e-9, `${c.region} ${c.platform}: cost per application on the total`);
-      if (c.hires > 0) near(c.cph, c.spend / c.hires, 1e-9, `${c.region} ${c.platform}: cost per hire on the total`);
+      near(c.cpa, c.media / c.apps, 1e-9, `${c.region} ${c.platform}: cost per application on media`);
+      near(c.plannedCpaMedia, c.media / c.apps, 1e-9, `${c.region} ${c.platform}: plan cost per application on media`);
+      if (c.hires > 0) near(c.cph, c.media / c.hires, 1e-9, `${c.region} ${c.platform}: cost per hire on media`);
+      near(c.spend, c.media + c.fee, 1e-9, `${c.region} ${c.platform}: total spend = media + fee`);
       // Caps: past media spend x multiple, plus the fee.
       const cell = base.cells[c.region][c.platform];
-      near(cell.cap, Math.min(cell.ceiling.ceiling * (1 + c.feeRate), cell.cpaCap), 1e-9, `${c.region} ${c.platform}: cap`);
+      near(cell.cap, cell.ceiling.ceiling * (1 + c.feeRate), 1e-9, `${c.region} ${c.platform}: cap`);
       assert(c.media <= cell.ceiling.ceiling + 0.01, `${c.region} ${c.platform}: media £${c.media} above its media cap £${cell.ceiling.ceiling}`);
       n++;
     }
-    // A cost per application limit binds on the total cost.
+    const t = plan.totals;
+    near(t.cpa, t.media / t.apps, 1e-9, 'plan cost per application on media');
+    near(t.cph, t.media / t.hires, 1e-9, 'plan cost per hire on media');
+    // A cost per application limit is judged on media cost.
     const limit = { cpa: { 'South West': { indeed: 70 } } };
     const lim = RAC.plan.build('SMR', { ...OCT, limits: limit }, env).locations.find(l => l.region === 'South West').cells.indeed;
-    assert(lim.spend > 0 && lim.plannedCpa <= 70 + 1e-6, `South West Indeed £${lim.plannedCpa} above the £70 limit`);
-    // The split equalises the next hire's total cost across platforms.
+    assert(lim.spend > 0 && Math.abs(lim.plannedCpaMedia - 70) < 1e-6, `South West Indeed media cost £${lim.plannedCpaMedia}, limit £70`);
+    // The split equalises the next hire's total cost across platforms, so
+    // platforms with a fee still count as dearer.
     const sw = plan.locations.find(l => l.region === 'South West');
     const marg = P.filter(p => sw.cells[p].spend > 1 && sw.cells[p].spend < sw.cells[p].cap - 1)
       .map(p => RAC.forecast.marginalCostPerHire(base.cells['South West'][p].pc, sw.cells[p].spend));
     if (marg.length > 1) assert(Math.max(...marg) / Math.min(...marg) - 1 < 1e-6, 'marginal cost per hire differs across South West platforms: ' + marg);
-    return `${n} funded rows: applications from media, costs on the total, caps on media plus fee; a £70 cost per application limit held at £${lim.plannedCpa.toFixed(2)}; South West next-hire cost equal on ${marg.length} uncapped platforms`;
+    return `${n} funded rows: applications from media, costs on media, spend = media + fee, caps on media plus fee; a £70 cost per application limit met at £${lim.plannedCpaMedia.toFixed(2)} on media; South West next-hire cost equal on ${marg.length} uncapped platforms`;
   });
 
   check('With both fee rates at 0% an October plan is the same as before fees', () => {
