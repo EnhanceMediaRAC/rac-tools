@@ -306,7 +306,11 @@ export default function (check, { assert, near }) {
       near(full.factors.recon, rec.factor, 1e-4, `${name}: factor at 100%`);
       near(full.totals.hires / old.totals.hires, 1, 1e-4, `${name}: hires at 100% against the earlier scaling`);
       near(full.totals.allHires / old.totals.allHires, 1, 1e-4, `${name}: all hires at 100% against the earlier scaling`);
-      near(full.totals.apps, old.totals.apps, 1e-6, `${name}: applications`);
+      // Applications can differ by a whisker: where the VAF rule binds, the
+      // split follows hires, and the two ways of reaching the same factor
+      // (1.9082 in the file against 1.90820803 fresh) differ in the fifth
+      // decimal. 0.01 of an application in about 780.
+      near(full.totals.apps, old.totals.apps, 0.01, `${name}: applications`);
       assert(Math.abs(full.budgetForTarget - old.budgetForTarget) <= 50, `${name}: budget for 30 hires £${full.budgetForTarget} against £${old.budgetForTarget}`);
       out.push(`${name}: ${full.totals.hires.toFixed(2)} hires at 100% against ${old.totals.hires.toFixed(2)} under the earlier scaling (x${rec.factor.toFixed(4)}), £${full.budgetForTarget} against £${old.budgetForTarget}`);
     }

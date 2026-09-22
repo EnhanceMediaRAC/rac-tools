@@ -57,6 +57,8 @@ const isAgreed = (key, role) => { const e = RAC.assumptions.entry(A, key, role);
 const isSet = (key, role) => { const e = RAC.assumptions.entry(A, key, role); return !!e && e.source !== 'tested'; };
 const switchMin = RAC.assumptions.get(A, 'switch_min_test_months');
 // Why each agreed value was chosen (kept at the start of its notes).
+// Why the months the adjustment is learned from are set, not tested.
+const RECENT_NOTE = 'Set by Enhance on 22 Sep 2026: all test months. A three-month window on eight test months is thinner than the rule set on 17 Sep 2026 for the adjustment itself, and it swung on one month.';
 const AGREED_NOTE = {
   screen_blend_n: 'Agreed 22 Sep 2026: 35 applications for both roles, the same strength as the cost per application blend (cpa_prior_apps), so a platform with plenty of evidence is not pulled towards the average. A consistency choice, not a tested one; the tested figures are recorded beside it.',
   location_screen_blend_n: 'Agreed 17 Sep 2026 for this release: off for both roles (100000 means no location adjustment).',
@@ -146,18 +148,27 @@ if (run('backtest')) {
     for (const role of RAC.ROLES) res[role] = RAC.backtest.run(DATA[role].ds, A, role, WINDOW, eploy, { recent, stability: false });
     return { recent, res, rms: RAC.ROLES.reduce((a, r) => a + res[r].fit.rmsLog, 0) };
   });
-  // Lowest total wins; on a tie the current value stays.
+  // How many test months the adjustment is learned from. Set by Enhance
+  // (user decision, 22 September 2026: all of them), so the tests only report
+  // what the typical miss would have been. Where the row's source is
+  // "tested", the lowest total wins and a tie keeps the current value.
   const current = RAC.assumptions.get(A, 'remaining_error_months');
+  const recentEntry = RAC.assumptions.entry(A, 'remaining_error_months', 'all') || {};
+  const recentSet = recentEntry.source !== 'tested';
   const lowest = Math.min(...trials.map(t => t.rms));
   const tied = trials.filter(t => t.rms <= lowest + 1e-9);
-  const best = tied.find(t => t.recent === current) || tied[0];
+  const byTest = tied.find(t => t.recent === current) || tied[0];
+  const best = recentSet ? (trials.find(t => t.recent === current) || byTest) : byTest;
   const trialText = trials.map(t => `${t.recent || 'all'}: ${RAC.ROLES.map(r => `${r} ${t.res[r].fit.rmsLog.toFixed(3)}`).join(', ')}`).join('; ');
   const setAll = (key, value, notes) => {
-    changes.push({ key, role: 'all', value, tested: value, notes });
-    A = RAC.assumptions.withValues(A, { [key]: value });
+    changes.push({ key, role: 'all', value, tested: value === null ? byTest.recent : value, notes });
+    if (value !== null) A = RAC.assumptions.withValues(A, { [key]: value });
   };
-  setAll('remaining_error_months', best.recent,
-    `Tested ${today}: typical miss (root mean square of log misses) by months the adjustment was learned from (0 means all): ${trialText}. Lowest total kept; on a tie the current value stays.`);
+  setAll('remaining_error_months', recentSet ? null : best.recent,
+    `${recentSet ? RECENT_NOTE + ' ' : ''}Tested ${today}: typical miss (root mean square of log misses) by months the adjustment was learned from (0 means all): ${trialText}. ` +
+    (recentSet
+      ? `On these figures the lowest total was ${byTest.recent || 'all'}${byTest.recent === best.recent ? ', which is the value in use' : `, against the ${best.recent || 'all'} months in use`}; the value only changes by decision.`
+      : 'Lowest total kept; on a tie the current value stays.'));
   backtests = {};
   for (const role of RAC.ROLES) backtests[role] = RAC.backtest.run(DATA[role].ds, A, role, WINDOW, eploy, { recent: best.recent });
   const r4 = (x) => Math.round(x * 10000) / 10000;

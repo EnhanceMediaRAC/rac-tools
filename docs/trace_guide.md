@@ -76,10 +76,10 @@ Reading the South East Indeed row left to right:
 | Media | £5,500.80 | £5,597.07 / 1.0175, the Indeed fee taken off |
 | Fee | £96.26 | shown in its own column |
 | Diminishing returns adjustment | 0.982 | (£5,500.80 / £5,793.19) ^ (1 − 0.65): planned spend sits below average, so cost comes down a little |
-| Real-world CPA outcome adjustment | 1.000 | testing on past months found SMR costs about 8% higher than predicted, but not in the same direction with every test month left out, so no adjustment applies |
-| CPA adjustments | 0.962 | 0.980 x 0.982 x 1.000 |
-| **Plan CPA (media)** | **£95.92** | £99.71 x 0.962 |
-| **Predicted applies** | **57.3** | £5,500.80 / £95.92 |
+| Real-world CPA outcome adjustment | 1.077 | testing on past months found SMR costs about 8% higher than predicted, in the same direction with any one test month left out, so planned costs are raised by that much |
+| CPA adjustments | 1.036 | 0.980 x 0.982 x 1.077 |
+| **Plan CPA (media)** | **£103.30** | £99.71 x 1.036 |
+| **Predicted applies** | **53.3** | £5,500.80 / £103.30 |
 
 ## 4. From applications to hires. Sheets: **Rate build-up**, then **Workings**
 
@@ -91,9 +91,9 @@ Reading the South East Indeed row left to right:
 | Location quality adjustment | 1.00 | location differences are not applied |
 | **Hire rate from quality applications** | **11.7%** | the role average (187 hires from 1,598 quality applications): 41 hires from 311 quality applications in the South East is its own figure, but regional differences did not carry forward in testing |
 | Hire adjustment | 0.980 | so past predictions match the hires Eploy credited to the four platforms |
-| Quality applications | 9.46 | 57.3 x 16.5% |
-| **Predicted hires** | **1.08** | 57.3 x 16.5% x 11.7% x 0.980 |
-| Plan CPH (media) | £5,072 | £5,500.80 / 1.08 |
+| Quality applications | 8.79 | 53.3 x 16.5% |
+| **Predicted hires** | **1.01** | 53.3 x 16.5% x 11.7% x 0.980 |
+| Plan CPH (media) | £5,462 | £5,500.80 / 1.01 |
 
 ## 5. What limited the spend. Sheet: **Successful months**
 
@@ -134,11 +134,11 @@ table under the rows on the same sheet shows this for every location.
 ## 6. The range. Sheet: **Back-test**
 
 The plan's own range comes from how far it missed on past months, each
-predicted from the months before it: for SMR, −20.5% to +14.4%. A row's range
+predicted from the months before it: for SMR, −18.5% to +19.2%. A row's range
 starts there and widens where fewer applications sit behind its cost per
 application, and where planned spend sits further from past spend. South East
-Indeed, with 406.7 applications behind it, came out at **40 to 74
-applications**, and **0 to 3 hires** once the uncertainty in the rates and the
+Indeed, with 406.7 applications behind it, came out at **38 to 72
+applications**, and **0 to 2 hires** once the uncertainty in the rates and the
 chance variation in a small number of hires are added.
 
 ## 7. Where it appears

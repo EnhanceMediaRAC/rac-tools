@@ -256,7 +256,7 @@ with sync_playwright() as pw:
         fails.append('Method tab not shown')
     else:
         mt = method.inner_text()
-        needed = ['Platform fees', 'Spending caps', 'Testing and the settings used', 'Code b0a7d5c', 'rate of 0.65', 'real-world CPA outcome adjustment (1.000)', 'Cost limits']
+        needed = ['Platform fees', 'Spending caps', 'Testing and the settings used', 'Code b0a7d5c', 'rate of 0.65', 'real-world CPA outcome adjustment (1.077)', 'Cost limits']
         missing = [n for n in needed if n not in mt]
         if missing:
             fails.append(f'Method tab lacks {missing}')
