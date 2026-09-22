@@ -13,9 +13,10 @@ export default function (check, { assert, near }) {
   const D = calibrationData(RAC);
   // The check list, the release steps and the trace guide are for the team,
   // never RAC, so they may name GitHub, Vercel and Supabase, the app's screens
-  // and its files. Every other output rule still applies to them.
+  // and its files, and the retired terms the check list asks to search for.
+  // Every other output rule still applies to them.
   const internalText = (t) => RAC.outputChecks.text(t)
-    .filter(p => !p.startsWith('names the repository') && !p.startsWith('refers to the app'));
+    .filter(p => !p.startsWith('names the repository') && !p.startsWith('refers to the app') && !p.startsWith('uses a renamed term'));
 
   check('Trace guide: every figure it quotes is the one the planner gives', () => {
     const guide = readRoot('docs/trace_guide.md');
@@ -117,7 +118,12 @@ export default function (check, { assert, near }) {
     const doc = readRoot('docs/check_list.md');
     ['Plan tab', 'PDF', 'Workings', 'Assumptions tab', 'OneRAC tab', 'cost limits', 'market guide',
       'Changelog screen', 'Mark as issued', '/archive/', 'docs/trace_guide.md', 'Not saved',
-      'Months used', 'Last 3 months count', 'OneRAC PDF', 'Nothing that tells RAC the tool exists', '[object']
+      'Months used', 'Last 3 months count', 'OneRAC PDF', 'Nothing that tells RAC the tool exists', '[object',
+      // The second and third feedback batches (22 September 2026).
+      'Plan CPA (media)', 'CPA adjustments', 'Hire adjustment', 'VAFs', 'Use £X', 'Current budget', 'Location limits',
+      'real-world CPA outcome adjustment', 'diminishing returns adjustment', 'not modelled on the budget', 'Data taken on',
+      'Success-test benchmark', 'Counted', 'Spend set by the cost limit for this plan', '£18,350', 'follows the same switch',
+      'Indeed', 'After the release, on the live address']
       .forEach(t => assert(doc.includes(t), 'docs/check_list.md does not cover ' + t));
     assert(!internalText(doc).length, 'the check list fails the output checks: ' + internalText(doc).join('; '));
     return 'every screen and export the release changed is in docs/check_list.md, in the order to check them';

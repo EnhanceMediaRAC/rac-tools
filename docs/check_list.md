@@ -1,7 +1,7 @@
 # Checking the release on the test link
 
-About an hour and a half. Work through it in order and write down anything that
-looks wrong; nothing here changes the live app, because a test link cannot save.
+About two hours. Work through it in order and write down anything that looks
+wrong; nothing here changes the live app, because a test link cannot save.
 
 Open the branch's test link,
 `https://rac-tools-git-c3-build-enhance-media-rac.vercel.app`, and sign in. You
@@ -11,19 +11,70 @@ on a live address. The live app is moving to `https://rac-tools-kappa.vercel.app
 the old `https://rac-tools.vercel.app` also saves until it is retired. Neither is
 the test link.
 
-## 1. Does it open and does it add up (10 minutes)
+Figures quoted below come from the October 2026 plans built on the September
+settings (SMR: plan 2a's settings; Patrol: its September settings), at a
+spending cap multiple of x1 unless stated. The plans on the test link may use
+other settings, so expect the same kind of result rather than the same pounds.
 
-1. Go to the Plan tab for SMR, October 2026.
-2. Check the four figures at the top read sensibly, and that the locations
-   table adds up to the total.
+## 1. Does it open, and does it follow the role switch (10 minutes)
+
+1. Go to the Plan tab for SMR, October 2026. There is no Platforms tab any more:
+   the Plan tab now carries the platform tables.
+2. At the top are six boxes in two rows of three: predicted applications,
+   predicted hires, the target for applications; total VAFs, **Current budget** (with the
+   deployable budget and the amount placed beneath it), and budget to hit
+   target.
 3. Switch to Patrol with the buttons at the top right, beside the export
    buttons, then back to SMR. The figures should follow the role and come back
    the same.
-4. Look for the line about the budget the plan could not place, and for the
-   line about the spending caps if the target is out of reach. Both should say
-   plainly what is happening.
+4. Go to Setup and press Patrol, then SMR, at the top. Setup now shows one role
+   at a time and follows the same switch. Settings shared by both roles (cap
+   multiple, efficiency, include months still settling) say "Applies to both
+   roles".
 
-## 2. Does it match what you expect (20 minutes)
+## 2. The Plan tab tables (20 minutes)
+
+The Plan tab shows the same tables as the PDF, built by the same code, so what
+you check here holds for the PDF too.
+
+1. Find the tables below "Where the budget goes": **By location**, **By
+   platform**, then one per platform (**Indeed by location** and so on).
+2. Check the columns, in this order: Total spend, Fee, Media, Plan CPA (media),
+   Predicted applies, Quality rate, Hire rate from quality applies, Hire
+   adjustment, Plan CPH (media), Predicted hires. The location table adds Notes
+   and VAFs at the end. The platform tables add Base CPA and CPA adjustments
+   before Plan CPA. There is no spending cap column: the caps are a point in
+   the PDF summary instead.
+3. Follow one row of the Indeed table with a calculator:
+   - Total spend = media + fee.
+   - Base CPA x CPA adjustments = Plan CPA. The small line under CPA
+     adjustments shows its three parts (thin-data x diminishing returns x
+     real-world CPA outcome), which multiply to it.
+   - Media / Plan CPA = Predicted applies.
+   - Predicted applies x quality rate x hire rate x hire adjustment = Predicted
+     hires (to rounding: hires are shown to two decimals).
+   - Media / Predicted hires = Plan CPH. A row with fewer than 0.1 hires shows
+     no cost per hire.
+   For South East Indeed (plan 2a settings, x1): £99.71 x 1.057 = £105.36;
+   £7,193 / £105.36 = 68.3 applies.
+4. Check the totals: in the location and platform tables, total spend, fee,
+   media, applies and hires are the sums of the rows, and the rates and costs on
+   the total row are totals divided by totals.
+5. The small lines under Plan CPA, Predicted applies, Plan CPH and Predicted
+   hires are the ranges. "or more" appears where the hire range starts at 0.
+6. Read the Notes column. Each location says what held it, in these words:
+   "Every platform at its spending cap", "At the most this location has spent
+   in a month", "At the maximum set for this plan", "Held by caps and cost
+   limits", "At the cost per hire limit set for this plan", "Hires held to its
+   VAFs", "Spend set by the cost limit for this plan", "No spend in this plan",
+   "Minimum £A not met: £X short, held by caps", "Low confidence: little
+   evidence behind the hires", or "Full share of budget placed" where nothing
+   held it.
+7. "Where the budget goes" shows the budget, the hold-backs, the deployable
+   budget, then **Placed in the plan** (of which media, of which platform
+   fees) and **Not placed**.
+
+## 3. Does it match what you expect (20 minutes)
 
 This is the part only you can do.
 
@@ -31,214 +82,195 @@ This is the part only you can do.
 2. On the Plan tab, look at their spend, applications, hires and cost per hire.
 3. Ask: would you have planned roughly that? If not, write down which figure
    looks wrong and by how much.
-4. Do the same for one platform across locations.
+4. Do the same for one platform across locations, using its platform table.
 
-The figures are lower than the plans RAC has had before. That is the point of
-the change: cost per application now rises with spend, spending caps hold the
-plan to months that actually worked, and hires come from the applicant tracking
-data rather than a fixed rate. The comparison table in BUILD_PROGRESS.md (in
-the data folder) sets out how much each of those moved the September plan.
+What changed the figures since the method walk-through (the numbers are in
+BUILD_PROGRESS.md in the data folder):
 
-Since the last version of this list, these things changed the figures (see
-BUILD_PROGRESS.md for the numbers):
+- **Costs are on media.** Cost per application, cost per hire and cost limits
+  now leave the fee out; fees are shown in their own column and lines. The
+  split between platforms still treats a platform with a fee as dearer.
+- **SMR's real-world CPA outcome adjustment is now 1.00** (it was 1.096). The
+  tested values were worked out again after the two changes below, and under
+  the rules already set the adjustment no longer held with every test month
+  left out. This added about a hire to SMR.
+- **Quality blend 35** for Indeed and Appcast, both roles (it was 200): about
+  0.3 fewer hires for each role.
+- **Role benchmark cost per application** is each role's average over the
+  months the caps use (SMR £74.97, Patrol £81.28): under 0.1 hires either way.
+- **The VAF rule:** a location's predicted paid-media hires can no longer
+  exceed its VAFs. It did not bind on the October plans.
+- **Expected hires from other sources count towards the target** (as before),
+  and every output now says they are not modelled on the budget.
 
-- June 2026 applications count in the quality and hire rates.
-- The spending caps' quality test now judges a location against what was
-  expected for it that month, taking account of that month's quality across all
-  locations. June's quality was lower everywhere, so June months are no longer
-  set aside for that alone.
-- A month counts towards a cap if its cost per application was at or below the
-  location and platform's own average cost across the settled 2026 months,
-  adjusted for that month's spend, with no real-world CPA outcome adjustment. 2025
-  months are left out because that data was put together differently and does
-  not compare (the same reason they are left out of the months the caps look
-  at). This does not depend on the data window, so the caps are the same
-  whichever window is chosen.
-- Two further limits keep caps to what a location could take in one month:
-  - A location cannot be planned above the most it spent in one month, all
-    platforms together, x the spending cap multiple (settled 2026 months).
-    Row caps are set separately and added up, so without this a location
-    could be allowed more than it has ever run.
-  - A row's cap cannot be based on a month above twice its average monthly spend
-    (the average of the 2026 months it spent in), so one unusual month cannot
-    set a cap.
-  Both values are in assumptions.csv (cap_location_month_limit 1,
-  cap_row_usual_limit 2, set by Enhance); 0 turns either off. There is no limit
-  on the plan as a whole.
-- The header SMR and Patrol buttons now also work in the archive (section 9).
+The October figures after these changes:
 
-Now sanity-check the figures with the new caps in place:
+| | Hires (paid + other) | Applications | Placed | Not placed |
+|---|---|---|---|---|
+| SMR x1 | 21.9 (11.8 + 10.1) | 601 | £46,595 | £46,191 |
+| SMR x2 | 26.4 | 833 | £73,136 | £19,650 |
+| SMR x3 | 29.1 | 958 | £91,941 | £845 |
+| Patrol x1 | 24.8 (10.9 + 13.9) | 786 | £67,215 | £6,985 |
+| Patrol x2 | 25.6 | 857 | £71,735 | £2,465 |
 
-5. Look at the budget the plan could not place. It is higher than after the
-   benchmark change alone, because the two limits hold some locations and rows
-   below what they were allowed before. Budget the plan cannot place is a real
-   result: it says the plan would be spending more in a place than it has ever
-   absorbed in a month. It is not something to tune away. On the October SMR
-   plan with the September plan 2a settings and the Patrol plan with its
-   September settings, the budget not placed was:
+Budget not placed is a real result: it says the plan would be spending more in a
+place than it has ever absorbed in a month. Ask: for the locations you know,
+does the amount left over look like more than they could really take?
 
-   | | Before today's changes | 2026 benchmark only | With both limits |
-   |---|---|---|---|
-   | SMR, multiple 1 | £49,225 | £43,797 | £46,191 |
-   | SMR, multiple 2 | £22,340 | £15,563 | £19,805 |
-   | Patrol, multiple 1 | £12,369 | £6,762 | £7,365 |
-   | Patrol, multiple 2 | £5,157 | £2,180 | £2,439 |
+## 4. The budget for the target, and money that cannot be placed (10 minutes)
 
-   The plans on the test link may use other settings, so expect the same
-   direction rather than the same pounds. Ask: for the locations you know, does
-   the amount left over look like more than they could really take?
-6. Check where the limits hold. On those settings:
-   - The location cap held **North West** and **Yorkshire & Humber** (SMR):
-     their platforms' caps added up to more than either had ever spent in a
-     month. On the locations page of the PDF their notes read "at location
-     spending cap". Patrol South East and North East
-     had location caps below their row caps, but the plan did not reach them.
-   - The row limit held 12 rows to twice their average monthly spend. SMR: South
-     East Appcast, London Appcast (London is set to no spend in those
-     settings), North West Indeed, North West Meta, Yorkshire & Humber Indeed,
-     Yorkshire & Humber Appcast. Patrol: South East Appcast, West Midlands
-     Google, North West Google, Scotland Indeed, Scotland Meta, Scotland Google.
-     In the PDF their cap basis reads "2x usual".
-   Ask: for the rows you know, was the month the cap was based on really a
-   one-off? Scotland Patrol Indeed, for example, spent £3,223 in July 2026
-   against a next best month of £928.
+1. Under the six boxes, the budget for the target is set out in steps: the
+   target, less the hires expected from other sources, gives the paid-media
+   hires needed; then the hold-backs plus what is placed for them gives the
+   budget.
+2. For SMR (30 hires, out of reach) the box reads "Most 21.9 hires", "needing a
+   total budget of £55,800 (£46,595 placed plus £9,164 held back)", and the line
+   below it reads "Spend above £55,800 has not successfully driven results:
+   every location and platform would be above the largest month that worked
+   for it, so the plan does not place it." The out-of-reach panel shows the same
+   figures at x1, x2 and x3.
+3. For Patrol on its September settings (16 hires), the budget is £18,350: the
+   location minimums alone need that much, and at it paid media is predicted to
+   deliver 3.3 hires against the 2.1 needed. It used to show £5,000, which the
+   minimums overspent. Check the line under the boxes says the minimums set the
+   budget.
+4. Where money cannot be placed, the orange notice says so, points at the Notes
+   column, and offers "Use £X": the budget less what cannot be placed, rounded
+   up to £50. Press it. The Current budget box changes to £X and the notice
+   goes, or leaves a few hundred pounds where a platform maximum holds (the
+   Appcast maximum, at a higher cap multiple). The test link saves nothing, so
+   set the budget back afterwards.
 
-## 3. The PDF (15 minutes)
+## 5. Setup (15 minutes)
+
+1. **No real-world CPA outcome adjustment field.** It now comes from the
+   assumptions file only, and shows on the Assumptions tab.
+2. **Location limits.** Near the bottom, one heading holds both limit tables:
+   "Platform coverage & budget limits by region" (where platforms run, and the
+   least and most a location may spend), then "Cost limits".
+3. **Cost limits** are on media. Each cost per hire box has "now £x a hire"
+   under it, and each cost per application box "now £x".
+   - Set a cost per application limit **above** today's figure on one location
+     and platform (for example 25% above). The row can now spend beyond its
+     spending cap: spend continues until the predicted cost per application
+     reaches the limit. Under the box: "limit applied: spend £X (cap without it
+     £Y)", with X above Y. On the Plan tab the location's note reads "Spend set
+     by the cost limit for this plan", and in the PDF summary the spending caps
+     point names the row and says whether it is above past spending levels.
+   - Set it **below** today's figure. Spend falls, and the plan cost per
+     application for that row equals the limit.
+   - Set a cost per hire limit on a location; its spend falls until its cost
+     per hire (media) is at the limit.
+   - Clear them all.
+4. **The market guide** is at the bottom, closed. Open "What the market was
+   doing". Cost per click and per thousand impressions are in pounds, with each
+   platform's average beside them. Below, a table of Indeed's monthly figures
+   for Automotive Technician, Mechanic and Vehicle Technician: competition
+   score, jobs and jobseekers per job, for 13 months. Check five of the 20
+   figures listed in BUILD_PROGRESS.md against the reports in the data folder.
+   Switch to Patrol: the guide is there too.
+
+## 6. The PDF (20 minutes)
 
 1. Press PDF in the header.
-2. Read the summary page as if you were RAC. Does it answer "what will this
-   buy, and how sure are you?"
-3. Check the assumptions and risks box: spend above past levels, the cap
-   multiple, the adjustment, other-source hires, fees, the attribution note,
-   any cost limits, and the "Months used" line. That line should name the
-   months for cost per application (with the months counted twice), spending
-   caps, quality rates, hire rates, other-source hires, testing and ranges.
-4. Turn to a location and platform page. Follow one row left to right: historic
-   cost, the adjustments, planned cost, applications, quality rate, hire rate,
-   hires. Does the arithmetic hold?
-5. Read the method and glossary pages.
-   - There is a "Months used" section: one line per part of the model, saying
-     which months it used, how they were weighted, and whether that follows
-     the data window set for the plan or a fixed rule. Check it agrees with the
-     summary page. The spending caps line should name the months the caps
-     looked at (January to July 2026) and say the cost benchmark used the same
-     months. No 2025 month should appear on it.
-   - The "Spending caps" section should describe the benchmark (each location
-     and platform's own average cost over the settled months since January 2026,
-     adjusted for that month's spend, with the reason earlier months were left
-     out) and the quality test (against what was expected for that location
-     that month, given quality across all locations).
-   - The same section, and the spending caps line in "Months used", should
-     state both limits: a cap is based on no more than 2 x average monthly spend,
-     and each location has its own cap of the most it spent in one month, all
-     platforms together, x the multiple. It should say there is no limit on
-     the plan as a whole.
-   - The glossary should have "Spending cap" (mentioning the 2 x usual limit)
-     and "Location spending cap".
-   - On the locations page, a location held by its own cap shows "at location
-     spending cap" in the notes, and the note under the table says what that
-     means. Notes run onto a second line rather than being cut off. On a
-     platform page, a row held by the usual-spend limit shows "2x usual" in
-     its cap basis.
-   - The definition of a quality application should end "Repeat applications
-     from the same candidate are not counted unless they had already passed
-     screening."
-   - Settings are described as "set for the plan" or "set for this plan". The
-     settings screen is not named anywhere.
-6. Check the stamp. It is on the last page only, bottom left, and starts
-   "Reference:": a short code, the applicant tracking data date, the month the
-   ad data runs to and the assumptions date. It should name no file, hold no
-   link and name nothing about where the app is kept or hosted. Every other
-   page has only the page number at the foot.
-7. Press "PDF, no notes" and confirm only the notes page is missing.
+2. The summary fits on one page. Read it as if you were RAC. Does it answer
+   "what will this buy, and how sure are you?"
+3. The Budget block shows the budget, the hold-backs, the deployable budget,
+   **Placed in the plan** with its media and platform fees lines beneath, and
+   the budget not placed. Fees are never folded into another figure.
+4. Predicted results: hires (from paid media, and expected from other sources,
+   "not modelled on the budget"), applications, quality applications, **Cost
+   per application (media)**, **Cost per hire, paid media (media)**, and the
+   budget for the target. Under them, the budget for the target in steps.
+5. Assumptions and risks, one point each: spend above past levels; the
+   **spending caps** (how many rows and locations were at their caps, and any
+   row whose spend a cost limit set); "Spending cap multiple: x1." with nothing
+   after it; the **real-world CPA outcome adjustment** with what testing found
+   in plain words; expected hires from other sources, counted towards the
+   target and not modelled on the budget; Months used; platform fees (shown
+   separately; costs on media, because past costs were recorded without
+   fees); attribution; any minimums not met; low-confidence rows; rows with no
+   successful month.
+6. The table pages match the Plan tab (section 2).
+7. Method and glossary: the terms are "diminishing returns adjustment",
+   "real-world CPA outcome adjustment", "CPA adjustments", "Base cost per
+   application", "Plan cost per application (media)", "Hire adjustment",
+   "VAFs". Nothing should say "remaining-error", "spend-level" or "usual". The
+   Cost limits section says a cost per application limit replaces the row's
+   spending cap. The Spending caps section says that from plans for January
+   2027 the caps use the last 12 settled months.
+8. The stamp is on the last page only, bottom left, and starts "Reference:": a
+   short code, the applicant tracking data date, the month the ad data runs to
+   and the assumptions date. It names no file and holds no link.
+9. Press "PDF, no notes" and confirm only the notes page is missing.
 
-## 4. The workings (10 minutes)
+## 7. The workings (15 minutes)
 
 1. Press Workings. Open the file.
-2. On the Summary sheet, check the budget block adds up, and read the
-   "Months used" block near the bottom. It should say the same as the PDF.
-3. On the Workings sheet, click any figure and look at the formula bar. It
-   should point at another sheet, not hold a number.
-4. Follow one row using `docs/trace_guide.md`, which does exactly that for
-   South East Indeed. Its figures were updated for the 2026 cost benchmark and
-   the two cap limits, and section 5 now covers the South East's location cap.
-5. On the Data sources sheet, "Where it came from" should read "Original
-   monthly data" or "Later monthly update", and August should be marked as not
-   counting until its data has settled. The Weight column should follow the
-   window on Benchmarks: for "Year to date, recent weighted" at 2x, January to
-   April 2026 at 1 and May to July 2026 at 2.
-6. On the Back-test sheet, the note above the table should read "Window: year
-   to date, with the last three months counted x2". (It used to print
-   "[object Object]".)
-7. On the Successful months sheet, the column after cost per application is
-   "Benchmark at that spend", and the quality test reads, for example, "19.1%
-   against 17.4% expected (average 22.3% x 0.78 for the month): passed". Pick one
-   row and check the month was counted only if its cost was at or below the
-   benchmark and the quality test passed. A row whose cap is held by the
-   usual-spend limit says "largest successful month held to 2 x average monthly
-   spend" on its cap line.
-   Below the rows, "Location spending caps" lists each location's biggest
-   month by platform, the location cap, the platform caps added up and which
-   of the two held. Check one location's month against the Data sources
+2. **Summary:** the budget block has "of which media" and "of which platform
+   fees" under Placed in the plan. Spend above past levels is in three rows:
+   above the month each cap was based on; above the largest month the row ran
+   since January 2026; and in rows with no spend of their own since January
+   2026, named. Then the spending caps note, and the budget for the target as
+   rows (target, less other-source hires, paid-media hires needed, then
+   hold-backs and placed, or the most hires and the total budget where they
+   stop rising). "Months used" says the same as the PDF.
+3. **Workings sheet:** the note at the top lists the few figures written as
+   values (total spend, the settings, the ranges); everything else is a
+   formula. Click Plan CPA (media): it is Base cost per application x CPA
+   adjustments. Click Spending cap (media): it reads the Successful months
    sheet.
-8. On the Assumptions sheet, the heading note should read "Every value comes
-   from one list of assumptions set by Enhance, held apart from the
-   calculations", and the notes should name no files. The Source column reads
-   "Set by Enhance", "Set by Enhance, informed by testing" or "Measured from
-   RAC's data". The first two rows are the data: "RAC's monthly SMR spend and
-   application data, as used for cost per application:" followed by the months
-   this plan used (for example "January to April 2026 counted once and May to
-   July 2026 counted twice") and the months the spending caps used, then the
-   months of applicant tracking data behind the quality and hire rates. The
-   two cap limits are listed. The setting for the Google remarketing campaign
-   held in the Combined Activity reserve is not listed.
+4. Follow one row using `docs/trace_guide.md`, which does exactly that for
+   South East Indeed, with this release's figures.
+5. **Data sources:** one "Data taken on" column (the two columns "Where it came
+   from" and "Date taken" have gone), with the settling rule in the note above
+   the table.
+6. **Successful months:** for each month, Actual cost that month, the
+   Success-test benchmark at that spend, then Cost test, Quality rate that
+   month, Expected quality rate, Quality test, Counted and Cap this month sets
+   (media). Click Counted and the cap: they are formulas over the cells beside
+   them, so the sheet shows the tests being applied. Each cap row shows the
+   Planning cost per application (media); the note at the top says why it
+   differs from the success-test benchmark.
+7. **Assumptions:** the Source column reads "Set by Enhance", "Set by Enhance,
+   informed by testing", "Set by Enhance, informed by RAC's data" (screening
+   maturity) or "Measured from RAC's data". The quality blend reads 35. The
+   role benchmark cost per application is measured from RAC's data.
+8. **Back-test:** the note reads "Window: year to date, with the last three
+   months counted x2", and the cost misses heading names the real-world CPA
+   outcome adjustment. (It once printed "[object Object]".)
 
-## 5. The data window and upweighting (15 minutes)
+## 8. The data window and upweighting (15 minutes)
 
 1. On the Plan tab for SMR, write down predicted applications, hires and cost
    per application.
-2. Go to Benchmarks, SMR, and note which window it shows (a new workspace
-   starts on "All time"; the live workspace keeps whatever was last chosen,
-   which for the September plans was "Year to date, recent weighted" at 2x).
-   Choose "Year to date, recent weighted" with "Last 3 months count" at 2x,
-   note the Plan tab figures, then change it to 3x.
+2. Go to Benchmarks, SMR, and note which window it shows. Choose "Year to date,
+   recent weighted" with "Last 3 months count" at 2x, note the Plan tab
+   figures, then change it to 3x.
 3. Back on the Plan tab, cost per application should rise and applications
-   fall, because May to July 2026 cost more than January to April. If the
-   figures do not move, write it down.
+   fall, because May to July 2026 cost more than January to April.
 4. Press PDF. The "Months used" line and the method section should now say
    "May to July 2026 counted three times". Quality rates, hire rates, spending
-   caps, other-source hires and testing should still name the same months as
-   before: they follow fixed rules, not the window.
-5. Pick two location and platform rows in the PDF and note their spending
-   caps, and one location's spending room on the locations page. The caps and
-   the location caps should be exactly the same under 2x, 3x and the windows
-   in the next step. Spend, applications and cost per application move with
-   the window; the caps do not. (The budget not placed can still move a
-   little, because the split within a location follows the window.)
-6. On Benchmarks, choose "Last 3 months", then "All time", and watch the Plan
-   tab each time. On the data held, "Last 3 months" gave the highest cost per
-   application and "All time" the lowest.
-7. Set it back to what it showed in step 2. The test link does not save, but
-   leave it as you found it.
+   caps, other-source hires and testing should still name the same months:
+   they follow fixed rules, not the window.
+5. Export the workings under 2x and 3x and compare two rows' Spending cap
+   (media) on the Workings sheet: the caps are the same whatever the window.
+6. Set the window back to what it showed in step 2.
 
-## 6. The OneRAC plan and its PDF (10 minutes)
+## 9. The OneRAC plan and its PDF (10 minutes)
 
-1. Open the OneRAC tab. Tick a location, set a month, a budget and a hire
-   target. Check the plan appears, that the SMR and Patrol plans lose that
-   location, and that each shows a OneRAC hold-back.
-2. Press PDF on the OneRAC tab and open the OneRAC PDF.
-3. Read the summary page and the locations and platforms pages as you did for
-   SMR. The title should name OneRAC and the hire target.
-4. Read its method pages: they should include "The OneRAC plan" section (which
-   locations, open roles by role, how cost per application was blended to the
-   mix of roles, and the self-competition assumption) and the "Months used"
-   section. Then read its glossary.
-5. Press Workings on the OneRAC tab and open the file; the Summary sheet should
-   show the OneRAC budget and the same "Months used" block. Keep this file and
-   the OneRAC PDF open for section 7.
-6. Untick the location.
+1. Open the OneRAC tab. Its cards now have the same spacing as the other tabs.
+   Tick a location, set a month, a budget and a hire target. Check the plan
+   appears, that the SMR and Patrol plans lose that location, and that each
+   shows a OneRAC hold-back.
+2. Press PDF on the OneRAC tab and open the OneRAC PDF. Its summary and tables
+   follow sections 6 and 2. The title names OneRAC and the hire target; its
+   method pages include "The OneRAC plan".
+3. Press Workings on the OneRAC tab. Keep this file and the OneRAC PDF open for
+   section 10.
+4. Untick the location.
 
-## 7. Nothing that tells RAC the tool exists (10 minutes)
+## 10. Nothing that tells RAC the tool exists (10 minutes)
 
 RAC should see a plan from Enhance, not a tool. Open the SMR PDF, the "PDF, no
 notes" version, the SMR workings, the OneRAC PDF and the OneRAC workings. In
@@ -248,62 +280,65 @@ in: Values") for:
 - app, tool, website, Setup, screen, button, saved, upload
 - .csv, .js, json, rac_data
 - repository, GitHub, Vercel, Supabase, public, database, branch
+- remaining-error, spend-level, usual
+- Indeed's report names, and the name of Indeed's research arm
 - [object
 
 Find also matches inside longer words, so ignore any match that is part of a
-longer word: "applicant", "application", "apply", "applied", "Appcast",
-"capped" and "happened" (for app), and "screening" (for screen). On the
-workings Assumptions sheet, the Key column holds setting names such as
-"cpa_prior_apps", "screen_blend_n" and "cap_row_usual_limit"; ignore those too.
-Apart from those, nothing should be found. The Eploy dataset's own file name
-appears in the stamp and notes, which is expected: it is RAC's own file. The
-exports run a whole-word version of this search themselves and refuse to save a
-document that fails it, so a find here means something slipped past that check.
+longer word: "applicant", "application", "apply", "applies", "Appcast",
+"capped" and "happened" (for app), "screening" (for screen) and "unusual" (for
+usual). On the workings Assumptions sheet, the Key column holds setting names
+such as "cpa_prior_apps", "screen_blend_n", "cap_row_usual_limit" and
+"remaining_error_factor"; ignore those too. Apart from those, nothing should be
+found. The Eploy dataset's own file name appears in the stamp and notes, which
+is expected: it is RAC's own file. The exports run a whole-word version of this
+search themselves and refuse to save a document that fails it, so a find here
+means something slipped past that check.
 
-## 8. The other new screens (10 minutes)
+## 11. The other screens (10 minutes)
 
 1. **Assumptions tab.** Every value, what this plan used, what testing gave,
-   where it came from and when it was set. Check nothing says "set for this
-   plan" that you did not set. The two new cap limits (cap_location_month_limit
-   1 and cap_row_usual_limit 2) appear, with the source the file gives them.
-   This tab is for the team, so it still names the assumptions file, links to
-   its history and uses the file's own source words.
-2. **Setup, cost limits.** Set a low cost per application on one location and
-   platform and watch the plan move; then clear it.
-3. **Setup, market guide.** Cost per click and per thousand impressions are in
-   pounds, with each platform's average beside them. Check the months read
-   sensibly against what you know about the market.
-4. **Changelog screen.** The release notes should include the two cap limits,
-   and should say nothing about where the app is kept or hosted. A test link
-   cannot write anything, so the record of your own changes stays empty here;
-   that part is checked on the live address after the release (docs/release.md,
-   step 10).
+   where it came from and when it was set. The quality blend is 35, the SMR
+   real-world CPA outcome adjustment 1.00 with its tested figure beside it, and
+   the two rolling-cap rows (ceiling_rolling_from 2027-01,
+   ceiling_rolling_months 12) are there. This tab is for the team, so it still
+   uses the file's own source words.
+2. **Changelog screen.** The 22 Sep release notes cover the tables, costs on
+   media, the renames, cost limits, the VAF rule, the budget for the target,
+   Setup following the role switch and the market guide. They should say
+   nothing about where the app is kept or hosted. A test link cannot write, so
+   the record of your own changes stays empty here (see section 13).
 
-## 9. Issued plans and the archive (10 minutes)
+## 12. Issued plans and the archive (10 minutes)
 
 1. Save a plan ("Save as new plan"), then press "Mark as issued". On the test
    link it will tell you nothing was stored, because a test link never writes.
    That is the right answer.
 2. Add `/archive/` to the end of the test link's address. It should show the
-   amber banner "Archive: pre-release plans, read-only". It will have no saved
-   plans in it yet: the archive's copy of the plans is only taken when the
-   release first opens on the live address, after the merge. It still shows a
-   plan worked out on its default settings.
+   amber banner "Archive: pre-release plans, read-only". It has no saved plans
+   yet: the archive's copy is taken when the release first opens on the live
+   address, after the merge. It still shows a plan on its default settings.
 3. In the archive, press **Patrol** in the header, beside the export buttons.
    The header and the Plan tab should both switch to Patrol and show Patrol
-   figures. Press Workings and PDF: the files should be named for Patrol
-   (for example "RAC_October_2026_Patrol_Plan.pdf"). Press **SMR** and the SMR
-   figures should come back. Before this release these header buttons did
-   nothing in the old app; the archive now carries the same one-word fix the
-   app author made on main, and nothing else about it has changed.
-4. After the merge, once the archive holds the saved plans, open a saved
-   Patrol plan in the archive and repeat step 3 on it. Comparing archived plans
-   with the live app's exports is a release step for the app author (step 8 of
-   `docs/release.md`). A difference of a few SMR applications there (1,400
-   against 1,402 in testing) is a known fault of the previous calculations,
-   not of the archive, and is expected.
+   figures. Press Workings and PDF: the files should be named for Patrol. Press
+   **SMR** and the SMR figures come back. The archive is the previous version
+   and is not changed by this release.
 
-## 10. What to say afterwards
+## 13. After the release, on the live address
+
+These cannot be checked on a test link, because it never writes. They are in
+`docs/release.md` step 10.
+
+1. Change a plan setting (for example the budget, a cost limit, or the data
+   window on Benchmarks), then open the Changelog screen: your name, the time,
+   the setting, and what it was and became should be listed. Cost limits and
+   the data window are now recorded too.
+2. Open a saved Patrol plan in the archive and repeat section 12, step 3 on it.
+   A difference of a few SMR applications between the archive and the live
+   exports (1,400 against 1,402 in testing) is a known fault of the previous
+   calculations, not of the archive.
+
+## 14. What to say afterwards
 
 - Anything that looked wrong, with the screen and the figure.
 - Anything you would want RAC not to see in the PDF or the workings.
