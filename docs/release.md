@@ -3,7 +3,10 @@
 What to do to put the `c3-build` release live, in order, and who does each
 step. Everything here is done by a person; nothing releases itself.
 
-- **Biraag** runs the checks and checks the plan on the test link (steps 1 and 2).
+- **Biraag** runs the checks and checks the plan on the test link (steps 1 and 2),
+  makes the two checks in step 10 that only work on the live address, and
+  re-uploads August on or after 1 October 2026 (see "After the release, with
+  dates").
 - **The app author** does everything else (steps 3 to 14).
 
 Nothing merges until Biraag says his check on the test link has passed.
@@ -164,11 +167,19 @@ archive is frozen.
     "Test version" banner is gone, the header says "Saved", and "Get spend from
     Windsor" on the pacing screen still works (it relies on the project's
     environment variables from step 4).
-    - **Biraag, two checks that only work on the live address:** change one
-      plan setting, open the Changelog screen and check the change is listed
-      with your name, then set it back (check list 8.4); and in the archive,
-      open a saved Patrol plan and repeat check list 9.3 on it (check list
-      9.4).
+    - **Biraag, two checks that only work on the live address**, the same day,
+      once steps 7 to 9 are done (check list section 13; items 8.4 and 9.4 in
+      the feedback list):
+      - **The record of changes (8.4).** Change three settings, one at a time:
+        the budget, a cost limit on Setup, and the data window on Benchmarks.
+        Open the Changelog screen: each change is listed with your name, the
+        time, the setting, and what it was and became. Cost limits and the
+        data window are recorded since the 22 September changes (X5), so all
+        three must appear. Set each one back afterwards.
+      - **Patrol in the archive (9.4).** In the archive, open a saved Patrol
+        plan and repeat check list section 12, step 3 on it: the header and
+        the Plan tab switch to Patrol, and the Workings and PDF are named for
+        Patrol.
 
 11. **Tell the team the link has changed.** Send the new link,
     `https://rac-tools-kappa.vercel.app`, and ask everyone to update their
@@ -208,6 +219,43 @@ archive is frozen.
     a revert, test links would write to the live data again: avoid using them
     until the release is put back. Do not retire the old address until the
     release has settled.
+
+## After the release, with dates
+
+Everything that has to happen once the merge is done, who does it and when.
+
+| What | Who | When |
+|---|---|---|
+| Sign in once so the archive copy is taken, and confirm the three `archive:` rows (step 7) | App author | Straight after the merge, before anyone edits a plan |
+| Check the archive against the kept exports (step 8) and the version stamp (step 9) | App author | The same day |
+| The record of changes, including cost limits and the data window (step 10, 8.4) | Biraag | The same day, after steps 7 to 9 |
+| Patrol in the archive (step 10, 9.4) | Biraag | The same day, after steps 7 to 9 |
+| Tell the team the new link and the archive (steps 11 and 12) | App author | The same day |
+| Re-upload August so it counts in the October plans (below) | Biraag | On or after 1 October 2026, before the October plans are issued |
+| Run the monthly review after that upload (steps 2 and 3 of "Each month, before the plan") | App author | After the August upload, before any October plan is issued |
+| Retire the old address (step 13) | App author | On the date given in step 11 |
+
+**Re-upload August on or after 1 October 2026.** August is already in the
+data, but it does not count yet: the data was taken on 17 September, and a month
+counts only once 31 days have passed since it ended. An upload is stamped with
+the day it is made, so uploading August again on or after 1 October makes it
+count.
+
+- **Where:** the Data tab on `https://rac-tools-kappa.vercel.app`. A test link
+  cannot save, so the upload must be made on the live address.
+- **File:** the monthly Raw Data Export, as .xlsx (the sheet whose name contains
+  "Raw Data", otherwise the first sheet) or .csv. It is read by header name:
+  Date, Platform, Area, Region, Ad Spend, Blended Apply Completes, and Clicks
+  where present. The latest date in the file must reach 31 August 2026.
+- **Check afterwards:** open an October plan and read "Months used" on the
+  Method tab: August must be listed as counted, with no "not yet settled"
+  flag. On the September settings, SMR at x1 moved from 558 to 621
+  applications and from 21.0 to 22.3 hires when August was counted in testing;
+  Patrol barely moved (786 to 796 applications).
+
+Counting August does not re-run the tests behind the measured values in
+`assumptions.csv`. That is the monthly review below, which the app author runs
+after the upload.
 
 ## Each month, before the plan
 
