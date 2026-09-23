@@ -69,16 +69,16 @@ Reading the South East Indeed row left to right:
 | Base cost per application | £99.71 | from Blend inputs, step 2 |
 | Platform figure for the role | £74.01 | from Blend inputs, step 2 |
 | Cost per application after the thin-data pull | £97.67 | (406.7 x £99.71 + 35 x £74.01) / (406.7 + 35) |
-| Thin-data adjustment | 0.980 | £97.67 / £99.71: this row has plenty of evidence, so it barely moved |
+| Thin-data adjustment | 0.9796 | £97.67 / £99.71: this row has plenty of evidence, so it barely moved |
 | Average monthly spend | £5,793.19 | from Blend inputs |
 | Cost rises with spend (rate) | 0.65 | the rate set by Enhance, shared across platforms |
 | Total spend | £5,597.07 | what the split gave this row, fee included |
 | Media | £5,500.80 | £5,597.07 / 1.0175, the Indeed fee taken off |
 | Fee | £96.26 | shown in its own column |
-| Diminishing returns adjustment | 0.982 | (£5,500.80 / £5,793.19) ^ (1 − 0.65): planned spend sits below average, so cost comes down a little |
-| Real-world CPA outcome adjustment | 1.077 | testing on past months found SMR costs about 8% higher than predicted, in the same direction with any one test month left out, so planned costs are raised by that much |
-| CPA adjustments | 1.036 | 0.980 x 0.982 x 1.077 |
-| **Plan CPA (media)** | **£103.30** | £99.71 x 1.036 |
+| Diminishing returns adjustment | 0.9820 | (£5,500.80 / £5,793.19) ^ (1 − 0.65): planned spend sits below average, so cost comes down a little |
+| Real-world CPA outcome adjustment | 1.0769 | testing on past months found SMR costs about 8% higher than predicted, in the same direction with any one test month left out, so planned costs are raised by that much |
+| CPA adjustments | 1.0360 | 0.9796 x 0.9820 x 1.0769. The tables show all four to four decimals, so the three parts multiply to the figure beside them |
+| **Plan CPA (media)** | **£103.30** | £99.71 x 1.0360 |
 | **Predicted applies** | **53.3** | £5,500.80 / £103.30 |
 
 ## 4. From applications to hires. Sheets: **Rate build-up**, then **Workings**

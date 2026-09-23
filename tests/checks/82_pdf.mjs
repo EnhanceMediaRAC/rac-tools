@@ -44,7 +44,7 @@ export default function (check, { assert }) {
     // Spend columns are rounded so the rows add to the printed total (feedback 6).
     const R = RAC.util.roundToTotal;
     const locR = R(plan.locations.map(l => l.spend));
-    plan.locations.forEach((l, i) => { must.push(l.region); if (l.spend > 0.005) must.push(F.gbp(locR[i])); RAC.PLATFORMS.forEach(p => { if (l.cells[p].spend > 0) must.push(F.gbp(l.cells[p].plannedCpaMedia, 2), 'x' + l.cells[p].cpaAdjustments.toFixed(3)); }); });
+    plan.locations.forEach((l, i) => { must.push(l.region); if (l.spend > 0.005) must.push(F.gbp(locR[i])); RAC.PLATFORMS.forEach(p => { if (l.cells[p].spend > 0) must.push(F.gbp(l.cells[p].plannedCpaMedia, 2), 'x' + l.cells[p].cpaAdjustments.toFixed(4)); }); });
     RAC.PLATFORMS.forEach(p => { const cR = R(plan.locations.map(l => l.cells[p].spend)); plan.locations.forEach((l, i) => { if (l.cells[p].spend > 0) must.push(F.gbp(cR[i])); }); });
     const pR = R(RAC.PLATFORMS.map(p => plan.platforms[p].spend)), mR = R(RAC.PLATFORMS.map(p => plan.platforms[p].media));
     RAC.PLATFORMS.forEach((p, i) => must.push(F.gbp(pR[i]), F.gbp(mR[i])));

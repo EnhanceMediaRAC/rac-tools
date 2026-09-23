@@ -223,7 +223,9 @@
         ['Predicted applications', F.int(t.apps), `range ${range(r.apps.low, r.apps.high)}`],
         ['Quality applications', F.int(t.passed), ''],
         ['Cost per application (media)', F.gbp(t.cpa, 2), ''],
-        ['Cost per hire, paid media (media)', F.gbp(t.cph), ''],
+        // Shorter label (user, 23 September 2026); the muted column keeps it
+        // clear that it counts paid-media hires only.
+        ['Cost per hire (media)', F.gbp(t.cph), 'paid media hires only'],
         [p.hireTarget > 0 ? `Budget for ${p.hireTarget} hires` : 'Budget for the target', tt.value, ''],
       ];
       res.forEach(([a, b, c]) => {

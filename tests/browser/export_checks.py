@@ -65,7 +65,7 @@ FIGURES_JS = EXPECTED_JS.replace(
   if (plan.fees.on) figs.push(F.gbp(plan.fees.total, 2));
   // Spend columns are rounded so the rows add up to the total shown.
   const locR = RAC.util.roundToTotal(plan.locations.map(l => l.spend));
-  plan.locations.forEach((l, i) => { if (l.spend > 0.005) figs.push(F.gbp(locR[i])); RAC.PLATFORMS.forEach(p => { if (l.cells[p].spend > 0) figs.push(F.gbp(l.cells[p].plannedCpaMedia, 2), 'x' + l.cells[p].cpaAdjustments.toFixed(3)); }); });
+  plan.locations.forEach((l, i) => { if (l.spend > 0.005) figs.push(F.gbp(locR[i])); RAC.PLATFORMS.forEach(p => { if (l.cells[p].spend > 0) figs.push(F.gbp(l.cells[p].plannedCpaMedia, 2), 'x' + l.cells[p].cpaAdjustments.toFixed(4)); }); });
   figs.push(F.gbp(plan.totals.cpa, 2), F.gbp(plan.totals.cph), F.gbp(plan.totals.media));
   RAC.util.roundToTotal(RAC.PLATFORMS.map(p => plan.platforms[p].media)).forEach(m => figs.push(F.gbp(m)));
   const title = RAC.pdf.titleOf({ plan, roleName: role + ' (' + { SMR: 'Mobile Vehicle Tech', Patrol: 'Roadside Tech (incl. SuperFlex)' }[role] + ')' }, 'October 2026');
@@ -231,9 +231,16 @@ with sync_playwright() as pw:
     # The assumptions box grew this release (cost limits, the efficiency
     # setting, the OneRAC second scenario). Check it still fits its page.
     summary = pages[1] if len(pages) > 1 else ''
-    for want in ['Assumptions and risks', 'Spending caps:', 'Real-world CPA outcome adjustment:']:
+    for want in ['Assumptions and risks', 'Spending caps:', 'Real-world CPA outcome adjustment:',
+                 # Shorter label, with what it counts beside it (user, 23 September 2026).
+                 'Cost per hire (media)', 'paid media hires only']:
         if want not in ' '.join(summary.split()):
             fails.append(f'the summary page does not show {want!r}')
+    if 'Cost per hire, paid media' in ' '.join(' '.join(pages).split()):
+        fails.append('the PDF still carries the old cost per hire label')
+    # Every table says what the rounding does (user, 23 September 2026).
+    if not any('adds to its total' in ' '.join(p.split()) for p in pages):
+        fails.append('no table says what the rounding does')
     over = [i for i, p in enumerate(pages) if p.count('Assumptions and risks') > 1]
     if over:
         fails.append(f'the assumptions box is repeated on pages {over}')

@@ -421,6 +421,11 @@
       ];
       const [cap, reason] = options.reduce((a, b) => (b[0] < a[0] ? b : a));
       l.cap = cap; l.capReason = reason;
+      // The cap the location would have had without its cost per hire limit,
+      // shown in brackets beside the limit (user, 23 September 2026), the same
+      // as capNormal beside a cost per application limit.
+      const [capNoCph, reasonNoCph] = options.filter(o => o[1] !== 'cost per hire limit').reduce((a, b) => (b[0] < a[0] ? b : a));
+      l.capWithoutCph = capNoCph; l.capWithoutCphReason = reasonNoCph;
       l.floorAsked = regionMin[l.region] > 0 ? regionMin[l.region] : 0;
       l.floor = l.floorAsked;
       if (l.floor > maxCap) {
@@ -594,6 +599,7 @@
       const cs = P().map(plat => l.cellResults[plat]);
       const out = rollUp(base, cs, { region: l.region, vacancies: l.vacancies });
       return { ...out, cells: l.cellResults, cap: l.cap, capReason: l.capReason, cphLimit: l.cphLimit, locationCap: l.locationCap,
+        capWithoutCph: l.capWithoutCph, capWithoutCphReason: l.capWithoutCphReason,
         locationCapUsed: l.locationCapUsed, limitExtra: l.limitExtra, vafCap: l.vafCap, limited: l.limited,
         capacity: l.capacity, base: l.base, floor: l.floor, floorShortfall: l.floorShortfall || 0, fixed: l.fixed };
     });
@@ -672,6 +678,18 @@
     'cost per hire limit': 'At the cost per hire limit set for this plan',
     'hires capped at its VAFs': 'Hires capped at its VAFs',
   };
+  // The same reasons in the words the cost limits panel uses, for the line
+  // under a limit that did not bind (user, 23 September 2026).
+  const HELD_BY_TEXT = {
+    'location set to no spend': 'no spend set for this location',
+    'location maximum': 'the location maximum',
+    'location spending cap (largest month x multiple)': 'the location spending cap',
+    'spending caps (largest successful month x multiple)': 'the spending caps here',
+    'spending caps and cost per application limits': 'the caps and limits here',
+    'cost per hire limit': 'the cost per hire limit',
+    'hires capped at its VAFs': 'the VAF rule',
+  };
+
   function locationNotes(loc, shortfalls, regionMax) {
     const out = [];
     if (regionMax[loc.region] === NO_SPEND) out.push(NOTE_TEXT['location set to no spend']);
@@ -975,5 +993,5 @@
 
   function invalidate() { RAC.cache.clear(); }
 
-  RAC.plan = { NO_SPEND, prepare, allocate, budgetForTarget, build, invalidate };
+  RAC.plan = { NO_SPEND, NOTE_TEXT, HELD_BY_TEXT, prepare, allocate, budgetForTarget, build, invalidate };
 })(window.RAC = window.RAC || {});

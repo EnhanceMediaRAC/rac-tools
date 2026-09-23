@@ -52,10 +52,27 @@
     const L = RAC.PLATFORM_LABELS;
     // What each location is costing in this plan (on media), and what it
     // spends, so a limit can be set against something real and its effect seen.
+    // Why a row settled below its limit (user, 23 September 2026). A limit is
+    // a ceiling, not a reservation: the location's own cap, a platform maximum
+    // set for the plan, or simply the budget the location received can all
+    // stop the spend arriving. In that order.
+    const platMax = (state.platMax || {})[role] || {};
+    const heldBy = (l, plat) => {
+      if (l.spend >= l.cap - 1) return RAC.plan.HELD_BY_TEXT[l.capReason] || l.capReason;
+      if (plat && platMax[plat] > 0 && v2.platforms[plat] && v2.platforms[plat].spend >= platMax[plat] - 1) return 'the platform maximum set for this plan';
+      return 'the budget this location received';
+    };
     const now = {};
     (v2 ? v2.locations : []).forEach(l => {
-      now[l.region] = { cph: l.hires > 0 ? l.media / l.hires : null, spend: l.spend, cells: {} };
-      RAC.PLATFORMS.forEach(p => { const c = l.cells[p]; now[l.region].cells[p] = { cpa: c.spend > 0 && c.apps > 0 ? c.media / c.apps : null, spend: c.spend, capNormal: c.capNormal }; });
+      now[l.region] = { cph: l.hires > 0 ? l.media / l.hires : null, spend: l.spend, cells: {},
+        capWithoutCph: l.capWithoutCph,
+        // The cost per hire limit bound only if it is what held the location.
+        heldBy: l.capReason === 'cost per hire limit' && l.spend >= l.cap - 1 ? null : heldBy(l, null) };
+      RAC.PLATFORMS.forEach(p => {
+        const c = l.cells[p];
+        now[l.region].cells[p] = { cpa: c.spend > 0 && c.apps > 0 ? c.media / c.apps : null, spend: c.spend, capNormal: c.capNormal,
+          heldBy: c.spend < c.cap - 1 ? heldBy(l, p) : null };
+      });
     });
     const note = (text, strong) => <div className="help-text" style={{ marginTop: 2, textAlign: 'right', fontWeight: strong ? 600 : 400 }}>{text}</div>;
     const unplaced = v2 && v2.unplaced && v2.unplaced.reasons.some(r => /limit/i.test(r));
@@ -63,7 +80,8 @@
       <div data-panel={'cost-limits-' + role}>
         <div className="help-text" style={{ marginBottom: 10 }}>
           The most a hire may cost in a location, and the most an application may cost on a platform there, both on media
-          spend. Leave a box empty for no limit. A cost per application limit replaces that row&rsquo;s spending cap: spend
+          spend. Leave a box empty for no limit. A limit is a ceiling, not a reservation: where the spend settles below it, the
+          line under the box says what held it. A cost per application limit replaces that row&rsquo;s spending cap: spend
           continues until the predicted cost per application reaches the limit, so a limit above today&rsquo;s cost can raise
           spend beyond anything the row has run, and one below it lowers spend. A cost per hire limit stops adding spend to
           the location where it would be passed. Money a limit removes moves to other locations; anything left is shown as
@@ -87,7 +105,9 @@
                   <MoneyField field={'cph-' + role + '-' + region} value={cph[region] || 0} width={96}
                     onCommit={v => setCph(region, v)} />
                   {now[region] && now[region].cph && note(`now ${fmt.fmtGBP(now[region].cph)} a hire`)}
-                  {cph[region] > 0 && now[region] && note(`limit applied: location spend ${fmt.fmtGBP(now[region].spend)}`, true)}
+                  {cph[region] > 0 && now[region] && note(`limit applied: location spend ${fmt.fmtGBP(now[region].spend)}`
+                    + (now[region].capWithoutCph > 0 && isFinite(now[region].capWithoutCph) ? ` (cap without it ${fmt.fmtGBP(now[region].capWithoutCph)})` : '')
+                    + (now[region].heldBy ? `, held below the limit by ${now[region].heldBy}` : ''), true)}
                 </td>
                 {RAC.PLATFORMS.map(p => {
                   const c = now[region] && now[region].cells[p];
@@ -97,7 +117,8 @@
                       <MoneyField field={'cpa-' + role + '-' + region + '-' + p} value={lim}
                         onCommit={v => setCpa(region, p, v)} />
                       {c && c.cpa && note(`now ${fmt.fmtGBP(c.cpa)}`)}
-                      {lim > 0 && c && note(`limit applied: spend ${fmt.fmtGBP(c.spend)} (cap without it ${fmt.fmtGBP(c.capNormal)})`, true)}
+                      {lim > 0 && c && note(`limit applied: spend ${fmt.fmtGBP(c.spend)} (cap without it ${fmt.fmtGBP(c.capNormal)})`
+                        + (c.heldBy ? `, held below the limit by ${c.heldBy}` : ''), true)}
                     </td>
                   );
                 })}

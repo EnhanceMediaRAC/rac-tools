@@ -429,7 +429,7 @@
     s.body(['All predicted hires', F(`$B$${otherRow - 1}+$B$${otherRow}`, plan.totals.allHires), 'Paid media and other sources',
       r.allHires ? r.allHires.low : '', r.allHires ? r.allHires.high : '', ''], [null, N1, null, N1, N1]);
     s.body(['Cost per application (media)', F(W('plannedMedia'), plan.totals.cpa), 'Media spend over applications', '', '', ''], [null, GBP2]);
-    s.body(['Cost per hire, paid media (media)', F(W('cph'), plan.totals.cph), 'Media spend over predicted hires from paid media', '', '', ''], [null, GBP]);
+    s.body(['Cost per hire (media)', F(W('cph'), plan.totals.cph), 'Media spend over predicted hires from paid media only', '', '', ''], [null, GBP]);
     // Spend above past levels, in three parts that do not overlap (point 29).
     const capFirst = f.month(RAC.assumptions.get(plan.A, 'ceiling_first_month'));
     const placedCells = plan.locations.flatMap(l => P().map(q => l.cells[q])).filter(c => c.spend > 0.005);

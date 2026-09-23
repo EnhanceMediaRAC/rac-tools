@@ -306,8 +306,14 @@
       p(`Hire adjustment: x${v.paidFactor.toFixed(3)}. Using the applications the platforms actually recorded from ${hireMonths}, the quality and hire rates predicted ${v.paidFactor < 1 ? 'more' : 'fewer'} hires than RAC’s data credited to those four platforms, so predicted hires are scaled ${v.paidFactor < 1 ? 'down' : 'up'} to match.`),
       p('Predicted hires and cost per hire. Predicted hires are the predicted applications carried through the quality rate, the hire rate from quality applies and the hire adjustment; cost per hire is the media spend divided by the predicted hires, and is not shown for a row predicting fewer than 0.1 hires.'));
 
+    // Months used is one numbered point with its lines under it, not a number
+    // each, so the numbering runs on around it (user, 23 September 2026).
     const used = monthsUsed(A, role, plan, backtest);
-    if (used.length) add('Months used', ...used.map(r => `${r.part}: ${r.months}. This follows ${r.basis.replace(/\s*\.\s*$/, '')}.`));
+    if (used.length) {
+      add('Months used',
+        p('Which months each part of the plan used, and what decides them.'),
+        ...used.map(r => `${r.part}: ${r.months}. This follows ${r.basis.replace(/\s*\.\s*$/, '')}.`));
+    }
 
     add('Ranges',
       p(`The plan total’s application range is the middle ${f.pct(v.pHigh - v.pLow)} of how far our predictions missed in testing (${f.signedPct(v.rangeLow, 1)} to ${f.signedPct(v.rangeHigh, 1)}${testMonths.length ? `, over ${testMonths.length} test months from ${f.month(testMonths[0])} to ${f.month(testMonths[testMonths.length - 1])}` : ''}). Rows start from the same figure and widen where fewer applications sat behind the cost per application (at a strength of ${v.widen}) and where planned spend sits further from past spend, so row ranges are wider than the total and do not add up to it.`),
@@ -320,6 +326,7 @@
       const o = plan.oneRac;
       const ca = costAdjustment(plan);
       add('The OneRAC plan',
+        p('How the OneRAC plan differs from a role plan.'),
         `OneRAC runs one set of campaigns for both roles in ${f.list(o.regions)}, so it is planned on its own and those locations are left out of the SMR and Patrol plans. VAFs are the two roles' VAFs there added together: ${RAC.ROLES.map(r => `${r} ${o.mix.vacancies[r]}`).join(', ')}, ${o.mix.total} in total.`,
         `Past performance is the two roles' spend and applications in those locations added together. Cost per application is then blended to the mix of VAFs${o.adjustment.openBlend ? ` (${f.gbp(o.adjustment.openBlend, 2)} against ${f.gbp(o.adjustment.combined, 2)} blended by past spend, a multiplier of ${o.adjustment.factor.toFixed(3)})` : ''}, because the plan recruits for the roles that are open, not for the roles past spend happened to be split between.`,
         `Quality and hire rates are the two roles' applicant tracking counts in those locations added together. ${ca.selfCompetition > 0 ? `A self-competition assumption of ${f.pct(ca.selfCompetition)} lowers cost per application, for the two roles no longer bidding against each other; it has not been measured yet.` : 'No self-competition improvement was assumed: the two roles no longer bid against each other, but we have no measurement of what that is worth, so nothing is claimed for it.'} Everything else follows the points above.`,

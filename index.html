@@ -2440,7 +2440,7 @@ function exportOneRacPDF(state, opts) {
     const monthLabel = (DATA.month_labels && DATA.month_labels[state.planMonth]) || state.planMonth;
     RAC.pdf.save(window.jspdf.jsPDF, [{ role: 'OneRAC', roleName: 'OneRAC (SMR and Patrol together)', plan,
       commentary: { legacy: [], plan: commentaryPoints(state, 'OneRAC', 'plan') } }],
-      { notes: false, monthLabel, planName: (opts && opts.planName) || null, backtest: RAC.app.state.backtest });
+      { notes: (opts && opts.notes) !== false, monthLabel, planName: (opts && opts.planName) || null, backtest: RAC.app.state.backtest });
   } catch (e) {
     alert('OneRAC PDF export failed: ' + e.message);
   }
@@ -3145,6 +3145,36 @@ function CoverageMatrix({ role, state, setState }) {
   );
 }
 
+// Cost limits, closed until opened (user decision, 23 September 2026), the
+// same pattern as the market guide. It opens itself where the plan has a limit
+// set, so a limit that is working is never out of sight.
+function CostLimitsPanel({ role, state, update }) {
+  const limits = state.limits || {};
+  const cph = (limits.cph || {})[role] || {};
+  const cpa = (limits.cpa || {})[role] || {};
+  const set = Object.keys(cph).filter(r => cph[r] > 0).length
+    + Object.keys(cpa).reduce((a, r) => a + Object.keys(cpa[r] || {}).filter(p => cpa[r][p] > 0).length, 0);
+  const [open, setOpen] = useState(set > 0);
+  useEffect(() => { if (set > 0) setOpen(true); }, [set > 0, role]);
+  return (
+    <div data-panel={'cost-limits-section-' + role} style={{ marginTop: 16 }}>
+      <div className="section-label" data-action="cost-limits-toggle" style={{ cursor: 'pointer', userSelect: 'none' }}
+        onClick={() => setOpen(o => !o)}>
+        <span style={{ display: 'inline-block', width: 14, color: 'var(--rac-orange)' }}>{open ? '▾' : '▸'}</span>
+        Cost limits
+        <span className="text-muted" style={{ fontWeight: 400 }}> &middot; {set === 0 ? 'none set' : set + ' set'}</span>
+      </div>
+      {open && (
+        <div style={{ marginTop: 10 }}>
+          <RACUI.CostLimits role={role} state={state} update={update} regions={state.liveRegions[role] || []}
+            plan={buildFundingPlan(role, { ...planParams(role, state), appTarget: state.appTarget[role] || 0 })}
+            fmt={{ fmtGBP, fmtInt }} />
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ====================================================================
 // TAB 1 - SETUP: budget, targets, live locations
 // ====================================================================
@@ -3451,10 +3481,7 @@ function SetupTab({ state, setState, onOpenPriorities, container, role: roleView
                 may spend in pounds; the second sets the most a hire or an application may cost.
               </div>
               <CoverageMatrix role={role} state={state} setState={setState} />
-              <div className="section-label" style={{ marginTop: 16 }}>Cost limits</div>
-              <RACUI.CostLimits role={role} state={state} update={update} regions={state.liveRegions[role] || []}
-                plan={buildFundingPlan(role, { ...planParams(role, state), appTarget: state.appTarget[role] || 0 })}
-                fmt={{ fmtGBP, fmtInt }} />
+              <CostLimitsPanel role={role} state={state} update={update} />
             </div>
 
             {/* The market guide, for either role, closed until opened (feedback 2). */}
@@ -5538,6 +5565,14 @@ function exportPlanPDF(state, roleFilter, opts) {
 // the plans or the data. Newest first. Dated, no version numbers.
 // ====================================================================
 const CHANGELOG = [
+  { date: '23 Sep', items: [
+    'Every column in the plan tables that has a total now adds up to it: predicted applications and predicted hires are rounded the same way the money columns already were. A note under each table says what the rounding does, because a row’s total spend can still differ from its media plus its fee by up to £1.',
+    'The CPA adjustments and the three parts under them are shown to four decimals, so the parts multiply to the figure beside them and the base cost per application times the adjustments gives the plan cost per application.',
+    'Cost limits on Setup are closed until opened, like the market guide, and open themselves where a limit is set. Each cost per hire limit now shows the cap it replaced, as the cost per application limits do, and where the spend settles below a limit the line says what held it: the location maximum, the location spending cap, the VAF rule, a platform maximum, or the budget the location received.',
+    'The PDF summary says Cost per hire (media), with “paid media hires only” beside it.',
+    'Months used and the OneRAC section are single numbered points in the method, so the numbering runs on around them.',
+    'The OneRAC plan has its own commentary box on its tab and both exports, PDF and PDF, no notes, like the SMR and Patrol plans. The notes save with the plan.',
+  ] },
   { date: '22 Sep', items: [
     'The method and glossary in the PDF, the workings and the Method tab are rewritten as numbered steps, in the order the plan works and the order the table columns run: one step each for the hold-backs, the fees, hires from other sources, the split between and within locations, the spending caps and cost limits, then each column of the tables, the ranges and the budget for the hire target. Each step says what it does and the figure it uses. How each setting was tested stays in the workings and on the Assumptions tab.',
     'Setup shows one role at a time and follows the SMR / Patrol switch at the top. The two per-location limit tables sit together under Location limits.',
@@ -5852,7 +5887,7 @@ function defaultPlannerState() {
     coverageFloor: 1000,
     capMultiple: RAC.app.defaultCapMultiple(),   // assumptions.csv cap_multiple_default
     bench: { SMR: null, Patrol: null },
-    commentary: { SMR: '', Patrol: '' },
+    commentary: { SMR: '', Patrol: '', OneRAC: '' },
     commentaryLegacy: { SMR: '', Patrol: '' },
     coveragePct: 0,
     premiumCampaigns: { SMR: 3, Patrol: 3 },
@@ -10181,8 +10216,11 @@ function App() {
                   regions={DATA.regions_ordered}
                   suggestion={oneRacSuggestion(plannerState)}
                   plan={buildOneRacPlan(plannerState)}
-                  onExportPdf={() => exportOneRacPDF(plannerState, { planName: loadedVersion ? loadedVersion.name : 'Working plan' })}
-                  onExportWorkings={() => exportOneRacWorkings(plannerState, { planName: loadedVersion ? loadedVersion.name : 'Working plan' })} />}
+                  onExportPdf={(o) => exportOneRacPDF(plannerState, { ...(o || {}), planName: loadedVersion ? loadedVersion.name : 'Working plan' })}
+                  onExportWorkings={() => exportOneRacWorkings(plannerState, { planName: loadedVersion ? loadedVersion.name : 'Working plan' })}
+                  notes={(plannerState.commentary && plannerState.commentary.OneRAC) || ''}
+                  onNotes={v => setPlannerState(st => ({ ...st, commentary: { ...(st.commentary || {}), OneRAC: v } }))}
+                  NotesBox={CommentaryBox} />}
                 {tab === 'assumptions' && <RACUI.AssumptionsTab plan={buildFundingPlan(roleView, { ...planParams(roleView, plannerState), appTarget: (plannerState.appTarget || {})[roleView] || 0 })}
                   role={roleView} roles={ROLES} setRoleView={setRoleView} roleFull={ROLE_FULL} />}
                 {tab === 'method' && <RACUI.MethodTab plan={buildFundingPlan(roleView, { ...planParams(roleView, plannerState), appTarget: (plannerState.appTarget || {})[roleView] || 0 })}

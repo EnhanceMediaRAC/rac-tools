@@ -5,6 +5,11 @@
 // month each location launches. Those locations come out of the SMR and Patrol
 // plans, and the OneRAC budget comes off both role budgets unless that is
 // switched off. The plan itself is planner/onerac.js.
+//
+// The tab carries its own commentary box and both exports, PDF and PDF, no
+// notes, the same as the SMR and Patrol plans (user decision, 23 September
+// 2026). The notes are held in state.commentary.OneRAC, so they save and
+// freeze with the plan.
 (function () {
   const { useState, useEffect } = React;
   const RACUI = (window.RACUI = window.RACUI || {});
@@ -272,7 +277,27 @@
     );
   }
 
-  function OneRacTab({ state, update, fmt, months, regions, suggestion, plan, onExportPdf, onExportWorkings }) {
+  // Notes on the OneRAC plan, the same as the two role plans have on Setup
+  // (user decision, 23 September 2026). One point per line; they print as
+  // their own section in the OneRAC PDF and save with the plan. There is no
+  // legacy OneRAC plan, so there is no second box.
+  function Notes({ notes, onNotes, NotesBox }) {
+    if (!NotesBox) return null;
+    return (
+      <div className="card" style={{ marginTop: 18 }} data-panel="onerac-notes">
+        <div className="card-head"><div className="card-title">Commentary for the OneRAC plan document</div></div>
+        <div className="card-body">
+          <div className="help-text" style={{ marginBottom: 6 }}>
+            One point per line. It appears as its own page in the OneRAC PDF and saves with the plan. Use PDF, no notes
+            to leave it out.
+          </div>
+          <NotesBox value={notes || ''} onCommit={onNotes} />
+        </div>
+      </div>
+    );
+  }
+
+  function OneRacTab({ state, update, fmt, months, regions, suggestion, plan, onExportPdf, onExportWorkings, notes, onNotes, NotesBox }) {
     return (
       <div>
         <Setup state={state} update={update} fmt={fmt} suggestion={suggestion} months={months} regions={regions} />
@@ -282,7 +307,12 @@
               <div className="card-title">The OneRAC plan</div>
               <span>
                 <button className="btn btn-sm" style={{ marginRight: 8 }} onClick={onExportWorkings}>Workings</button>
-                <button className="btn btn-sm btn-primary" onClick={onExportPdf}>PDF</button>
+                <button className="btn btn-sm" style={{ marginRight: 8 }} data-action="onerac-pdf-no-notes"
+                  title="The same document with the notes left out"
+                  onClick={() => onExportPdf({ notes: false })}>PDF, no notes</button>
+                <button className="btn btn-sm btn-primary" data-action="onerac-pdf"
+                  title="The full document, including the notes"
+                  onClick={() => onExportPdf({ notes: true })}>PDF</button>
               </span>
             </div>
             <div className="card-body">
@@ -296,6 +326,7 @@
               the month it starts.</div>
           </div>
         )}
+        {plan && <Notes notes={notes} onNotes={onNotes} NotesBox={NotesBox} />}
       </div>
     );
   }

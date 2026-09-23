@@ -37,10 +37,10 @@ export default function (check, { assert, near }) {
       ['the platform figure', gbp(pf.cpa)],
       ['the role average cost per application', gbp(RAC.assumptions.get(A, 'role_cpa_benchmark', 'SMR'))],
       ['the cost per application after the thin-data pull', gbp(c.usualCpa)],
-      ['the thin-data adjustment', c.thinAdjustment.toFixed(3)],
-      ['the diminishing returns adjustment', c.spendAdjustment.toFixed(3)],
-      ['the real-world CPA outcome adjustment', c.remainingError.toFixed(3)],
-      ['the CPA adjustments', c.cpaAdjustments.toFixed(3)],
+      ['the thin-data adjustment', c.thinAdjustment.toFixed(4)],
+      ['the diminishing returns adjustment', c.spendAdjustment.toFixed(4)],
+      ['the real-world CPA outcome adjustment', c.remainingError.toFixed(4)],
+      ['the CPA adjustments', c.cpaAdjustments.toFixed(4)],
       ['plan cost per application on media', gbp(c.plannedCpaMedia)],
       ['media spend', gbp(c.media)],
       ['total spend', gbp(c.spend)],
@@ -123,7 +123,11 @@ export default function (check, { assert, near }) {
       'Plan CPA (media)', 'CPA adjustments', 'Hire adjustment', 'VAFs', 'Use £X', 'Current budget', 'Location limits',
       'real-world CPA outcome adjustment', 'diminishing returns adjustment', 'not modelled on the budget', 'Data taken on',
       'Success-test benchmark', 'Counted', 'Spend set by the cost limit for this plan', '£18,350', 'follows the same switch',
-      'Indeed', 'After the release, on the live address']
+      'Indeed', 'After the release, on the live address',
+      // The fourth feedback batch (23 September 2026).
+      'Cost per hire (media)', 'paid media hires only', 'held below the limit by', 'cap it replaced',
+      'closed until you open', 'Commentary for the OneRAC plan document', 'PDF, no notes',
+      'point 23', '£99.71 x 1.1379', '63.4 applies', 'to within £1']
       .forEach(t => assert(doc.includes(t), 'docs/check_list.md does not cover ' + t));
     assert(!internalText(doc).length, 'the check list fails the output checks: ' + internalText(doc).join('; '));
     return 'every screen and export the release changed is in docs/check_list.md, in the order to check them';

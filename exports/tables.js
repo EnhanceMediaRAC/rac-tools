@@ -14,7 +14,10 @@
 // Totals (user decision, 22 September 2026): spend, fee, media, applications
 // and hires in the location and platform tables are the sums of the platform
 // x location rows; rates and costs are totals divided by totals.
-// Money columns are rounded so the printed rows add to the printed total.
+// Money columns, predicted applies and predicted hires are all rounded by
+// largest remainder, so the printed rows add to the printed total (user
+// decision, 23 September 2026). A row's total spend can then differ from its
+// printed media plus its printed fee by up to £1, which the table note says.
 //
 //   RAC.tables.locations(plan)   { key, title, columns, rows, notes }
 //   RAC.tables.platforms(plan)
@@ -33,6 +36,10 @@
   // Rows predicting fewer hires than this show no cost per hire (point 24).
   const MIN_HIRES_FOR_CPH = 0.1;
 
+  // What the rounding does, said once under every table (user, 23 September
+  // 2026), because a checker adding a row up by hand will not otherwise see it.
+  const ROUNDING_NOTE = 'Money columns, predicted applies and predicted hires are rounded so each column adds to its total, so a row’s total spend can differ from its media plus its fee by up to £1.';
+
   const COMMON = [
     { key: 'spend', label: 'Total spend', align: 'right', w: 20 },
     { key: 'fee', label: 'Fee', align: 'right', w: 16 },
@@ -50,8 +57,8 @@
   const gbpRange = (lo, hi) => (hi === Infinity || !isFinite(hi) ? `${F().gbp(lo)} or more` : `${F().gbp(lo)} to ${F().gbp(hi)}`);
 
   // The ten common cells for one row: x holds spend, fee, media, apps,
-  // passed, hires, hireAdjustment and range; spendText/feeText/mediaText are
-  // the rounded money figures for the column.
+  // passed, hires, hireAdjustment and range; money holds this row's printed
+  // spend, fee, media, applies and hires, already rounded for its column.
   function common(x, money, o = {}) {
     const f = F();
     const funded = x.spend > 0.005;
@@ -67,27 +74,33 @@
       o.feeOn ? money.fee : '-',
       money.media,
       [cpa === null ? '-' : f.gbp(cpa, 2), appsR && appsR.low > 0 ? gbpRange(x.media / appsR.high, x.media / appsR.low) : ''],
-      [f.num(x.apps, 1), appsR ? range(appsR.low, appsR.high, 0) : ''],
+      [money.apps, appsR ? range(appsR.low, appsR.high, 0) : ''],
       x.apps > 0 ? f.pct(x.passed / x.apps, 1) : '-',
       hireRate === null ? '-' : f.pct(hireRate, 1),
       'x' + x.hireAdjustment.toFixed(3),
       [cph === null ? '-' : f.gbp(cph), cph !== null && hiresR && hiresR.high > 0 ? gbpRange(x.media / hiresR.high, hiresR.low > 0 ? x.media / hiresR.low : Infinity) : ''],
-      [f.num(x.hires, 2), hiresR ? range(hiresR.low, hiresR.high, 0) : ''],
+      [money.hires, hiresR ? range(hiresR.low, hiresR.high, 0) : ''],
     ];
   }
 
-  // Money columns rounded so rows add to the total: whole pounds for spend
-  // and media, pence for fees.
+  // Every column whose rows must add to its printed total, rounded by largest
+  // remainder: whole pounds for spend and media, pence for fees, one decimal
+  // for predicted applies and two for predicted hires (user, 22 and 23
+  // September 2026).
   function moneyColumns(rows, total, feeOn) {
     const f = F();
     const spendR = U().roundToTotal(rows.map(r => r.spend));
     const mediaR = U().roundToTotal(rows.map(r => r.media));
     const feeR = U().roundToTotal(rows.map(r => r.fee), 0.01);
+    const appsR = U().roundToTotal(rows.map(r => r.apps || 0), 0.1);
+    const hiresR = U().roundToTotal(rows.map(r => r.hires || 0), 0.01);
     const out = rows.map((r, i) => ({
       spend: r.spend > 0.005 ? f.gbp(spendR[i]) : '-', media: r.spend > 0.005 ? f.gbp(mediaR[i]) : '-',
       fee: feeOn && r.fee > 0.005 ? f.gbp(feeR[i], 2) : '-',
+      apps: f.num(appsR[i], 1), hires: f.num(hiresR[i], 2),
     }));
-    const t = { spend: f.gbp(total.spend), media: f.gbp(total.media), fee: feeOn ? f.gbp(total.fee, 2) : '-' };
+    const t = { spend: f.gbp(total.spend), media: f.gbp(total.media), fee: feeOn ? f.gbp(total.fee, 2) : '-',
+      apps: f.num(total.apps, 1), hires: f.num(total.hires, 2) };
     return { rows: out, total: t };
   }
 
@@ -119,6 +132,7 @@
       notes: [
         'Budget is shared between locations by VAFs (open roles), within location maximums, spending caps, cost limits and the VAF rule: a location’s predicted paid-media hires may not exceed its VAFs. Every platform at its spending cap: each platform in the location is at its largest successful month x the cap multiple. At the most this location has spent in a month: the location is at its own cap, all platforms together.',
         `${RAC.text.ROW_RANGE_LINE} Hires here are paid media only. ${RAC.text.OTHER_SOURCES_LINE}`,
+        ROUNDING_NOTE,
       ],
     };
   }
@@ -148,6 +162,7 @@
       notes: [
         `Within each location, money goes where the next hire costs least, up to each platform’s spending cap. Quality rates: ${basis}. Hire rate from quality applies: ${f.pct(plan.rates.roleHire, 1)}, the role average for every location.`,
         RAC.text.ATTRIBUTION,
+        ROUNDING_NOTE,
       ],
     };
   }
@@ -173,7 +188,9 @@
           c.on ? l.region : `${l.region} (off)`,
           ...cm.slice(0, 3),
           funded || c.baseCpa ? [c.baseCpa ? f.gbp(c.baseCpa, 2) : '-', c.baseCpaSource === 'own' ? `${f.int(c.historicApps)} applications` : 'platform figure'] : '-',
-          funded ? ['x' + c.cpaAdjustments.toFixed(3), `${thin.toFixed(3)} x ${c.spendAdjustment.toFixed(3)} x ${c.remainingError.toFixed(3)}`] : '-',
+          // Four decimals (user, 23 September 2026): at three, the three parts
+          // multiplied could differ from the combined figure in the last place.
+          funded ? ['x' + c.cpaAdjustments.toFixed(4), `${thin.toFixed(4)} x ${c.spendAdjustment.toFixed(4)} x ${c.remainingError.toFixed(4)}`] : '-',
           ...cm.slice(3),
         ],
       };
@@ -192,6 +209,7 @@
       notes: [
         `Plan CPA (media) = base CPA x CPA adjustments. The CPA adjustments are, in order, the thin-data adjustment x the diminishing returns adjustment x the ${ca.label.charAt(0).toLowerCase() + ca.label.slice(1)}${ca.extra ? ` (${ca.basis})` : ''}. Predicted applies = media / plan CPA. Predicted hires = predicted applies x quality rate x hire rate from quality applies x hire adjustment.`,
         `The quality rate for ${L()[q]} was ${plan.rates.platform[q].basis}.${feeRate > 0 ? ` Fee: ${f.pct(feeRate, 2)} of media spend.` : ' Appcast has no fee.'}${low.length ? ` Rows in orange are low confidence (little evidence behind the hire rate or the cost per application): ${f.list(low)}.` : ''}`,
+        ROUNDING_NOTE,
       ],
     };
   }
@@ -200,5 +218,5 @@
     return [locations(plan), platforms(plan), ...P().map(q => cells(plan, q))];
   }
 
-  RAC.tables = { MIN_HIRES_FOR_CPH, COMMON, locations, platforms, cells, all };
+  RAC.tables = { MIN_HIRES_FOR_CPH, ROUNDING_NOTE, COMMON, locations, platforms, cells, all };
 })(window.RAC = window.RAC || {});

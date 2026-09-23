@@ -396,6 +396,11 @@ with sync_playwright() as pw:
         fails.append(f"SMR OneRAC hold-back {want4['roleHoldback']} against the open-roles split {want4['holdback']}")
     if want4['locations'] != ['London']:
         fails.append(f"the OneRAC plan covers {want4['locations']}")
+    # Its own notes box and both export buttons (user, 23 September 2026).
+    if page.locator('[data-panel="onerac-notes"]').count() != 1:
+        fails.append('the OneRAC tab has no notes box')
+    if page.locator('[data-action="onerac-pdf"]').count() != 1 or page.locator('[data-action="onerac-pdf-no-notes"]').count() != 1:
+        fails.append('the OneRAC tab does not offer PDF and PDF, no notes')
     notes.append(f"OneRAC tab: {want4['regions']}, {want4['openRoles']} open roles, "
                  f"{want4['apps']:.0f} applications and {want4['hires']:.1f} hires = the planner; "
                  f"role-mix adjustment x{want4['adjustment']:.3f}, self-competition {want4['selfCompetition']:.0%}; "
@@ -423,6 +428,12 @@ with sync_playwright() as pw:
     ll = page.locator('[data-panel="location-limits-SMR"]').inner_text() if page.locator('[data-panel="location-limits-SMR"]').count() else ''
     if 'Location limits' not in ll or 'Platform coverage' not in ll or 'Cost limits' not in ll:
         fails.append('Location limits heading does not hold both limit tables')
+    # Cost limits: closed until opened, like the market guide (user, 23
+    # September 2026). Nothing is set in this fixture, so it starts closed.
+    if page.locator('[data-panel="cost-limits-SMR"]').count():
+        fails.append('the cost limits table is open before it is clicked')
+    if 'none set' not in ll:
+        fails.append('the closed cost limits heading does not say how many limits are set')
     page.locator('[data-action="market-guide-toggle"]').click()
     page.wait_for_selector('[data-panel="market"]', timeout=30000)
     page.wait_for_selector('[data-panel="indeed-insights"]', timeout=30000)
@@ -448,7 +459,9 @@ with sync_playwright() as pw:
     # Cost limits (D6) in a page of their own, so nothing set earlier is in the way.
     ctx, page, guard, errors = new_page(browser, TEST, db=copy.deepcopy(DB), libs=LIBS)
     page.goto(TEST + '#planner/setup')
-    page.wait_for_selector('[data-panel="cost-limits-SMR"]', timeout=60000)
+    page.wait_for_selector('[data-action="cost-limits-toggle"]', timeout=60000)
+    page.locator('[data-action="cost-limits-toggle"]').first.click()
+    page.wait_for_selector('[data-panel="cost-limits-SMR"]', timeout=30000)
     page.wait_for_timeout(800)
     # Cost limits (D6): setting one reaches the plan and the spend comes down.
     panel = page.locator('[data-panel="cost-limits-SMR"]')
@@ -472,9 +485,13 @@ with sync_playwright() as pw:
             fails.append('the cost per application limit changed nothing, so this check proves nothing')
         page.locator('.tab-btn', has_text='Setup').first.click()
         page.wait_for_timeout(800)
+        # With a limit set the section opens itself, so a limit at work is
+        # never out of sight (user, 23 September 2026).
+        if page.locator('[data-panel="cost-limits-SMR"]').count() != 1:
+            fails.append('the cost limits section did not open itself with a limit set')
         cell = page.locator('[data-panel="cost-limits-SMR"] [data-limit="cpa-South East-indeed"]').inner_text()
-        if 'limit applied: spend' not in cell:
-            fails.append('Setup does not show the spend the limit produced: ' + cell)
+        if 'limit applied: spend' not in cell or 'cap without it' not in cell:
+            fails.append('Setup does not show the spend the limit produced and the cap without it: ' + cell)
         notes.append(f"cost limits: South East Indeed capped at £45 an application moved the plan from "
                      f"{before_plan['apps']:.0f} to {after[0]} applications, as the planner says; Setup shows \"{' '.join(cell.split())}\"")
     if errors or guard.blocked or guard.writes:

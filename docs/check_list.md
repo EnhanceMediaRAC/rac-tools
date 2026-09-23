@@ -46,20 +46,27 @@ you check here holds for the PDF too.
    before Plan CPA. There is no spending cap column: the caps are a point in
    the PDF summary instead.
 3. Follow one row of the Indeed table with a calculator:
-   - Total spend = media + fee.
-   - Base CPA x CPA adjustments = Plan CPA. The small line under CPA
-     adjustments shows its three parts (thin-data x diminishing returns x
-     real-world CPA outcome), which multiply to it.
+   - Total spend = media + fee, to within £1. Every money column is rounded so
+     that it adds to its own total, which moves single rows by up to a pound.
+     The note under each table says so.
+   - Base CPA x CPA adjustments = Plan CPA, to a few pence. The small line
+     under CPA adjustments shows its three parts (thin-data x diminishing
+     returns x real-world CPA outcome), which multiply to it, give or take one
+     in the last decimal. All four are shown to four decimals.
    - Media / Plan CPA = Predicted applies.
    - Predicted applies x quality rate x hire rate x hire adjustment = Predicted
      hires (to rounding: hires are shown to two decimals).
-   - Media / Predicted hires = Plan CPH. A row with fewer than 0.1 hires shows
-     no cost per hire.
-   For South East Indeed (plan 2a settings, x1): £99.71 x 1.057 = £105.36;
-   £7,193 / £105.36 = 68.3 applies.
-4. Check the totals: in the location and platform tables, total spend, fee,
-   media, applies and hires are the sums of the rows, and the rates and costs on
-   the total row are totals divided by totals.
+   - Media / Predicted hires = Plan CPH. This is worked out before the hires
+     are rounded, so on a row predicting under about half a hire the printed
+     hires are too coarse to reproduce it and you can be a few hundred pounds
+     out. A row with fewer than 0.1 hires shows no cost per hire.
+   For South East Indeed (plan 2a settings, x1): £99.71 x 1.1379 = £113.46;
+   £7,193 / £113.46 = 63.4 applies, and 0.9796 x 1.0787 x 1.0769 = 1.1379.
+4. Check the totals: in every table, total spend, fee, media, applies and hires
+   are the sums of the rows as printed, and the rates and costs on the total
+   row are totals divided by totals (so they will not be the sum of the rows'
+   own rates). Applies and hires are rounded the same way the money columns
+   are, so the rows add up.
 5. The small lines under Plan CPA, Predicted applies, Plan CPH and Predicted
    hires are the ranges. "or more" appears where the hire range starts at 0.
 6. Read the Notes column. Each location says what held it, in these words:
@@ -148,8 +155,10 @@ does the amount left over look like more than they could really take?
 2. **Location limits.** Near the bottom, one heading holds both limit tables:
    "Platform coverage & budget limits by region" (where platforms run, and the
    least and most a location may spend), then "Cost limits".
-3. **Cost limits** are on media. Each cost per hire box has "now £x a hire"
-   under it, and each cost per application box "now £x".
+3. **Cost limits** are on media, and the section is now closed until you open
+   it, like the market guide, with "none set" or the number set beside the
+   heading. Open it. Each cost per hire box has "now £x a hire" under it, and
+   each cost per application box "now £x".
    - Set a cost per application limit **above** today's figure on one location
      and platform (for example 25% above). The row can now spend beyond its
      spending cap: spend continues until the predicted cost per application
@@ -157,10 +166,19 @@ does the amount left over look like more than they could really take?
      £Y)", with X above Y. On the Plan tab the location's note reads "Spend set
      by the cost limit for this plan", and in the PDF summary the spending caps
      point names the row and says whether it is above past spending levels.
+   - A limit is a ceiling, not a reservation, so the spend can settle **below**
+     it. Where it does, the same line ends "held below the limit by" the
+     location maximum, the location spending cap, the VAF rule, a platform
+     maximum, or the budget that location received. Try it on South East or
+     East of England, both of which have a location maximum set, and check the
+     reason it gives is the one you would give.
    - Set it **below** today's figure. Spend falls, and the plan cost per
      application for that row equals the limit.
    - Set a cost per hire limit on a location; its spend falls until its cost
-     per hire (media) is at the limit.
+     per hire (media) is at the limit, and the line under the box now shows the
+     cap it replaced in brackets, the same as a cost per application limit.
+   - Leave a limit set, go to another tab and come back: the section opens
+     itself, so a limit at work is never hidden.
    - Clear them all.
 4. **The market guide** is at the bottom, closed. Open "What the market was
    doing". Cost per click and per thousand impressions are in pounds, with each
@@ -180,8 +198,9 @@ does the amount left over look like more than they could really take?
    the budget not placed. Fees are never folded into another figure.
 4. Predicted results: hires (from paid media, and expected from other sources,
    "not modelled on the budget"), applications, quality applications, **Cost
-   per application (media)**, **Cost per hire, paid media (media)**, and the
-   budget for the target. Under them, the budget for the target in steps.
+   per application (media)**, then **Cost per hire (media)**, which must carry
+   "paid media hires only" beside it, and the budget for the target. Under
+   them, the budget for the target in steps.
 5. Assumptions and risks, one point each: spend above past levels; the
    **spending caps** (how many rows and locations were at their caps, and any
    row whose spend a cost limit set); "Spending cap multiple: x1." with nothing
@@ -206,8 +225,11 @@ does the amount left over look like more than they could really take?
      outcome adjustments, "Plan CPA (media)" and predicted applications, the
      quality rate, attribution, the hire rate from quality applies, the hire
      adjustment, then predicted hires and cost per hire.
-   - Then Months used, the two range points (the second ends "at least 12 test
-     months"), the budget for the target, and what is not included.
+   - Then Months used, which is now point 23 with its lines under it unnumbered,
+     the two range points (the second ends "at least 12 test months"), the
+     budget for the target, and what is not included. The numbering runs on
+     around Months used, so a role plan ends at point 28. On a plan with
+     OneRAC, The OneRAC plan is a numbered point too, with its lines under it.
    - Every figure should be there: £44 a day, 1.75%, 2.00%, 2.00%, 10.1 a
      month, £200 and 5 applications, 25%, 10 quality applications, 2 x average
      monthly spend, 31 days, £74.97, 35 applications, a factor of 0.65 with
@@ -290,12 +312,17 @@ does the amount left over look like more than they could really take?
    Tick a location, set a month, a budget and a hire target. Check the plan
    appears, that the SMR and Patrol plans lose that location, and that each
    shows a OneRAC hold-back.
-2. Press PDF on the OneRAC tab and open the OneRAC PDF. Its summary and tables
-   follow sections 6 and 2. The title names OneRAC and the hire target; its
-   method pages include "The OneRAC plan".
-3. Press Workings on the OneRAC tab. Keep this file and the OneRAC PDF open for
+2. Below the plan is "Commentary for the OneRAC plan document", the same box
+   the SMR and Patrol plans have on Setup. Type two points, one per line.
+3. Press PDF on the OneRAC tab and open the OneRAC PDF. Your two points appear
+   as their own page, "Notes on this plan". Its summary and tables follow
+   sections 6 and 2. The title names OneRAC and the hire target; its method
+   pages include "The OneRAC plan".
+4. Press "PDF, no notes" and confirm the same document comes out with that page
+   missing, and with No Notes in the file name.
+5. Press Workings on the OneRAC tab. Keep this file and the OneRAC PDF open for
    section 10.
-4. Untick the location.
+6. Untick the location.
 
 ## 10. Nothing that tells RAC the tool exists (10 minutes)
 
