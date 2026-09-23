@@ -1,0 +1,184 @@
+// The market data table on Setup (D2): what the advertising market and
+// candidate interest were doing each month, beside the real-world CPA outcome
+// adjustment. Loaded by index.html as a Babel script before the app; exposed
+// as window.RACUI.MarketTable.
+//
+// Below it, the Indeed Hiring Insights figures for the three job titles
+// (data/indeed_hiring_insights.csv: competition score, jobs, jobseekers and
+// jobseekers per job, typed from the monthly reports and checked by a second
+// reading and arithmetic; user decisions, 22 September 2026). They are shown
+// here only.
+//
+// It is a guide, not part of the model. Nothing here changes a plan's figures,
+// and none of it goes into the PDF, the workings export or the Method text
+// (addendum 2.5). It answers the question the adjustment raises: when the model
+// missed, was the market moving?
+//
+// Cost is in pounds: cost per click and per thousand impressions each month,
+// with a tick on each bar at that platform's average over the whole period
+// (data/market.json).
+(function () {
+  const { useState, useEffect } = React;
+  const RACUI = (window.RACUI = window.RACUI || {});
+
+  const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+  const label = (mo) => `${MONTHS[Number(mo.slice(5, 7)) - 1].slice(0, 3)} ${mo.slice(2, 4)}`;
+
+  // A short bar, so a column of numbers reads as a shape. The tick marks the
+  // average (or the middle of the scale for search interest).
+  function Bar({ value, mid = 100, max = 200, colour, pounds = false }) {
+    if (value === null || value === undefined) return <span className="help-text">-</span>;
+    const w = Math.max(2, Math.min(100, (value / max) * 100));
+    return (
+      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, width: '100%' }}>
+        <span className="mono" style={{ width: 52, textAlign: 'right' }}>{pounds ? '£' + value.toFixed(2) : value.toFixed(0)}</span>
+        <span style={{ flex: 1, height: 7, background: '#EEF1F6', borderRadius: 4, position: 'relative' }}>
+          <span style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: w + '%', background: colour, borderRadius: 4 }} />
+          <span style={{ position: 'absolute', left: (mid / max) * 100 + '%', top: -2, bottom: -2, width: 1, background: '#9AA5B5' }} />
+        </span>
+      </span>
+    );
+  }
+
+  function MarketTable({ months = 14 }) {
+    const [data, setData] = useState(null);
+    useEffect(() => {
+      let live = true;
+      fetch('data/market.json', { cache: 'no-cache' })
+        .then(r => (r.ok ? r.json() : Promise.reject(new Error('status ' + r.status))))
+        .then(j => { if (live) setData(j); })
+        .catch(() => { if (live) setData({ error: true }); });
+      return () => { live = false; };
+    }, []);
+    if (!data) return <div className="help-text">Reading the market data...</div>;
+    if (data.error) return <div className="help-text">The market data file could not be read, so this guide is empty. It changes nothing about the plan.</div>;
+    const rows = data.months.slice(-months);
+    const terms = (data.sources.trends.terms || []);
+    const avg = data.averages || {};
+    // Each cost column is drawn on its own scale: twice that platform's average.
+    const cost = (plat, what, colour) => r => {
+      const mean = (avg[plat] || {})[what];
+      return <Bar value={r[plat] && r[plat][what]} mid={mean} max={mean * 2} colour={colour} pounds />;
+    };
+    const cols = [cost('google', 'cpc', '#2563EB'), cost('google', 'cpm', '#60A5FA'), cost('meta', 'cpc', '#F28C28'), cost('meta', 'cpm', '#F6BE83')];
+    const money = v => (v ? '£' + v.toFixed(2) : '-');
+    return (
+      <div data-panel="market">
+        <div className="help-text" style={{ marginBottom: 10 }}>
+          A guide, not part of the plan. Cost per click and per thousand impressions in pounds; the tick on each bar is
+          that platform&rsquo;s average over {data.months.length} months (Google {money((avg.google || {}).cpc)} a click,
+          {' '}{money((avg.google || {}).cpm)} a thousand; Meta {money((avg.meta || {}).cpc)} a click, {money((avg.meta || {}).cpm)} a
+          thousand). Search interest is Google Trends, where 100 is the busiest month it holds. Nothing here goes into the
+          PDF or the workings.
+        </div>
+        <table className="alloc-table" style={{ maxWidth: 920 }}>
+          <thead><tr>
+            <th>Month</th>
+            <th>Google cost per click</th>
+            <th>Google cost per thousand</th>
+            <th>Meta cost per click</th>
+            <th>Meta cost per thousand</th>
+            {terms.map(t => <th key={t}>Searches: {t}</th>)}
+          </tr></thead>
+          <tbody>
+            {rows.map(r => (
+              <tr key={r.month}>
+                <td className="mono">{label(r.month)}</td>
+                {cols.map((c, i) => <td key={i}>{c(r)}</td>)}
+                {terms.map(t => (
+                  <td key={t}><Bar value={r.searches ? r.searches[t] : null} mid={50} max={100} colour="#16864E" /></td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        <div className="help-text" style={{ marginTop: 10 }}>
+          From {data.sources.ads.file} ({data.sources.ads.file_date}) and {data.sources.trends.file} ({data.sources.trends.file_date}),
+          the campaigns the planner plans only.
+        </div>
+        <IndeedInsights months={months} />
+      </div>
+    );
+  }
+
+  // Indeed Hiring Insights, by month, for the three job titles.
+  function IndeedInsights({ months }) {
+    const [rows, setRows] = useState(null);
+    useEffect(() => {
+      let live = true;
+      fetch('data/indeed_hiring_insights.csv', { cache: 'no-cache' })
+        .then(r => (r.ok ? r.text() : Promise.reject(new Error('status ' + r.status))))
+        .then(t => {
+          const [head, ...body] = RAC.util.parseCsv(t);
+          if (live) setRows(body.map(c => Object.fromEntries(head.map((h, i) => [h, c[i]]))));
+        })
+        .catch(() => { if (live) setRows([]); });
+      return () => { live = false; };
+    }, []);
+    if (!rows) return null;
+    if (!rows.length) return <div className="help-text" style={{ marginTop: 14 }}>The Indeed Hiring Insights figures could not be read.</div>;
+    const series = [...new Set(rows.map(r => r.series))];
+    const ms = [...new Set(rows.map(r => r.month))].sort().slice(-months);
+    const get = (s, m) => rows.find(r => r.series === s && r.month === m) || {};
+    const n = (v) => (v === '' || v === undefined ? '-' : Number(v).toLocaleString('en-GB'));
+    return (
+      <div data-panel="indeed-insights" style={{ marginTop: 22 }}>
+        <div className="section-label">Indeed Hiring Insights</div>
+        <div className="help-text" style={{ marginBottom: 10 }}>
+          From Indeed&rsquo;s monthly Hiring Insights reports for three job titles. Competition is Indeed&rsquo;s score out of 100
+          (higher means more competition for candidates); jobs are the jobs that received clicks; jobseekers per job is
+          jobseekers over jobs. Typed from the reports, checked by a second reading and by the arithmetic on each page.
+          A guide on this screen only: no Indeed figure goes into the PDF or the workings.
+        </div>
+        <table className="alloc-table" style={{ maxWidth: 1100 }}>
+          <thead>
+            <tr>
+              <th rowSpan={2}>Month</th>
+              {series.map(s => <th key={s} colSpan={3} style={{ textAlign: 'center' }}>{s}</th>)}
+            </tr>
+            <tr>
+              {series.map(s => ['Competition', 'Jobs', 'Jobseekers per job'].map(h => <th key={s + h} className="num">{h}</th>))}
+            </tr>
+          </thead>
+          <tbody>
+            {ms.map(m => (
+              <tr key={m}>
+                <td className="mono">{label(m)}</td>
+                {series.map(s => {
+                  const r = get(s, m);
+                  return [
+                    <td key={s + 'c'} className="num mono">{r.competition_score ? `${r.competition_score} ${r.competition_level.toLowerCase()}` : '-'}</td>,
+                    <td key={s + 'j'} className="num mono">{n(r.jobs)}</td>,
+                    <td key={s + 'p'} className="num mono">{n(r.jobseekers_per_job)}</td>,
+                  ];
+                })}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    );
+  }
+
+  // The guide on Setup, closed until opened (feedback 2), with room around it.
+  function MarketGuide() {
+    const [open, setOpen] = useState(false);
+    return (
+      <div data-panel="market-guide" style={{ marginTop: 26, paddingTop: 14, borderTop: '1px solid var(--line, #E3E7ED)' }}>
+        <div className="section-label" data-action="market-guide-toggle" style={{ cursor: 'pointer', userSelect: 'none' }} onClick={() => setOpen(o => !o)}>
+          <span style={{ display: 'inline-block', width: 14, color: 'var(--rac-orange)' }}>{open ? '▾' : '▸'}</span>
+          What the market was doing
+          <span className="text-muted" style={{ fontWeight: 400 }}> &middot; a guide, not part of the plan</span>
+        </div>
+        {open && (
+          <div style={{ marginTop: 12 }}>
+            <MarketTable />
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  RACUI.MarketTable = MarketTable;
+  RACUI.MarketGuide = MarketGuide;
+})();

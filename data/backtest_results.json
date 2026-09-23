@@ -1,0 +1,666 @@
+{
+  "note": "Written by tools/calibrate.mjs. Each month was predicted from earlier months only.",
+  "tested": "2026-09-22",
+  "window": {
+    "mode": "last3up",
+    "mult": 2
+  },
+  "roles": {
+    "SMR": {
+      "data": "RAC's monthly SMR spend and application data, to August 2026",
+      "eploy": "Corrected RAC Eploy Data Oct 2025 - Aug 2026 v2.xlsx (2026-09-17)",
+      "adjustmentLearnedFrom": 0,
+      "applications": [
+        {
+          "month": "2026-03",
+          "learnedFrom": "2025-12 to 2026-02",
+          "bRole": 0.65,
+          "k": 100000,
+          "bias": 1,
+          "spend": 46679.1,
+          "predicted": 696.3035,
+          "actual": 536.377,
+          "miss": -0.2297
+        },
+        {
+          "month": "2026-04",
+          "learnedFrom": "2025-12 to 2026-03",
+          "bRole": 0.65,
+          "k": 100000,
+          "bias": 1.129,
+          "spend": 47827.13,
+          "predicted": 565.0919,
+          "actual": 695.115,
+          "miss": 0.2301
+        },
+        {
+          "month": "2026-05",
+          "learnedFrom": "2025-12 to 2026-04",
+          "bRole": 0.65,
+          "k": 100000,
+          "bias": 1.076,
+          "spend": 49685.78,
+          "predicted": 602.1138,
+          "actual": 591.191,
+          "miss": -0.0181
+        },
+        {
+          "month": "2026-06",
+          "learnedFrom": "2025-12 to 2026-05",
+          "bRole": 0.65,
+          "k": 100000,
+          "bias": 1.0795,
+          "spend": 54214.33,
+          "predicted": 614.3647,
+          "actual": 697.57,
+          "miss": 0.1354
+        },
+        {
+          "month": "2026-07",
+          "learnedFrom": "2025-12 to 2026-06",
+          "bRole": 0.65,
+          "k": 100000,
+          "bias": 1.0573,
+          "spend": 63145,
+          "predicted": 729.8496,
+          "actual": 643.103,
+          "miss": -0.1189
+        }
+      ],
+      "hiresCheck": {
+        "note": "Paid-media hires predicted from earlier months against the hires Eploy credited to the four platforms. A check only: hire ranges come from the counts behind the rates.",
+        "months": [
+          {
+            "month": "2026-03",
+            "learnedFrom": "2025-10 to 2026-02",
+            "recon": 0.9675,
+            "predicted": 11.7555,
+            "actual": 16,
+            "miss": 0.3611
+          },
+          {
+            "month": "2026-04",
+            "learnedFrom": "2025-10 to 2026-03",
+            "recon": 0.9959,
+            "predicted": 10.3449,
+            "actual": 12,
+            "miss": 0.16
+          },
+          {
+            "month": "2026-05",
+            "learnedFrom": "2025-10 to 2026-04",
+            "recon": 0.9767,
+            "predicted": 11.705,
+            "actual": 10,
+            "miss": -0.1457
+          },
+          {
+            "month": "2026-06",
+            "learnedFrom": "2025-10 to 2026-05",
+            "recon": 0.9671,
+            "predicted": 11.9359,
+            "actual": 19,
+            "miss": 0.5918
+          }
+        ]
+      },
+      "used": {
+        "roleRate": 0.65,
+        "strength": 100000,
+        "adjustment": 1.0769
+      },
+      "tested": {
+        "roleRate": 0.7,
+        "strength": 100000,
+        "adjustment": 1.0769
+      },
+      "costMissesNoAdjustment": [
+        {
+          "month": "2025-12",
+          "predicted": 624.9222,
+          "actual": 438.98,
+          "costMiss": 0.4236
+        },
+        {
+          "month": "2026-01",
+          "predicted": 522.0593,
+          "actual": 612.715,
+          "costMiss": -0.148
+        },
+        {
+          "month": "2026-02",
+          "predicted": 497.2583,
+          "actual": 485.012,
+          "costMiss": 0.0252
+        },
+        {
+          "month": "2026-03",
+          "predicted": 696.3035,
+          "actual": 536.377,
+          "costMiss": 0.2982
+        },
+        {
+          "month": "2026-04",
+          "predicted": 637.9973,
+          "actual": 695.115,
+          "costMiss": -0.0822
+        },
+        {
+          "month": "2026-05",
+          "predicted": 647.8655,
+          "actual": 591.191,
+          "costMiss": 0.0959
+        },
+        {
+          "month": "2026-06",
+          "predicted": 663.1966,
+          "actual": 697.57,
+          "costMiss": -0.0493
+        },
+        {
+          "month": "2026-07",
+          "predicted": 771.7022,
+          "actual": 643.103,
+          "costMiss": 0.2
+        }
+      ],
+      "sameDirection": true,
+      "sensitivity": {
+        "blend": {
+          "screen_blend_n": {
+            "used": 35,
+            "tested": 5,
+            "best": 5,
+            "gain": 3.46,
+            "dispersion": 12.41,
+            "testMonths": 4,
+            "leaveOneOut": [
+              {
+                "month": "2026-03",
+                "value": 0
+              },
+              {
+                "month": "2026-04",
+                "value": 10
+              },
+              {
+                "month": "2026-05",
+                "value": 25
+              },
+              {
+                "month": "2026-06",
+                "value": 10
+              }
+            ],
+            "unstable": false
+          },
+          "location_screen_blend_n": {
+            "used": 100000,
+            "tested": 400,
+            "best": 400,
+            "gain": 2.92,
+            "dispersion": 3.32,
+            "testMonths": 4,
+            "leaveOneOut": [
+              {
+                "month": "2026-03",
+                "value": 100000
+              },
+              {
+                "month": "2026-04",
+                "value": 200
+              },
+              {
+                "month": "2026-05",
+                "value": 400
+              },
+              {
+                "month": "2026-06",
+                "value": 400
+              }
+            ],
+            "unstable": true
+          },
+          "region_hire_blend_n": {
+            "used": 100000,
+            "tested": 100000,
+            "best": 3200,
+            "gain": 0,
+            "dispersion": 2.36,
+            "testMonths": 4,
+            "leaveOneOut": [
+              {
+                "month": "2026-03",
+                "value": 100000
+              },
+              {
+                "month": "2026-04",
+                "value": 100000
+              },
+              {
+                "month": "2026-05",
+                "value": 100000
+              },
+              {
+                "month": "2026-06",
+                "value": 100000
+              }
+            ],
+            "unstable": false
+          }
+        },
+        "backtest": {
+          "used": {
+            "roleRate": 0.65,
+            "strength": 100000,
+            "adjustment": 1.0769
+          },
+          "tested": {
+            "roleRate": 0.7,
+            "strength": 100000,
+            "adjustment": 1.0769
+          },
+          "sameDirection": true,
+          "testMonths": 8,
+          "bestBeforeRule": {
+            "bRole": 0.7,
+            "k": 100000
+          },
+          "gain": 0,
+          "dispersion": 5.48,
+          "leaveOneOut": [
+            {
+              "month": "2025-12",
+              "bRole": 0.8,
+              "k": 100000,
+              "bias": 1.0411,
+              "same": true
+            },
+            {
+              "month": "2026-01",
+              "bRole": 0.7,
+              "k": 100000,
+              "bias": 1.1106,
+              "same": true
+            },
+            {
+              "month": "2026-02",
+              "bRole": 0.8,
+              "k": 100000,
+              "bias": 1.0828,
+              "same": true
+            },
+            {
+              "month": "2026-03",
+              "bRole": 0.8,
+              "k": 100000,
+              "bias": 1.0484,
+              "same": true
+            },
+            {
+              "month": "2026-04",
+              "bRole": 0.7,
+              "k": 100000,
+              "bias": 1.1045,
+              "same": true
+            },
+            {
+              "month": "2026-05",
+              "bRole": 0.7,
+              "k": 100000,
+              "bias": 1.0741,
+              "same": true
+            },
+            {
+              "month": "2026-06",
+              "bRole": 0.7,
+              "k": 100000,
+              "bias": 1.0988,
+              "same": true
+            },
+            {
+              "month": "2026-07",
+              "bRole": 0.7,
+              "k": 100000,
+              "bias": 1.0573,
+              "same": true
+            }
+          ],
+          "unstable": {
+            "bRole": false,
+            "k": false,
+            "bias": false
+          }
+        }
+      }
+    },
+    "Patrol": {
+      "data": "RAC's monthly Patrol spend and application data, to August 2026",
+      "eploy": "Corrected RAC Eploy Data Oct 2025 - Aug 2026 v2.xlsx (2026-09-17)",
+      "adjustmentLearnedFrom": 0,
+      "applications": [
+        {
+          "month": "2026-03",
+          "learnedFrom": "2025-12 to 2026-02",
+          "bRole": 0.65,
+          "k": 100000,
+          "bias": 1.105,
+          "spend": 48068.37,
+          "predicted": 626.4605,
+          "actual": 747,
+          "miss": 0.1924
+        },
+        {
+          "month": "2026-04",
+          "learnedFrom": "2025-12 to 2026-03",
+          "bRole": 0.65,
+          "k": 100000,
+          "bias": 1,
+          "spend": 77086.63,
+          "predicted": 993.6446,
+          "actual": 951.31,
+          "miss": -0.0426
+        },
+        {
+          "month": "2026-05",
+          "learnedFrom": "2025-12 to 2026-04",
+          "bRole": 0.65,
+          "k": 100000,
+          "bias": 1.0392,
+          "spend": 68048.21,
+          "predicted": 780.0382,
+          "actual": 446.318,
+          "miss": -0.4278
+        },
+        {
+          "month": "2026-06",
+          "learnedFrom": "2025-12 to 2026-05",
+          "bRole": 0.65,
+          "k": 100000,
+          "bias": 1.1428,
+          "spend": 91748.32,
+          "predicted": 717.9648,
+          "actual": 809.954,
+          "miss": 0.1281
+        },
+        {
+          "month": "2026-07",
+          "learnedFrom": "2025-12 to 2026-06",
+          "bRole": 0.65,
+          "k": 100000,
+          "bias": 1.1175,
+          "spend": 82744.69,
+          "predicted": 674.8952,
+          "actual": 1083.179,
+          "miss": 0.605
+        }
+      ],
+      "hiresCheck": {
+        "note": "Paid-media hires predicted from earlier months against the hires Eploy credited to the four platforms. A check only: hire ranges come from the counts behind the rates.",
+        "months": [
+          {
+            "month": "2026-03",
+            "learnedFrom": "2025-10 to 2026-02",
+            "recon": 1.1036,
+            "predicted": 10.6411,
+            "actual": 11,
+            "miss": 0.0337
+          },
+          {
+            "month": "2026-04",
+            "learnedFrom": "2025-10 to 2026-03",
+            "recon": 1.1286,
+            "predicted": 16.9176,
+            "actual": 9,
+            "miss": -0.468
+          },
+          {
+            "month": "2026-05",
+            "learnedFrom": "2025-10 to 2026-04",
+            "recon": 1.0088,
+            "predicted": 11.8135,
+            "actual": 4,
+            "miss": -0.6614
+          },
+          {
+            "month": "2026-06",
+            "learnedFrom": "2025-10 to 2026-05",
+            "recon": 0.9615,
+            "predicted": 10.7356,
+            "actual": 10,
+            "miss": -0.0685
+          }
+        ]
+      },
+      "used": {
+        "roleRate": 0.65,
+        "strength": 100000,
+        "adjustment": 1
+      },
+      "tested": {
+        "roleRate": 0.6,
+        "strength": 100000,
+        "adjustment": 1.0305
+      },
+      "costMissesNoAdjustment": [
+        {
+          "month": "2025-12",
+          "predicted": 468.3331,
+          "actual": 427.931,
+          "costMiss": 0.0944
+        },
+        {
+          "month": "2026-01",
+          "predicted": 302.9871,
+          "actual": 311.116,
+          "costMiss": -0.0261
+        },
+        {
+          "month": "2026-02",
+          "predicted": 558.0005,
+          "actual": 464,
+          "costMiss": 0.2026
+        },
+        {
+          "month": "2026-03",
+          "predicted": 692.2148,
+          "actual": 747,
+          "costMiss": -0.0733
+        },
+        {
+          "month": "2026-04",
+          "predicted": 993.6446,
+          "actual": 951.31,
+          "costMiss": 0.0445
+        },
+        {
+          "month": "2026-05",
+          "predicted": 810.6399,
+          "actual": 446.318,
+          "costMiss": 0.8163
+        },
+        {
+          "month": "2026-06",
+          "predicted": 820.511,
+          "actual": 809.954,
+          "costMiss": 0.013
+        },
+        {
+          "month": "2026-07",
+          "predicted": 754.2247,
+          "actual": 1083.179,
+          "costMiss": -0.3037
+        }
+      ],
+      "sameDirection": false,
+      "sensitivity": {
+        "blend": {
+          "screen_blend_n": {
+            "used": 35,
+            "tested": 100,
+            "best": 100,
+            "gain": 3.99,
+            "dispersion": 9.23,
+            "testMonths": 4,
+            "leaveOneOut": [
+              {
+                "month": "2026-03",
+                "value": 400
+              },
+              {
+                "month": "2026-04",
+                "value": 0
+              },
+              {
+                "month": "2026-05",
+                "value": 100
+              },
+              {
+                "month": "2026-06",
+                "value": 25
+              }
+            ],
+            "unstable": true
+          },
+          "location_screen_blend_n": {
+            "used": 100000,
+            "tested": 5,
+            "best": 5,
+            "gain": 16.96,
+            "dispersion": 5.83,
+            "testMonths": 4,
+            "leaveOneOut": [
+              {
+                "month": "2026-03",
+                "value": 25
+              },
+              {
+                "month": "2026-04",
+                "value": 10
+              },
+              {
+                "month": "2026-05",
+                "value": 0
+              },
+              {
+                "month": "2026-06",
+                "value": 0
+              }
+            ],
+            "unstable": false
+          },
+          "region_hire_blend_n": {
+            "used": 100000,
+            "tested": 100000,
+            "best": 200,
+            "gain": 0.4,
+            "dispersion": 1.06,
+            "testMonths": 4,
+            "leaveOneOut": [
+              {
+                "month": "2026-03",
+                "value": 100000
+              },
+              {
+                "month": "2026-04",
+                "value": 100000
+              },
+              {
+                "month": "2026-05",
+                "value": 100000
+              },
+              {
+                "month": "2026-06",
+                "value": 100000
+              }
+            ],
+            "unstable": false
+          }
+        },
+        "backtest": {
+          "used": {
+            "roleRate": 0.65,
+            "strength": 100000,
+            "adjustment": 1
+          },
+          "tested": {
+            "roleRate": 0.6,
+            "strength": 100000,
+            "adjustment": 1.0305
+          },
+          "sameDirection": false,
+          "testMonths": 8,
+          "bestBeforeRule": {
+            "bRole": 0.6,
+            "k": 100000
+          },
+          "gain": 0,
+          "dispersion": 5.51,
+          "leaveOneOut": [
+            {
+              "month": "2025-12",
+              "bRole": 0.6,
+              "k": 100000,
+              "bias": 1.0248,
+              "same": false
+            },
+            {
+              "month": "2026-01",
+              "bRole": 0.6,
+              "k": 100000,
+              "bias": 1.0341,
+              "same": false
+            },
+            {
+              "month": "2026-02",
+              "bRole": 0.6,
+              "k": 100000,
+              "bias": 1.0138,
+              "same": false
+            },
+            {
+              "month": "2026-03",
+              "bRole": 0.6,
+              "k": 100000,
+              "bias": 1.0477,
+              "same": false
+            },
+            {
+              "month": "2026-04",
+              "bRole": 0.7,
+              "k": 100000,
+              "bias": 1.0274,
+              "same": false
+            },
+            {
+              "month": "2026-05",
+              "bRole": 0.6,
+              "k": 100000,
+              "bias": 0.9573,
+              "same": false
+            },
+            {
+              "month": "2026-06",
+              "bRole": 0.6,
+              "k": 100000,
+              "bias": 1.0337,
+              "same": false
+            },
+            {
+              "month": "2026-07",
+              "bRole": 0.7,
+              "k": 100000,
+              "bias": 1.1175,
+              "same": true
+            }
+          ],
+          "unstable": {
+            "bRole": false,
+            "k": false,
+            "bias": true
+          }
+        }
+      }
+    }
+  }
+}

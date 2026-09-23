@@ -1,0 +1,26 @@
+{
+  "note": "Load order of the planner and export files. index.html and tests/lib/planner.mjs both read this list.",
+  "files": [
+    "planner/core.js",
+    "planner/assumptions.js",
+    "planner/data.js",
+    "planner/cost.js",
+    "planner/rates.js",
+    "planner/forecast.js",
+    "planner/testing.js",
+    "planner/backtest.js",
+    "planner/ceilings.js",
+    "planner/allocate.js",
+    "planner/plan.js",
+    "planner/onerac.js",
+    "planner/snapshot.js",
+    "planner/legacy_shape.js",
+    "planner/app.js",
+    "exports/text.js",
+    "exports/stamp.js",
+    "exports/tables.js",
+    "exports/checks.js",
+    "exports/pdf.js",
+    "exports/workings.js"
+  ]
+}
