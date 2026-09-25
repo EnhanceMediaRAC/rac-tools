@@ -299,8 +299,10 @@ def month_columns(with_onerac):
              ('r_quality', g, 'Quality rate', RATE, 'IF({ea_all}=0,"",{eq_all}/{ea_all})'),
              ('r_hire', g, 'Hire rate from quality applications', RATE, 'IF({eq_all}=0,"",{eh_all}/{eq_all})'),
              ('r_cph_paid', g, 'Cost per hire, four platforms and Indeed Premium', MONEY,
-              'IF(SUM({eh_indeed}:{eh_appcast})=0,"",({sp_four}+{sp_premium})/SUM({eh_indeed}:{eh_appcast}))'),
-             ('r_cph_all', g, 'Cost per hire, all spend and all hires', MONEY, 'IF({eh_all}=0,"",{sp_total}/{eh_all})')]
+              'IF(SUM({eh_indeed}:{eh_appcast})=0,"",({sp_four}+{sp_premium})/SUM({eh_indeed}:{eh_appcast}))')]
+    # No cost per hire on all spend and all hires (EM, 25 September 2026): it
+    # divides every campaign's spend by hires that paid media did not all
+    # drive, so it misstated what the paid platforms cost.
     return cols
 
 
@@ -437,7 +439,7 @@ def write_workbook(path, sheets, loc_rows, meta, save=True):
                 if key == 'status':
                     put(ws, ref, row['status'])
                     continue
-                spend_col = key.startswith(('sp_', 'ap_')) or key in ('r_cpa', 'r_cph_paid', 'r_cph_all')
+                spend_col = key.startswith(('sp_', 'ap_')) or key in ('r_cpa', 'r_cph_paid')
                 if spend_col and not row['has_spend']:
                     continue
                 if formula:

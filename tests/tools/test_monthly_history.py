@@ -143,6 +143,7 @@ def main():
             cpa = ws.cell(row=n, column=heads.index('Cost per application (four platforms and Indeed Premium)') + 1).value
             assert cpa.startswith('=IF(') and f'{n}' in cpa, cpa
             assert ws.cell(row=6, column=heads.index('Indeed') + 1).value is None, 'December has no spend and must be blank'
+            assert heads[-1] == 'Cost per hire, four platforms and Indeed Premium' and not any('all hires' in str(h) for h in heads), heads[-3:]
             text = ' '.join(str(c.value) for s in wb for row in s.iter_rows() for c in row if isinstance(c.value, str))
             for camp, *_ in ROWS:
                 assert camp not in text, 'campaign names must not reach the workbook: ' + camp
