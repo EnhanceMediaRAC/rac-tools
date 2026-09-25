@@ -52,7 +52,9 @@ sheet. Shared ones go on the "SMR and Patrol" sheet only, so the two role
 sheets add up to less than it.
 
 The script stops if the groups do not add back to the master sheet's total for
-every month. A new kind of campaign lands in "Left out" or "Not tagged" until
+every month, and if any row is dated after the day the file was exported (a
+year typed wrongly: on 25 September 2026, 29 to 31 December 2025 arrived dated
+2026). A new kind of campaign lands in "Left out" or "Not tagged" until
 the rules in `bucket()` are changed. Read the printed lines each month.
 
 ## Hires
@@ -68,11 +70,16 @@ master sheet, and builds the real one in check mode when `RAC_PACING_DIR`
 points at the data folder. The workbook's text is held to the same output
 checks as the PDF (`exports/checks.js`); a workbook that fails is not saved.
 
+Up to 2025, the app's data spread spend not tagged to a location across
+locations, and counted Meta remarketing as Meta. The workbook keeps untagged
+spend separate and counts Meta remarketing as Combined Activity, so its
+location and Meta figures for those months differ from the app's while the
+totals agree.
+
 ## Known gaps
 
-- The master sheet export used from 25 September 2026 starts in January 2026,
-  so October to December 2025 show hires but no spend. An earlier export has
-  been asked for.
+- Any month in the range without spend in the master sheet shows hires only,
+  and the Read me names those months.
 - The master sheet dated 23 September 2026 held slightly less SMR Google spend
   for January and February 2026 than the app's data file (17 September); every
   other role and month matched it to the pound. The workbook follows the master

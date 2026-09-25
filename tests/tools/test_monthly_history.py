@@ -174,6 +174,29 @@ def main():
             return f'{len(H.banned_patterns())} rules read from exports/checks.js'
         case('The workbook is held to the output checks in exports/checks.js', output_checks)
 
+        def future_rows():
+            sub = os.path.join(tmp, 'future'); os.makedirs(sub)
+            bad = ('RAC | Conversion | SMR Mechanics | London | Indeed | Dec 25', D(2026, 12, 30), 'London', 'SMR', 'Indeed', 12.5, 1)
+            m2, _ = make(sub, rows=ROWS + [bad])
+            try:
+                H.build(m2, ep, taken, '2025-12')
+            except H.Stop as e:
+                assert '1 rows are dated after' in str(e) and '£12.50' in str(e), str(e)
+                return 'a row dated after the export (a year typed wrongly) stops it, with the rows, dates and spend named'
+            raise AssertionError('a row dated after the export did not stop the build')
+        case('Rows dated after the export stop the build', future_rows)
+
+        def no_spend_line():
+            def read_me(first):
+                out = os.path.join(tmp, f'rm{first}.xlsx')
+                assert H.main([master, '--eploy', ep, '--taken', '2026-05-20', '--from', first, '--out', out]) == 0
+                return ' '.join(str(c.value) for row in load_workbook(out)['Read me'].iter_rows() for c in row if c.value)
+            with_gap, without = read_me('2025-12'), read_me('2026-01')
+            assert 'Spend for December 2025 was not available' in with_gap and 'that month shows' in with_gap, with_gap[:300]
+            assert 'was not available' not in without, 'the no-spend line appeared with spend for every month'
+            return 'names the months without spend, and is left out when every month has spend'
+        case('The Read me says which months have no spend, only when there are some', no_spend_line)
+
         def refused():
             out = os.path.join(tmp, 'refused.xlsx')
             H.READ_ME.append(('Test', ['The figures were kept in Supabase.']))

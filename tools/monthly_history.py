@@ -117,7 +117,25 @@ def months_between(first, last):
     return out
 
 
-def read_master(path):
+def month_span(months):
+    """Plain words for a list of months: runs of consecutive months joined."""
+    runs = []
+    for m in sorted(months):
+        if runs and months_between(runs[-1][-1], m)[1:] == [m]:
+            runs[-1].append(m)
+        else:
+            runs.append([m])
+    name = lambda m: datetime.date(*map(int, m.split('-')), 1).strftime('%B %Y')
+    def run_text(r):
+        if len(r) == 1:
+            return name(r[0])
+        a, b = name(r[0]), name(r[-1])
+        return (a.split()[0] if a.split()[1] == b.split()[1] else a) + ' to ' + b
+    texts = [run_text(r) for r in runs]
+    return texts[0] if len(texts) == 1 else ', '.join(texts[:-1]) + ' and ' + texts[-1]
+
+
+def read_master(path, taken):
     from openpyxl import load_workbook
     wb = load_workbook(path, read_only=True, data_only=True)
     try:
@@ -134,6 +152,8 @@ def read_master(path):
         total = defaultdict(float)     # month -> every row's spend
         excluded = defaultdict(float)  # campaign family -> spend, for the report
         last_day = None
+        future = []                    # rows dated after the export: always an error
+        s_of = lambda v: v if isinstance(v, (int, float)) else 0.0
         for r in rows:
             if r is None or r[col['date']] is None:
                 continue
@@ -141,6 +161,9 @@ def read_master(path):
             if not isinstance(d, (datetime.date, datetime.datetime)):
                 raise Stop(f'a Date cell is not a date: {str(d)[:30]}')
             d = d.date() if isinstance(d, datetime.datetime) else d
+            if d > taken:
+                future.append((d, s_of(r[col['spend']]), str(r[0] or '').strip()))
+                continue
             last_day = d if last_day is None or d > last_day else last_day
             month = d.strftime('%Y-%m')
             s = r[col['spend']] if isinstance(r[col['spend']], (int, float)) else 0.0
@@ -154,6 +177,13 @@ def read_master(path):
             total[month] += s
             if kind == 'excluded':
                 excluded[f'{area} | {str(r[col["platform"]]).strip()}'] += s
+        if future:
+            weeks = sorted({w for *_, w in future if w})
+            raise Stop(f'{len(future)} rows are dated after the day this file was exported ({taken:%d %B %Y}): '
+                       f'{min(d for d, *_ in future):%d %B %Y} to {max(d for d, *_ in future):%d %B %Y}, '
+                       f'£{sum(x for _, x, _ in future):,.2f} of spend, week labels {", ".join(weeks[:5])}. '
+                       'Correct the dates in the master sheet (often a year typed wrongly) and run it again. '
+                       'If the export date is wrong, give the right one with --taken.')
         return spend, apps, total, excluded, last_day
     finally:
         wb.close()
@@ -300,7 +330,7 @@ READ_ME = [
     ('Where the figures came from', [
         "Spend and the applications the platforms recorded came from RAC's Blended Reporting data, as exported on {taken}, with data to {last_day}. For Indeed, the application count is the one RAC's applicant tracking recorded.",
         "Applications, quality applications and hires came from RAC's applicant tracking data, dated {eploy_date}.",
-        'Spend for October to December 2025 was not available in the export used, so those months show applications, quality applications and hires only.',
+        '{no_spend}',
     ]),
     ('How hires are counted', [
         'Each hire is counted against the month the candidate applied, not the month they were hired, so it sits on the same row as the spend that month.',
@@ -375,7 +405,10 @@ def write_workbook(path, sheets, loc_rows, meta, save=True):
     for heading, lines in READ_ME:
         put(rm, f'A{r}', heading, font=bold); r += 1
         for line in lines:
-            put(rm, f'A{r}', line.format(**meta), alignment=Alignment(wrap_text=True, vertical='top')); r += 1
+            text = line.format(**meta)
+            if not text:
+                continue
+            put(rm, f'A{r}', text, alignment=Alignment(wrap_text=True, vertical='top')); r += 1
         r += 1
     rm.column_dimensions['A'].width = 120
 
@@ -451,12 +484,12 @@ def write_workbook(path, sheets, loc_rows, meta, save=True):
 # ---------------------------------------------------------------- build
 
 def build(master, eploy_path=EPLOY, taken=None, first=FIRST_MONTH):
-    spend, apps, total, excluded, last_day = read_master(master)
+    taken = taken or datetime.date.fromtimestamp(os.path.getmtime(master))
+    spend, apps, total, excluded, last_day = read_master(master, taken)
     if last_day is None:
         raise Stop('the master sheet has no dated rows')
     eploy, dataset = read_eploy(eploy_path)
     eploy_date = datetime.date.fromisoformat(dataset['file_date'])
-    taken = taken or datetime.date.fromtimestamp(os.path.getmtime(master))
     settle = int(assumption('data_settle_days'))
     hire_mat, qual_mat = int(assumption('hire_maturity_months')), int(assumption('screening_maturity_months'))
 
@@ -497,7 +530,11 @@ def build(master, eploy_path=EPLOY, taken=None, first=FIRST_MONTH):
                         loc_rows.append({'role': role, 'month': m, 'location': loc, 'platform': p, 'status': status,
                                          'spend': sp, 'apps': ap, 'ea': ea, 'eq': eq, 'eh': eh})
 
-    meta = {'taken': f'{taken.day} {taken:%B %Y}', 'last_day': f'{last_day.day} {last_day:%B %Y}',
+    missing = [m for m in months if m not in spend_months]
+    meta = {'no_spend': (f'Spend for {month_span(missing)} was not available in the export used, so '
+                         f'{"that month shows" if len(missing) == 1 else "those months show"} applications, quality applications and hires only.')
+                        if missing else '',
+            'taken': f'{taken.day} {taken:%B %Y}', 'last_day': f'{last_day.day} {last_day:%B %Y}',
             'eploy_date': f'{eploy_date.day} {eploy_date:%B %Y}'}
     report = {
         'months': months,
