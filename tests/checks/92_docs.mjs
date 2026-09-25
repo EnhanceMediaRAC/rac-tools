@@ -143,7 +143,9 @@ export default function (check, { assert, near }) {
       // in the record of changes (X5), and August re-uploaded so it counts in the October plans.
       '## After the release, with dates', 'The record of changes (8.4)', 'Patrol in the archive (9.4)',
       'a cost limit on Setup, and the data window on Benchmarks', 'Re-upload August on or after 1 October 2026',
-      'Raw Data Export', '31 August 2026']
+      'Raw Data Export', '31 August 2026',
+      // The monthly history workbook for RAC (EM, 25 September 2026).
+      'python tools/monthly_history.py', 'docs/monthly_history.md']
       .forEach(t => assert(doc.includes(t), 'docs/release.md does not mention ' + t));
     assert(!doc.includes('https://rac-tools.vercel.app/archive'), 'docs/release.md still sends people to the archive on the old address');
     assert(!internalText(doc).length, 'the release document fails the output checks: ' + internalText(doc).join('; '));

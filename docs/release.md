@@ -272,7 +272,8 @@ repository.
   (steps 4 and 6). He does not edit the repository.
 - **The app author:** runs the import comparison, runs the tests, reads the
   Assumptions tab against the file, then edits `assumptions.csv` on a branch,
-  checks the branch's test link and merges (steps 2, 3, 5 and 7).
+  checks the branch's test link and merges (steps 2, 3, 5 and 7), and builds
+  the monthly history workbook for RAC (step 8).
 
 1. **Upload the new month's data** on the Data tab once it has settled (31 days
    after the month ended). **Biraag.**
@@ -298,6 +299,16 @@ repository.
    (the cap multiple default, the cap rules, the thin-data blend). **Biraag**
    decides.
 7. **Make any quarterly change** the same way as step 5. **App author.**
+8. **Each month, after steps 1 and 2: build the monthly history workbook** for
+   RAC from the same master sheet that was uploaded in step 1
+   (`docs/monthly_history.md`):
+
+       python tools/monthly_history.py "PATH/TO/Master Sheet.xlsx"
+
+   It writes the workbook next to the master sheet, in the data folder. Read
+   the lines it prints: any spend it left out, and that every row was counted
+   once. Check the new month's row before it goes to RAC. **App author**, who
+   sends it to Biraag to share.
 
 From plans for January 2027 the spending caps use the last 12 settled months
 instead of every month since January 2026 (`ceiling_rolling_from`,
