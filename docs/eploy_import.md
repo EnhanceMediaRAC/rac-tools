@@ -10,6 +10,8 @@ application month (`data/eploy_rates.json`), and only that file is committed.
 1. Work on a branch, never main.
 2. If the workbook came straight from a formula-based export, open it in Excel
    and save it, so the Hired and Progressed Past Screening columns hold values.
+   Saving sets the dataset's date (see "The file's date"), so do it before
+   importing, and not again afterwards.
 3. From the repo folder, run:
 
        python tools/eploy_import.py "PATH/TO/the new workbook.xlsx"
@@ -38,6 +40,25 @@ application month (`data/eploy_rates.json`), and only that file is committed.
 
 The workings export and PDF show the dataset's file name and date, taken from
 `data/eploy_rates.json`.
+
+## The file's date
+
+The import takes the dataset's date from the date the workbook file was last
+saved (its modified date), not from anything inside the workbook. That date:
+
+- decides which application months have settled (see "How the months are
+  used"), so it changes which months' quality results and hires count
+- is printed on every PDF and workings export as the date of the applicant
+  tracking data
+- is compared by the check "the committed rates match the current workbook".
+
+So once a workbook has been imported, never save over it. Saving it on a later
+day, even with no change, fails that check; saving it in a later month also
+counts recent months before they have settled. To change a workbook, save it
+as a new version (v4 and so on), import that on a branch as above, and point
+`RAC_EPLOY_WORKBOOK` at it. Copying or syncing the file normally keeps its
+date, but a downloaded copy can take the download date, so check the date the
+import prints ("file dated ...") before committing.
 
 ## The quality measure
 
