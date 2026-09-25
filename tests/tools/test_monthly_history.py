@@ -122,7 +122,8 @@ def main():
             st = {r['month']: r['status'] for r in sheets[0][1]}
             assert st['2025-12'] == 'Spend not available', st
             assert st['2026-01'] == 'Complete', st
-            assert st['2026-02'] == 'Hires still coming through', st
+            assert st['2026-02'] == 'Complete', st   # three further months started by 20 May
+            assert st['2026-03'] == 'Hires still coming through', st
             assert st['2026-04'] == 'Recent: may still change; Hires still coming through', st
             assert '2026-05' not in st, 'May is incomplete in the master sheet and must be left out'
             return 'spend not available, complete, hires still coming through, recent; a part month is left out'

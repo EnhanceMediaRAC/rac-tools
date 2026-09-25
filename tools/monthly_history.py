@@ -173,9 +173,11 @@ def read_eploy(path):
 
 
 def matured(month, file_date, months_needed):
-    """A month's outcomes count once this many further months have started."""
+    """A month's outcomes count once this many further months have started by
+    the file's date: June 2026 with 3 counts from 1 September 2026, the rule
+    the plans use."""
     y, m = map(int, month.split('-'))
-    m += months_needed + 1
+    m += months_needed
     y, m = y + (m - 1) // 12, (m - 1) % 12 + 1
     return datetime.date(y, m, 1) <= file_date
 
@@ -383,16 +385,15 @@ def write_workbook(path, sheets, loc_rows, meta, save=True):
         letter = {k: get_column_letter(i + 1) for i, (k, *_ ) in enumerate(cols)}
         put(ws, 'A1', f'RAC recruitment: monthly history, {title}', font=Font(bold=True, size=14, color='1F3864'))
         put(ws, 'A2', 'Spend to {last_day}; applicant tracking data dated {eploy_date}. See "Read me" for how each figure is worked out.'.format(**meta))
-        prev = None
         for i, (key, group, head, fmt, formula) in enumerate(cols):
             c = letter[key]
-            if group and group != prev:
-                put(ws, f'{c}4', group, font=white, fill=navy)
-            elif group:
-                ws[f'{c}4'].fill = navy
-            prev = group
+            ws[f'{c}4'].fill = navy
+            if group and (i == 0 or cols[i - 1][1] != group):
+                put(ws, f'{c}4', group, font=white, fill=navy, alignment=Alignment(horizontal='center'))
+                last = max(j for j, col in enumerate(cols) if col[1] == group)
+                ws.merge_cells(f'{c}4:{get_column_letter(last + 1)}4')
             put(ws, f'{c}5', head, font=white, fill=navy, alignment=Alignment(wrap_text=True, vertical='top'))
-            ws.column_dimensions[c].width = 11 if key not in ('status',) else 28
+            ws.column_dimensions[c].width = 11 if key not in ('status',) else 44
         ws.row_dimensions[5].height = 62
         for n, row in enumerate(rows, start=6):
             for key, group, head, fmt, formula in cols:
