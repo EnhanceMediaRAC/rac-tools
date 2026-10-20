@@ -1,0 +1,1014 @@
+{
+ "note": "Every location in RAC location priorities (June to October 2026), the region its campaigns sit in, and the point(s) targeted for it. Used by Update locations on the Location priorities tab (planner/locations.js). Regions here win over the region on RAC’s rows, so a town sits in one region for both roles. Coordinates from postcodes.io; Heathrow, Holloway and Richmond set by hand. wholeRegion: the row stands for its whole region, with no point of its own.",
+ "radius_km": 25,
+ "match_km": 5,
+ "locations": [
+  {
+   "name": "Burton Upon Trent",
+   "region": "East Midlands",
+   "points": [
+    { "name": "Burton Upon Trent", "lat": 52.80738, "lng": -1.64479 }
+   ]
+  },
+  {
+   "name": "Chesterfield",
+   "region": "East Midlands",
+   "points": [
+    { "name": "Chesterfield", "lat": 53.23633, "lng": -1.42921 }
+   ]
+  },
+  {
+   "name": "Derby",
+   "region": "East Midlands",
+   "points": [
+    { "name": "Derby", "lat": 52.92469, "lng": -1.47805 }
+   ]
+  },
+  {
+   "name": "Hinckley",
+   "region": "East Midlands",
+   "points": [
+    { "name": "Hinckley", "lat": 52.54105, "lng": -1.37384 }
+   ]
+  },
+  {
+   "name": "Leicester",
+   "region": "East Midlands",
+   "points": [
+    { "name": "Leicester", "lat": 52.63361, "lng": -1.13346 }
+   ]
+  },
+  {
+   "name": "Lincoln",
+   "region": "East Midlands",
+   "points": [
+    { "name": "Lincoln", "lat": 53.23484, "lng": -0.53844 }
+   ]
+  },
+  {
+   "name": "Loughborough",
+   "region": "East Midlands",
+   "points": [
+    { "name": "Loughborough", "lat": 52.7721, "lng": -1.20616 }
+   ]
+  },
+  {
+   "name": "Market Harborough",
+   "region": "East Midlands",
+   "points": [
+    { "name": "Market Harborough", "lat": 52.47953, "lng": -0.92269 }
+   ]
+  },
+  {
+   "name": "Northampton",
+   "region": "East Midlands",
+   "points": [
+    { "name": "Northampton", "lat": 52.23786, "lng": -0.89505 }
+   ]
+  },
+  {
+   "name": "Nottingham",
+   "region": "East Midlands",
+   "points": [
+    { "name": "Nottingham", "lat": 52.9562, "lng": -1.1512 }
+   ]
+  },
+  {
+   "name": "Bishop's Stortford",
+   "region": "East of England",
+   "points": [
+    { "name": "Bishop's Stortford", "lat": 51.87063, "lng": 0.16059 }
+   ]
+  },
+  {
+   "name": "Cambridge",
+   "region": "East of England",
+   "points": [
+    { "name": "Cambridge", "lat": 52.20486, "lng": 0.11968 }
+   ]
+  },
+  {
+   "name": "Chelmsford",
+   "region": "East of England",
+   "points": [
+    { "name": "Chelmsford", "lat": 51.73705, "lng": 0.47361 }
+   ]
+  },
+  {
+   "name": "Colchester",
+   "region": "East of England",
+   "points": [
+    { "name": "Colchester", "lat": 51.88971, "lng": 0.89935 }
+   ]
+  },
+  {
+   "name": "Dereham",
+   "region": "East of England",
+   "points": [
+    { "name": "Dereham", "lat": 52.68198, "lng": 0.94046 }
+   ]
+  },
+  {
+   "name": "Harlow",
+   "region": "East of England",
+   "points": [
+    { "name": "Harlow", "lat": 51.76879, "lng": 0.09571 }
+   ]
+  },
+  {
+   "name": "Hemel Hempstead",
+   "region": "East of England",
+   "points": [
+    { "name": "Hemel Hempstead", "lat": 51.75261, "lng": -0.47232 }
+   ]
+  },
+  {
+   "name": "Ipswich",
+   "region": "East of England",
+   "points": [
+    { "name": "Ipswich", "lat": 52.05707, "lng": 1.15283 }
+   ]
+  },
+  {
+   "name": "Luton",
+   "region": "East of England",
+   "points": [
+    { "name": "Luton", "lat": 51.87954, "lng": -0.41745 }
+   ]
+  },
+  {
+   "name": "Norwich",
+   "region": "East of England",
+   "points": [
+    { "name": "Norwich", "lat": 52.62887, "lng": 1.29331 }
+   ]
+  },
+  {
+   "name": "Peterborough",
+   "region": "East of England",
+   "points": [
+    { "name": "Peterborough", "lat": 52.57251, "lng": -0.2425 }
+   ]
+  },
+  {
+   "name": "Stevenage",
+   "region": "East of England",
+   "points": [
+    { "name": "Stevenage", "lat": 51.90234, "lng": -0.2008 }
+   ]
+  },
+  {
+   "name": "Watford",
+   "region": "East of England",
+   "points": [
+    { "name": "Watford", "lat": 51.65512, "lng": -0.39576 }
+   ]
+  },
+  {
+   "name": "Welwyn Garden City",
+   "region": "East of England",
+   "points": [
+    { "name": "Welwyn Garden City", "lat": 51.8038, "lng": -0.20651 }
+   ]
+  },
+  {
+   "name": "Barnet",
+   "region": "London",
+   "points": [
+    { "name": "Barnet", "lat": 51.64968, "lng": -0.17125 }
+   ]
+  },
+  {
+   "name": "Bromley",
+   "region": "London",
+   "points": [
+    { "name": "Bromley", "lat": 51.52506, "lng": -0.01985 }
+   ]
+  },
+  {
+   "name": "Chigwell",
+   "region": "London",
+   "points": [
+    { "name": "Chigwell", "lat": 51.6196, "lng": 0.07564 }
+   ]
+  },
+  {
+   "name": "Croydon",
+   "region": "London",
+   "points": [
+    { "name": "Croydon", "lat": 51.37364, "lng": -0.10024 }
+   ]
+  },
+  {
+   "name": "Dagenham",
+   "region": "London",
+   "points": [
+    { "name": "Dagenham", "lat": 51.5402, "lng": 0.16546 }
+   ]
+  },
+  {
+   "name": "Enfield",
+   "region": "London",
+   "points": [
+    { "name": "Enfield", "lat": 51.65222, "lng": -0.08438 }
+   ]
+  },
+  {
+   "name": "Hampstead",
+   "region": "London",
+   "points": [
+    { "name": "Hampstead", "lat": 51.55667, "lng": -0.17857 }
+   ]
+  },
+  {
+   "name": "Heathrow",
+   "region": "London",
+   "points": [
+    { "name": "Heathrow", "lat": 51.47, "lng": -0.4543 }
+   ]
+  },
+  {
+   "name": "Hillingdon",
+   "region": "London",
+   "points": [
+    { "name": "Hillingdon", "lat": 51.55094, "lng": -0.449 }
+   ]
+  },
+  {
+   "name": "Holloway",
+   "region": "London",
+   "points": [
+    { "name": "Holloway", "lat": 51.553, "lng": -0.1206 }
+   ]
+  },
+  {
+   "name": "Mayfair",
+   "region": "London",
+   "points": [
+    { "name": "Mayfair", "lat": 51.50964, "lng": -0.14661 }
+   ]
+  },
+  {
+   "name": "Richmond",
+   "region": "London",
+   "points": [
+    { "name": "Richmond", "lat": 51.4613, "lng": -0.3037 }
+   ]
+  },
+  {
+   "name": "Shepherd Bush",
+   "region": "London",
+   "points": [
+    { "name": "Shepherd's Bush", "lat": 51.50709, "lng": -0.23456 }
+   ]
+  },
+  {
+   "name": "Shepherd's Bush",
+   "region": "London",
+   "points": [
+    { "name": "Shepherd's Bush", "lat": 51.50709, "lng": -0.23456 }
+   ]
+  },
+  {
+   "name": "Stratford",
+   "region": "London",
+   "points": [
+    { "name": "Stratford", "lat": 51.54028, "lng": 0.00061 }
+   ]
+  },
+  {
+   "name": "Streatham",
+   "region": "London",
+   "points": [
+    { "name": "Streatham", "lat": 51.43206, "lng": -0.1293 }
+   ]
+  },
+  {
+   "name": "Wembley",
+   "region": "London",
+   "points": [
+    { "name": "Wembley", "lat": 51.5537, "lng": -0.29337 }
+   ]
+  },
+  {
+   "name": "Darlington",
+   "region": "North East",
+   "points": [
+    { "name": "Darlington", "lat": 54.52327, "lng": -1.55361 }
+   ]
+  },
+  {
+   "name": "Middlesbrough",
+   "region": "North East",
+   "points": [
+    { "name": "Middlesbrough", "lat": 54.57643, "lng": -1.23682 }
+   ]
+  },
+  {
+   "name": "Newcastle",
+   "region": "North East",
+   "points": [
+    { "name": "Newcastle upon Tyne", "lat": 54.97801, "lng": -1.61019 }
+   ]
+  },
+  {
+   "name": "Sunderland",
+   "region": "North East",
+   "points": [
+    { "name": "Sunderland", "lat": 54.90216, "lng": -1.3838 }
+   ]
+  },
+  {
+   "name": "Blackburn",
+   "region": "North West",
+   "points": [
+    { "name": "Blackburn", "lat": 53.75007, "lng": -2.48153 }
+   ]
+  },
+  {
+   "name": "Burnley",
+   "region": "North West",
+   "points": [
+    { "name": "Burnley", "lat": 53.78752, "lng": -2.24439 }
+   ]
+  },
+  {
+   "name": "Carlisle",
+   "region": "North West",
+   "points": [
+    { "name": "Carlisle", "lat": 54.89262, "lng": -2.93302 }
+   ]
+  },
+  {
+   "name": "Chester",
+   "region": "North West",
+   "points": [
+    { "name": "Chester", "lat": 53.1902, "lng": -2.89164 }
+   ]
+  },
+  {
+   "name": "Crewe",
+   "region": "North West",
+   "points": [
+    { "name": "Crewe", "lat": 53.09503, "lng": -2.44176 }
+   ]
+  },
+  {
+   "name": "Kendal",
+   "region": "North West",
+   "points": [
+    { "name": "Kendal", "lat": 54.33041, "lng": -2.74738 }
+   ]
+  },
+  {
+   "name": "Lancaster",
+   "region": "North West",
+   "points": [
+    { "name": "Lancaster", "lat": 54.05007, "lng": -2.80316 }
+   ]
+  },
+  {
+   "name": "Liverpool",
+   "region": "North West",
+   "points": [
+    { "name": "Liverpool", "lat": 53.40935, "lng": -2.97849 }
+   ]
+  },
+  {
+   "name": "Oldham/Bury",
+   "region": "North West",
+   "points": [
+    { "name": "Oldham", "lat": 53.54216, "lng": -2.11596 },
+    { "name": "Bury", "lat": 53.59269, "lng": -2.29877 }
+   ],
+   "meta": "Oldham"
+  },
+  {
+   "name": "Preston",
+   "region": "North West",
+   "points": [
+    { "name": "Preston", "lat": 53.76055, "lng": -2.69853 }
+   ]
+  },
+  {
+   "name": "Stockport",
+   "region": "North West",
+   "points": [
+    { "name": "Stockport", "lat": 53.40802, "lng": -2.15896 }
+   ]
+  },
+  {
+   "name": "Warrington",
+   "region": "North West",
+   "points": [
+    { "name": "Warrington", "lat": 53.38957, "lng": -2.5909 }
+   ]
+  },
+  {
+   "name": "Workington",
+   "region": "North West",
+   "points": [
+    { "name": "Workington", "lat": 54.64337, "lng": -3.54937 }
+   ]
+  },
+  {
+   "name": "Belfast",
+   "region": "Northern Ireland",
+   "wholeRegion": true
+  },
+  {
+   "name": "Portadown",
+   "region": "Northern Ireland",
+   "wholeRegion": true
+  },
+  {
+   "name": "Aberdeen",
+   "region": "Scotland",
+   "points": [
+    { "name": "Aberdeen", "lat": 57.14985, "lng": -2.09376 }
+   ]
+  },
+  {
+   "name": "Ayr",
+   "region": "Scotland",
+   "points": [
+    { "name": "Ayr", "lat": 55.45824, "lng": -4.62903 }
+   ]
+  },
+  {
+   "name": "Dumfries",
+   "region": "Scotland",
+   "points": [
+    { "name": "Dumfries", "lat": 55.06977, "lng": -3.60927 }
+   ]
+  },
+  {
+   "name": "Dundee",
+   "region": "Scotland",
+   "points": [
+    { "name": "Dundee", "lat": 56.45841, "lng": -2.97367 }
+   ]
+  },
+  {
+   "name": "East Kilbride",
+   "region": "Scotland",
+   "points": [
+    { "name": "East Kilbride", "lat": 55.75807, "lng": -4.16605 }
+   ]
+  },
+  {
+   "name": "Edinburgh",
+   "region": "Scotland",
+   "points": [
+    { "name": "Edinburgh", "lat": 55.95334, "lng": -3.18911 }
+   ]
+  },
+  {
+   "name": "Glasgow",
+   "region": "Scotland",
+   "points": [
+    { "name": "Glasgow", "lat": 55.86363, "lng": -4.23688 }
+   ]
+  },
+  {
+   "name": "Kilmarnock",
+   "region": "Scotland",
+   "points": [
+    { "name": "Kilmarnock", "lat": 55.61005, "lng": -4.49449 }
+   ]
+  },
+  {
+   "name": "Stirling",
+   "region": "Scotland",
+   "points": [
+    { "name": "Stirling", "lat": 56.11546, "lng": -3.93416 }
+   ]
+  },
+  {
+   "name": "Ashford",
+   "region": "South East",
+   "points": [
+    { "name": "Ashford", "lat": 51.43287, "lng": -0.46206 }
+   ]
+  },
+  {
+   "name": "Aylesbury",
+   "region": "South East",
+   "points": [
+    { "name": "Aylesbury", "lat": 51.81711, "lng": -0.81066 }
+   ]
+  },
+  {
+   "name": "Banbury",
+   "region": "South East",
+   "points": [
+    { "name": "Banbury", "lat": 52.06213, "lng": -1.3336 }
+   ]
+  },
+  {
+   "name": "Bicester",
+   "region": "South East",
+   "points": [
+    { "name": "Bicester", "lat": 51.89665, "lng": -1.15188 }
+   ]
+  },
+  {
+   "name": "Bracknell",
+   "region": "South East",
+   "points": [
+    { "name": "Bracknell", "lat": 51.41685, "lng": -0.7516 }
+   ]
+  },
+  {
+   "name": "Brighton",
+   "region": "South East",
+   "points": [
+    { "name": "Brighton", "lat": 50.82237, "lng": -0.13768 }
+   ]
+  },
+  {
+   "name": "Canterbury",
+   "region": "South East",
+   "points": [
+    { "name": "Canterbury", "lat": 51.27968, "lng": 1.07888 }
+   ]
+  },
+  {
+   "name": "Dover",
+   "region": "South East",
+   "points": [
+    { "name": "Dover", "lat": 51.12814, "lng": 1.30843 }
+   ]
+  },
+  {
+   "name": "Eastbourne",
+   "region": "South East",
+   "points": [
+    { "name": "Eastbourne", "lat": 50.76644, "lng": 0.27813 }
+   ]
+  },
+  {
+   "name": "Esher",
+   "region": "South East",
+   "points": [
+    { "name": "Esher", "lat": 51.36942, "lng": -0.3657 }
+   ]
+  },
+  {
+   "name": "Folkestone",
+   "region": "South East",
+   "points": [
+    { "name": "Folkestone", "lat": 51.08172, "lng": 1.18028 }
+   ]
+  },
+  {
+   "name": "Guildford",
+   "region": "South East",
+   "points": [
+    { "name": "Guildford", "lat": 51.23945, "lng": -0.57591 }
+   ]
+  },
+  {
+   "name": "High Wycombe",
+   "region": "South East",
+   "points": [
+    { "name": "High Wycombe", "lat": 51.62876, "lng": -0.74946 }
+   ]
+  },
+  {
+   "name": "Horsham",
+   "region": "South East",
+   "points": [
+    { "name": "Horsham", "lat": 51.0621, "lng": -0.3281 }
+   ]
+  },
+  {
+   "name": "Maidenhead",
+   "region": "South East",
+   "points": [
+    { "name": "Maidenhead", "lat": 51.52275, "lng": -0.72021 }
+   ]
+  },
+  {
+   "name": "Maidstone",
+   "region": "South East",
+   "points": [
+    { "name": "Maidstone", "lat": 51.27297, "lng": 0.52063 }
+   ]
+  },
+  {
+   "name": "Milton Keynes",
+   "region": "South East",
+   "points": [
+    { "name": "Milton Keynes", "lat": 52.04302, "lng": -0.75406 }
+   ]
+  },
+  {
+   "name": "Newbury",
+   "region": "South East",
+   "points": [
+    { "name": "Newbury", "lat": 51.40027, "lng": -1.32305 }
+   ]
+  },
+  {
+   "name": "Oxford",
+   "region": "South East",
+   "points": [
+    { "name": "Oxford", "lat": 51.75198, "lng": -1.25765 }
+   ]
+  },
+  {
+   "name": "Reading",
+   "region": "South East",
+   "points": [
+    { "name": "Reading", "lat": 51.4538, "lng": -0.97376 }
+   ]
+  },
+  {
+   "name": "Sevenoaks",
+   "region": "South East",
+   "points": [
+    { "name": "Sevenoaks", "lat": 51.27053, "lng": 0.19201 }
+   ]
+  },
+  {
+   "name": "Slough",
+   "region": "South East",
+   "points": [
+    { "name": "Slough", "lat": 51.50886, "lng": -0.59296 }
+   ]
+  },
+  {
+   "name": "Tunbridge Wells",
+   "region": "South East",
+   "points": [
+    { "name": "Royal Tunbridge Wells", "lat": 51.13333, "lng": 0.26353 }
+   ]
+  },
+  {
+   "name": "Windsor",
+   "region": "South East",
+   "points": [
+    { "name": "Windsor", "lat": 51.47984, "lng": -0.61048 }
+   ]
+  },
+  {
+   "name": "Barnstaple",
+   "region": "South West",
+   "points": [
+    { "name": "Barnstaple", "lat": 51.08108, "lng": -4.05838 }
+   ]
+  },
+  {
+   "name": "Bath",
+   "region": "South West",
+   "points": [
+    { "name": "Bath", "lat": 51.3828, "lng": -2.35929 }
+   ]
+  },
+  {
+   "name": "Bodmin",
+   "region": "South West",
+   "points": [
+    { "name": "Bodmin", "lat": 50.4713, "lng": -4.71756 }
+   ]
+  },
+  {
+   "name": "Bournemouth",
+   "region": "South West",
+   "points": [
+    { "name": "Bournemouth", "lat": 50.72097, "lng": -1.87669 }
+   ]
+  },
+  {
+   "name": "Bridgwater",
+   "region": "South West",
+   "points": [
+    { "name": "Bridgwater", "lat": 51.12778, "lng": -3.00641 }
+   ]
+  },
+  {
+   "name": "Bristol",
+   "region": "South West",
+   "points": [
+    { "name": "Bristol", "lat": 51.45313, "lng": -2.60098 }
+   ]
+  },
+  {
+   "name": "Cheltenham",
+   "region": "South West",
+   "points": [
+    { "name": "Cheltenham", "lat": 51.90073, "lng": -2.07669 }
+   ]
+  },
+  {
+   "name": "Exeter",
+   "region": "South West",
+   "points": [
+    { "name": "Exeter", "lat": 50.72258, "lng": -3.5326 }
+   ]
+  },
+  {
+   "name": "Frome",
+   "region": "South West",
+   "points": [
+    { "name": "Frome", "lat": 51.23104, "lng": -2.32177 }
+   ]
+  },
+  {
+   "name": "Gloucester",
+   "region": "South West",
+   "points": [
+    { "name": "Gloucester", "lat": 51.86455, "lng": -2.24693 }
+   ]
+  },
+  {
+   "name": "Newton Abbot",
+   "region": "South West",
+   "points": [
+    { "name": "Newton Abbot", "lat": 50.53065, "lng": -3.60949 }
+   ]
+  },
+  {
+   "name": "Plymouth",
+   "region": "South West",
+   "points": [
+    { "name": "Plymouth", "lat": 50.37001, "lng": -4.14207 }
+   ]
+  },
+  {
+   "name": "Poole",
+   "region": "South West",
+   "points": [
+    { "name": "Poole", "lat": 50.71893, "lng": -1.97983 }
+   ]
+  },
+  {
+   "name": "Portsmouth",
+   "region": "South West",
+   "points": [
+    { "name": "Portsmouth", "lat": 50.79685, "lng": -1.09117 }
+   ]
+  },
+  {
+   "name": "Salisbury",
+   "region": "South West",
+   "points": [
+    { "name": "Salisbury", "lat": 51.07037, "lng": -1.79643 }
+   ]
+  },
+  {
+   "name": "Southampton",
+   "region": "South West",
+   "points": [
+    { "name": "Southampton", "lat": 50.90489, "lng": -1.40431 }
+   ]
+  },
+  {
+   "name": "Swindon",
+   "region": "South West",
+   "points": [
+    { "name": "Swindon", "lat": 51.56153, "lng": -1.78546 }
+   ]
+  },
+  {
+   "name": "Taunton",
+   "region": "South West",
+   "points": [
+    { "name": "Taunton", "lat": 51.01341, "lng": -3.10818 }
+   ]
+  },
+  {
+   "name": "Torquay",
+   "region": "South West",
+   "points": [
+    { "name": "Torquay", "lat": 50.46883, "lng": -3.53141 }
+   ]
+  },
+  {
+   "name": "Trowbridge",
+   "region": "South West",
+   "points": [
+    { "name": "Trowbridge", "lat": 51.32002, "lng": -2.20805 }
+   ]
+  },
+  {
+   "name": "Truro",
+   "region": "South West",
+   "points": [
+    { "name": "Truro", "lat": 50.26333, "lng": -5.05101 }
+   ]
+  },
+  {
+   "name": "Bangor",
+   "region": "Wales",
+   "points": [
+    { "name": "Bangor", "lat": 53.22796, "lng": -4.12821 }
+   ]
+  },
+  {
+   "name": "Bridgend",
+   "region": "Wales",
+   "points": [
+    { "name": "Bridgend", "lat": 51.5078, "lng": -3.57814 }
+   ]
+  },
+  {
+   "name": "Cardiff",
+   "region": "Wales",
+   "points": [
+    { "name": "Cardiff", "lat": 51.48, "lng": -3.17686 }
+   ]
+  },
+  {
+   "name": "Carmarthen",
+   "region": "Wales",
+   "points": [
+    { "name": "Carmarthen", "lat": 51.85646, "lng": -4.30574 }
+   ]
+  },
+  {
+   "name": "Merthyr Tydfil",
+   "region": "Wales",
+   "points": [
+    { "name": "Merthyr Tydfil", "lat": 51.74591, "lng": -3.37835 }
+   ]
+  },
+  {
+   "name": "Newport",
+   "region": "Wales",
+   "points": [
+    { "name": "Newport", "lat": 51.5879, "lng": -2.99674 }
+   ]
+  },
+  {
+   "name": "Swansea",
+   "region": "Wales",
+   "points": [
+    { "name": "Swansea", "lat": 51.62011, "lng": -3.94142 }
+   ]
+  },
+  {
+   "name": "Wales",
+   "region": "Wales",
+   "wholeRegion": true
+  },
+  {
+   "name": "Bournville",
+   "region": "West Midlands",
+   "points": [
+    { "name": "Bournville", "lat": 52.42802, "lng": -1.94011 }
+   ]
+  },
+  {
+   "name": "Cannock",
+   "region": "West Midlands",
+   "points": [
+    { "name": "Cannock", "lat": 52.68995, "lng": -2.03317 }
+   ]
+  },
+  {
+   "name": "Central Birmingham",
+   "region": "West Midlands",
+   "points": [
+    { "name": "Birmingham", "lat": 52.47928, "lng": -1.90294 }
+   ],
+   "meta": "Birmingham"
+  },
+  {
+   "name": "Coventry",
+   "region": "West Midlands",
+   "points": [
+    { "name": "Coventry", "lat": 52.40771, "lng": -1.50686 }
+   ]
+  },
+  {
+   "name": "Kidderminster",
+   "region": "West Midlands",
+   "points": [
+    { "name": "Kidderminster", "lat": 52.3882, "lng": -2.24923 }
+   ]
+  },
+  {
+   "name": "Solihull",
+   "region": "West Midlands",
+   "points": [
+    { "name": "Solihull", "lat": 52.41275, "lng": -1.77755 }
+   ]
+  },
+  {
+   "name": "Stoke",
+   "region": "West Midlands",
+   "points": [
+    { "name": "Stoke", "lat": 52.40487, "lng": -1.46026 }
+   ]
+  },
+  {
+   "name": "Stratford Upon Avon",
+   "region": "West Midlands",
+   "points": [
+    { "name": "Stratford Upon Avon", "lat": 52.19269, "lng": -1.70635 }
+   ]
+  },
+  {
+   "name": "Tamworth",
+   "region": "West Midlands",
+   "points": [
+    { "name": "Tamworth", "lat": 52.63343, "lng": -1.69245 }
+   ]
+  },
+  {
+   "name": "Telford",
+   "region": "West Midlands",
+   "points": [
+    { "name": "Telford", "lat": 52.6754, "lng": -2.44875 }
+   ]
+  },
+  {
+   "name": "Walsall",
+   "region": "West Midlands",
+   "points": [
+    { "name": "Walsall", "lat": 52.58622, "lng": -1.98034 }
+   ]
+  },
+  {
+   "name": "Wolves/Dudley",
+   "region": "West Midlands",
+   "points": [
+    { "name": "Wolverhampton", "lat": 52.5862, "lng": -2.12992 },
+    { "name": "Dudley", "lat": 52.51005, "lng": -2.08316 }
+   ]
+  },
+  {
+   "name": "Barnsley",
+   "region": "Yorkshire & Humber",
+   "points": [
+    { "name": "Barnsley", "lat": 53.55352, "lng": -1.48259 }
+   ]
+  },
+  {
+   "name": "Barnsley/Doncaster",
+   "region": "Yorkshire & Humber",
+   "points": [
+    { "name": "Barnsley", "lat": 53.55352, "lng": -1.48259 },
+    { "name": "Doncaster", "lat": 53.52272, "lng": -1.13235 }
+   ]
+  },
+  {
+   "name": "Bradford",
+   "region": "Yorkshire & Humber",
+   "points": [
+    { "name": "Bradford", "lat": 53.79078, "lng": -1.75456 }
+   ]
+  },
+  {
+   "name": "Harrogate",
+   "region": "Yorkshire & Humber",
+   "points": [
+    { "name": "Harrogate", "lat": 53.99374, "lng": -1.54309 }
+   ]
+  },
+  {
+   "name": "Hull",
+   "region": "Yorkshire & Humber",
+   "points": [
+    { "name": "Kingston upon Hull", "lat": 53.74459, "lng": -0.33258 }
+   ]
+  },
+  {
+   "name": "Leeds",
+   "region": "Yorkshire & Humber",
+   "points": [
+    { "name": "Leeds", "lat": 53.8007, "lng": -1.55026 }
+   ]
+  },
+  {
+   "name": "Scarborough",
+   "region": "Yorkshire & Humber",
+   "points": [
+    { "name": "Scarborough", "lat": 54.28158, "lng": -0.40221 }
+   ]
+  },
+  {
+   "name": "Scunthorpe",
+   "region": "Yorkshire & Humber",
+   "points": [
+    { "name": "Scunthorpe", "lat": 53.59189, "lng": -0.64676 }
+   ]
+  },
+  {
+   "name": "Sheffield",
+   "region": "Yorkshire & Humber",
+   "points": [
+    { "name": "Sheffield", "lat": 53.38251, "lng": -1.46854 }
+   ]
+  },
+  {
+   "name": "York",
+   "region": "Yorkshire & Humber",
+   "points": [
+    { "name": "York", "lat": 53.96201, "lng": -1.08367 }
+   ]
+  }
+ ]
+}

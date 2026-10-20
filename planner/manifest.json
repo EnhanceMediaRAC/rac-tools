@@ -14,6 +14,7 @@
     "planner/plan.js",
     "planner/onerac.js",
     "planner/snapshot.js",
+    "planner/locations.js",
     "planner/legacy_shape.js",
     "planner/app.js",
     "exports/text.js",
