@@ -6771,7 +6771,7 @@ function MonthOnMonth({ ws, month, role }) {
 }
 
 // What every live RAC conversion campaign targets on Google and Meta, through
-// the Windsor function, for Update locations. Signed in, like the spend pull.
+// the Windsor function, for What changed and update. Signed in, like the spend pull.
 async function windsorTargeting() {
   if (!sbSignedIn()) throw new Error('Sign in first, using the button at the top.');
   await sbFresh();
@@ -6804,8 +6804,8 @@ function PrioritiesTool({ container, patchMonth, month, ws }) {
     patchMonth({ priorities: next, demand });
   };
 
-  const views = [['grid', 'Vacancies'], ['changed', 'What changed'],
-                 ['trends', 'Trends'], ['mom', 'Month on month'], ['locations', 'Update locations']];
+  const views = [['grid', 'Vacancies'], ['changed', 'What changed and update'],
+                 ['trends', 'Trends'], ['mom', 'Month on month']];
 
   // An empty month used to return here, before the paste box rendered, so it
   // told you to paste and gave you nowhere to do it. Vacancies always renders;
@@ -6891,10 +6891,10 @@ function PrioritiesTool({ container, patchMonth, month, ws }) {
 
       {view === 'grid' && <PriorityGrid role={role} pri={pri} setPri={setPri} month={month} baseline={baseline} />}
       {view === 'changed' && <WhatChanged pri={pri} from={from} to={to} role={role} baseline={baseline} />}
+      {view === 'changed' && <RACUI.LocationUpdates pri={pri} from={from} to={to} role={role} fmtDay={fmtDay} getTargeting={windsorTargeting}
+        oneRacRegions={RAC.onerac.live((container.working || {}).oneRac, month)} />}
       {view === 'trends' && <TrendsView pri={pri} role={role} baseline={baseline} />}
       {view === 'mom' && <MonthOnMonth ws={ws} month={month} role={role} />}
-      {view === 'locations' && <RACUI.LocationUpdates pri={pri} month={month} fmtDay={fmtDay} getTargeting={windsorTargeting}
-        oneRacRegions={RAC.onerac.live((container.working || {}).oneRac, month)} />}
     </div>
   );
 }

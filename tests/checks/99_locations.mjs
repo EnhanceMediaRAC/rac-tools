@@ -90,6 +90,27 @@ export default function (check, { assert }) {
     return 'unknown town and missing campaign both reported';
   });
 
+  check('Update locations: each town that opened or closed says what happens on each platform, apart from what was already out of step', () => {
+    // Coventry closes today; Leeds was already missing before today.
+    const p = pri([row('Mobile Vehicle Technician - Coventry', 'West Midlands', 0, 1), row('Mobile Vehicle Technician - Central Birmingham', 'West Midlands', 1),
+      row('Mobile Vehicle Technician - Leeds', 'Yorkshire & Humber', 1)]);
+    const out = run(p, { google: [pin(YORKS, 53.75, -0.34)], meta: [adset(WM, 1, ['Birmingham', 'Coventry'])] });
+    const cov = out.townChanges.find(t => t.town === 'Coventry');
+    assert(cov && cov.change === 'closed' && cov.platforms.meta.status === 'remove' && cov.platforms.meta.campaign === WM, 'Coventry: remove on Meta');
+    assert(cov.platforms.google.status === 'noCampaign', 'Coventry: no Google West Midlands campaign here');
+    const yorks = out.campaigns.find(c => c.name === YORKS);
+    assert(yorks.add[0].town === 'Leeds' && yorks.add[0].fromChanges === false, 'Leeds is listed as already out of step');
+    assert(out.campaigns.find(c => c.name === WM).remove[0].fromChanges === true, 'Coventry is listed as from these changes');
+    // OneRAC: a town closing for one role while open for the other stays.
+    const one = 'RAC | Conversion | OneRAC | East Midlands | GS | Oct 26 | 3037';
+    const reg2 = { ...register, locations: [...register.locations, { name: 'Derby', region: 'East Midlands', points: [{ name: 'Derby', lat: 52.9225, lng: -1.4746 }] }] };
+    const both = RAC.locations.preview({ register: reg2, pri: pri([row('Mobile Vehicle Technician - Derby', 'East Midlands', 0, 1)], [row('Roadside Technician - Derby', 'East Midlands', 2)]),
+      date: '2026-10-20', prevDate: '2026-10-19', oneRacRegions: ['East Midlands'], regions: REGIONS, live: { google: [pin(one, 52.92, -1.47)] } });
+    const derby = both.townChanges.find(t => t.town === 'Derby');
+    assert(derby.platforms.google.status === 'otherRole', 'Derby stays on OneRAC while Patrol is open: got ' + derby.platforms.google.status);
+    return 'Coventry: remove on Meta, no Google campaign; Leeds kept apart as already out of step; Derby kept on OneRAC for Patrol';
+  });
+
   check('Update locations: the location list gives every town one region and a point', () => {
     const names = new Set();
     real.locations.forEach(l => {

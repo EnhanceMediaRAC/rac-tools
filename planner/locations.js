@@ -218,10 +218,57 @@
       }));
     }
 
+    // Towns that opened or closed between the two days (a town is open while
+    // any of its jobs for the role is), and what each means on each platform.
+    //   add / remove     the change listed on that campaign
+    //   covered          the campaign targets the whole region (London)
+    //   already          opened, and the campaign already targets it
+    //   otherRole        closed for this role, still open for the other (OneRAC)
+    //   notTargeted      closed, and the campaign did not target it
+    //   leftAlone        opened, but the campaign is held back (its ad sets differ)
+    //   noCampaign       no live campaign for that role and region
+    const townChanges = [];
+    if (opts.prevDate && opts.prevDate !== opts.date) {
+      RAC.ROLES.forEach(role => {
+        const at = (d) => {
+          const m = new Map();
+          (((pri.roles || {})[role] || {}).rows || []).forEach(row => {
+            const loc = byName.get(norm(townOf(row.location)));
+            if (loc) m.set(loc.name, (m.get(loc.name) || 0) + (((row.v || {})[d]) || 0));
+          });
+          return m;
+        };
+        const a = at(opts.prevDate), b = at(opts.date);
+        new Set([...a.keys(), ...b.keys()]).forEach(name => {
+          const was = (a.get(name) || 0) > 0, now = (b.get(name) || 0) > 0;
+          if (was === now) return;
+          const loc = byName.get(norm(name)), tc = { role, town: name, region: loc.region, change: now ? 'opened' : 'closed', platforms: {} };
+          ['google', 'meta'].forEach(platform => {
+            const c = campaigns.find(x => x.platform === platform && x.region === loc.region && (x.kind === role || x.kind === 'OneRAC'));
+            let status = 'noCampaign';
+            if (c) {
+              if (c.add.some(x => x.town === name)) status = 'add';
+              else if (c.remove.some(x => x.town === name)) status = 'remove';
+              else if (c.wholeRegion) status = 'covered';
+              else if (c.keep.includes(name)) status = now ? 'already' : 'otherRole';
+              else status = now ? 'leftAlone' : 'notTargeted';   // opened but held back (ad sets differ)
+            }
+            tc.platforms[platform] = { status, campaign: c ? c.name : null, question: c ? c.question : null };
+          });
+          townChanges.push(tc);
+        });
+      });
+      // Mark each campaign change that comes from these days, so the rest
+      // reads as what was already out of step before them.
+      campaigns.forEach(c => [...c.add, ...c.remove].forEach(x => {
+        x.fromChanges = townChanges.some(t => t.town === x.town && (c.kind === 'OneRAC' || c.kind === t.role));
+      }));
+    }
+
     const changes = campaigns.filter(c => c.add.length || c.remove.length || c.question);
     return {
       date: opts.date, prevDate: opts.prevDate || null, radius_km: radius,
-      campaigns, changes, skipped, noCampaign, indeed,
+      campaigns, changes, skipped, noCampaign, indeed, townChanges,
       unknownTowns: [...unknown.values()],
       counts: { campaigns: campaigns.length, withChanges: changes.length,
         add: RAC.util.sum(campaigns.map(c => c.add.length)), remove: RAC.util.sum(campaigns.map(c => c.remove.length)) },
