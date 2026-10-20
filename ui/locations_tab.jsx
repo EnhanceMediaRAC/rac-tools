@@ -31,7 +31,8 @@
     if (pause) return { platform: c.platform, campaignId: c.id, campaignName: c.name, adsetIds: c.adsets, pause: true };
     return { platform: c.platform, campaignId: c.id, campaignName: c.name, adsetIds: c.adsets,
       add: c.add.flatMap(a => a.points.map(p => ({ town: a.town, lat: p.lat, lng: p.lng }))),
-      remove: c.remove.map(r => ({ town: r.town, lat: r.lat, lng: r.lng, radius: r.radius, key: r.key, city: r.city })) };
+      remove: c.remove.map(r => ({ town: r.town, lat: r.lat, lng: r.lng, radius: r.radius, key: r.key, city: r.city, place: r.place })),
+      replace: c.replace.map(r => ({ town: r.town, place: r.place, key: r.key, lat: r.points[0].lat, lng: r.points[0].lng, radius: r.points[0].radius_km })) };
   }
   const WAIT_MIN = 15;   // Windsor's copy of the targeting can lag this long
 
@@ -45,6 +46,9 @@
     const [picked, setPicked] = useState(null);     // campaign names ticked in the confirm step
     const [run, setRun] = useState({ status: 'idle' });
     const [lastApplied, setLastApplied] = useState(null);
+    const [copied, setCopied] = useState(false);
+    const written = from && to ? RAC.locations.writtenUpdate(pri, from, to) : '';
+    const copy = () => navigator.clipboard.writeText(written).then(() => { setCopied(true); setTimeout(() => setCopied(false), 2000); });
     useEffect(() => {
       fetch('data/locations.json').then(r => r.json()).then(setRegister)
         .catch(e => setState({ status: 'error', msg: 'Could not read the location list: ' + e.message }));
@@ -61,18 +65,19 @@
     const mine = (c) => c.kind === role || c.kind === 'OneRAC';
     const townChanges = out ? out.townChanges.filter(t => t.role === role) : [];
     const drift = out ? out.campaigns.filter(mine).map(c => ({ c, add: c.add.filter(x => !x.fromChanges), remove: c.remove.filter(x => !x.fromChanges) }))
-      .filter(x => x.add.length || x.remove.length || x.c.other.length || x.c.unmatched.length || (x.c.question && !townChanges.length)) : [];
+      .filter(x => x.add.length || x.remove.length || x.c.replace.length || x.c.other.length || x.c.unmatched.length || (x.c.question && !townChanges.length)) : [];
+    const swaps = (c) => c.replace.map(x => `replace ${x.place} (place) with ${x.town} (${x.points[0].radius_km} km)`);
     const noCampaign = out ? out.noCampaign.filter(x => x.role === role || x.role === 'OneRAC') : [];
     const unknown = out ? out.unknownTowns.filter(x => x.role === role) : [];
     const indeedFor = (town) => (out ? out.indeed.filter(x => x.role === role && RAC.locations.townOf(x.job).toLowerCase() === town.toLowerCase()) : []);
 
     // What can be sent: every campaign for this role with towns to change,
     // and any whose pause question was answered yes.
-    const sendable = out ? out.campaigns.filter(mine).filter(c => !c.wholeRegion && !c.notes.length && (c.question ? answers[c.name] === 'yes' : (c.add.length || c.remove.length))) : [];
+    const sendable = out ? out.campaigns.filter(mine).filter(c => !c.wholeRegion && !c.notes.length && (c.question ? answers[c.name] === 'yes' : (c.add.length || c.remove.length || c.replace.length))) : [];
     const ticked = sendable.filter(c => !picked || picked.includes(c.name));
     const waiting = lastApplied && (Date.now() - lastApplied) < WAIT_MIN * 60000;
     const describe = (c) => (c.question && answers[c.name] === 'yes' ? 'pause the campaign'
-      : [c.add.length && 'add ' + c.add.map(x => `${x.town} (${out.radius_km} km)`).join(', '), c.remove.length && 'remove ' + c.remove.map(x => x.town).join(', ')].filter(Boolean).join('; '));
+      : [c.add.length && 'add ' + c.add.map(x => `${x.town} (${out.radius_km} km)`).join(', '), c.remove.length && 'remove ' + c.remove.map(x => x.town).join(', '), ...swaps(c)].filter(Boolean).join('; '));
     const send = async (test) => {
       setRun({ status: 'busy', test });
       try {
@@ -89,6 +94,15 @@
           <div className="card-sub">{from && fmtDay(from)} to {to && fmtDay(to)}</div>
         </div>
         <div className="card-body">
+          <div className="section-label">Written update ({from && fmtDay(from)} to {to && fmtDay(to)}, both roles)</div>
+          <textarea readOnly value={written} data-field="written-update" rows={Math.min(18, written.split('\n').length + 1)}
+            style={{ width: '100%', fontFamily: 'inherit', fontSize: 13, padding: 10, boxSizing: 'border-box' }} />
+          <div style={{ margin: '6px 0 18px', display: 'flex', alignItems: 'center', gap: 12 }}>
+            <button className="btn btn-sm" disabled={!written} onClick={copy}>{copied ? 'Copied' : 'Copy'}</button>
+            <span className="help-text">Every job that opened or closed between the two days, as RAC names it.</span>
+          </div>
+
+          <div className="section-label">Google and Meta</div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
             <button className="btn btn-primary" disabled={!register || !dates.length || state.status === 'busy'} onClick={read}>
               {state.status === 'busy' ? 'Reading Google and Meta…' : state.live ? 'Read Google and Meta again' : 'Check Google and Meta'}
@@ -136,7 +150,7 @@
               {drift.map(({ c, add, remove }) => (
                 <div key={c.platform + c.name} className="help-text" style={{ marginBottom: 8 }} data-campaign={c.name}>
                   <strong>{PLATFORM[c.platform]}</strong> &middot; {c.name}:{' '}
-                  {[add.length && 'add ' + add.map(x => `${x.town} (${out.radius_km} km)`).join(', '), remove.length && 'remove ' + remove.map(x => x.town).join(', ')].filter(Boolean).join('; ') || 'no town to change'}
+                  {[add.length && 'add ' + add.map(x => `${x.town} (${out.radius_km} km)`).join(', '), remove.length && 'remove ' + remove.map(x => x.town).join(', '), ...swaps(c)].filter(Boolean).join('; ') || 'no town to change'}
                   {c.question && !townChanges.length && <Question q={c.question} name={c.name} answers={answers} setAnswers={setAnswers} />}
                   {c.other.length > 0 && <div>Set up differently, left alone: {c.other.join(', ')}</div>}
                   {c.unmatched.length > 0 && <div>Not a town on the list, left alone: {c.unmatched.join(', ')}</div>}

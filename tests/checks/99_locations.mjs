@@ -67,8 +67,15 @@ export default function (check, { assert }) {
     const differ = run(p, { meta: [adset(WM, 1, ['Birmingham', 'Coventry']), adset(WM, 2, ['Birmingham'])] }).campaigns[0];
     assert(!differ.remove.length && !differ.add.length && differ.notes.length, 'ad sets that differ should be left alone');
     const place = run(p, { meta: [adset(WM, 1, ['Birmingham'], { places: [{ name: 'University of Leeds' }] })] }).campaigns[0];
-    assert(place.other.includes('place: University of Leeds'), 'a named place is listed and left alone');
-    return 'aliases match, Coventry removed from both ad sets, differing ad sets and named places left alone';
+    assert(place.other.includes('place: University of Leeds'), 'a named place with no point is listed and left alone');
+    // A named place with a point counts as its town and is swapped for it.
+    const YM = 'RAC | Conversion | SMR Mechanics | Yorkshire & the Humber | Meta | Aug 26 | 3037';
+    const uol = { key: '93693583250', name: 'University of Leeds', latitude: 53.8065, longitude: -1.556, radius: 30, distance_unit: 'kilometer' };
+    const swap = run(pri([row('Mobile Vehicle Technician - Leeds', 'Yorkshire & Humber', 1), row('Mobile Vehicle Technician - Hull', 'Yorkshire & Humber', 1)]),
+      { meta: [adset(YM, 1, [], { places: [uol], custom_locations: [{ latitude: 53.75, longitude: -0.34, radius: 30, distance_unit: 'kilometer' }] })] }).campaigns[0];
+    assert(!swap.add.length && !swap.remove.length, 'Leeds is not added on top of the place');
+    assert(swap.replace.length === 1 && swap.replace[0].town === 'Leeds' && swap.replace[0].key === uol.key && swap.replace[0].points[0].radius_km === 30, 'University of Leeds is replaced by Leeds at 30 km');
+    return 'aliases match, Coventry removed from both ad sets, differing ad sets left alone; University of Leeds offered as a swap for Leeds at its 30 km';
   });
 
   check('Update locations: London is covered as a whole, OneRAC takes both roles, UK-wide and idle campaigns are left alone', () => {
@@ -162,6 +169,10 @@ export default function (check, { assert }) {
     assert(/no longer on the ad set/.test(metaPlan(t, { ...MC, remove: [{ town: 'Leeds', key: '9', city: 'Leeds' }] }).skip), 'a town already gone stops the change');
     assert(/no locations/.test(metaPlan(t, { ...MC, remove: [{ town: 'Central Birmingham', key: '1' }, { town: 'Coventry', key: '2' }] }).skip), 'never emptied');
     assert(metaPlan(t, { ...MC, pause: true }).action === 'pause_campaign', 'pause');
+    const tp = { ...t, geo_locations: { places: [{ key: '936', name: 'University of Leeds', latitude: 53.8065, longitude: -1.556, radius: 30, distance_unit: 'kilometer' }], location_types: ['home'] } };
+    const sw = metaPlan(tp, { ...MC, replace: [{ town: 'Leeds', place: 'University of Leeds', key: '936', lat: 53.8007, lng: -1.5503, radius: 30 }] });
+    assert(!sw.targeting.geo_locations.places && sw.targeting.geo_locations.custom_locations[0].radius === 30 && sw.targeting.geo_locations.custom_locations[0].latitude === 53.8007, 'place swapped for a Leeds pin at 30 km');
+    assert(/only Meta/.test(checkRequest([{ ...GC, replace: [{ town: 'Leeds', key: '936', lat: 53.8, lng: -1.55, radius: 30 }] }])), 'no place swaps on Google');
     return 'Coventry removed, Birmingham kept, Walsall added as a 25 km pin; age, placements and location types untouched; gone towns and emptying stop it';
   });
 
@@ -176,6 +187,19 @@ export default function (check, { assert }) {
     assert(/if \(isCron \|\| !email\) return res\.status\(403\)/.test(api), 'a signed-in person only, never the scheduled pull');
     assert(/req\.method !== "POST"/.test(api), 'changes only by POST');
     return 'Meta remove carries the city key; the endpoint sends only on production, signed in, by POST';
+  });
+
+  check('Written update: every job that opened or closed, by role, in the team’s usual wording', () => {
+    const p = pri([row('Mobile Vehicle Technician - Coventry', 'West Midlands', 0, 1)],
+      [row('Roadside Technician - Leeds', 'Yorkshire & Humber', 2, 0), row('Superflex Roadside Patrol - York', 'Yorkshire & Humber', 1)]);
+    const text = RAC.locations.writtenUpdate(p, '2026-10-19', '2026-10-20');
+    const want = "Please find below all details of today's update to location priorities, covering 19th Oct to 20th Oct.\n\n" +
+      'SMR\n\nRoles/locations added:\n\n• None\n\nRoles/locations removed:\n\n• Mobile Vehicle Technician - Coventry\n\n' +
+      'Patrol\n\nRoles/locations added:\n\n• Roadside Technician - Leeds\n\nRoles/locations removed:\n\n• None';
+    assert(text === want, 'got:\n' + text);
+    const d = (iso) => RAC.locations.writtenUpdate(pri([]), iso, iso).match(/covering (\S+ \S+)/)[1];
+    assert(d('2026-10-01') === '1st Oct' && d('2026-10-02') === '2nd Oct' && d('2026-10-03') === '3rd Oct' && d('2026-10-11') === '11th Oct' && d('2026-10-22') === '22nd Oct', 'day endings');
+    return 'Coventry removed for SMR, Leeds added for Patrol, None where nothing moved; 1st, 2nd, 3rd, 11th, 22nd';
   });
 
   check('Update locations: the location list gives every town one region and a point', () => {

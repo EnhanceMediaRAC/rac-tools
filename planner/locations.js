@@ -24,8 +24,12 @@
 //     are (user decision, 20 October 2026).
 //   - A campaign whose last open town has closed is never emptied: Google
 //     reads no locations as the whole UK. It asks whether to pause instead.
-//   - Anything else on a campaign (a named place, a pin or city that is no
-//     town on the list) is listed and left alone.
+//   - A Meta named place with a point (e.g. "University of Leeds") counts as
+//     the town it sits in. While that town is open, the preview offers to
+//     replace the place with the town at the place's radius, so campaigns
+//     are set up as towns (user decision, 20 October 2026).
+//   - Anything else on a campaign (a place with no point, a pin or city that
+//     is no town on the list) is listed and left alone.
 //   - Indeed cannot be changed from here, so its list is every job that
 //     opened or closed between the two days, for doing by hand.
 //
@@ -106,7 +110,11 @@
       if (c.adsets.length > 1) return;   // every ad set is checked against the first below
       (g.cities || []).forEach(x => c.targets.push({ city: x.name, key: x.key, radius: Number(x.radius), unit: unit(x.distance_unit) }));
       (g.custom_locations || []).forEach(x => c.targets.push({ lat: Number(x.latitude), lng: Number(x.longitude), radius: Number(x.radius), unit: unit(x.distance_unit) }));
-      (g.places || []).forEach(x => c.other.push('place: ' + (x.name || x.key)));
+      // A named place (e.g. "University of Leeds") with a point is matched to
+      // a town by distance; set up properly, it is that town, not the place.
+      (g.places || []).forEach(x => (x.latitude != null && x.longitude != null
+        ? c.targets.push({ place: x.name || String(x.key), key: x.key, lat: Number(x.latitude), lng: Number(x.longitude), radius: Number(x.radius), unit: unit(x.distance_unit) })
+        : c.other.push('place: ' + (x.name || x.key))));
       (g.regions || []).forEach(x => c.other.push('region: ' + (x.name || x.key)));
       (g.countries || []).forEach(x => c.other.push('country: ' + x));
     });
@@ -158,7 +166,8 @@
       reg.locations.forEach(l => (l.points || []).forEach(p => { const d = km(t, p); if (d < bestKm) { best = l; bestKm = d; } }));
       return bestKm <= matchKm ? best : null;
     };
-    const label = (t) => t.city ? `${t.city} (${t.radius} ${t.unit})` : `pin ${t.lat.toFixed(4)}, ${t.lng.toFixed(4)} (${t.radius} ${t.unit})`;
+    const label = (t) => t.city ? `${t.city} (${t.radius} ${t.unit})` : t.place ? `${t.place} (place, ${t.radius} ${t.unit})`
+      : `pin ${t.lat.toFixed(4)}, ${t.lng.toFixed(4)} (${t.radius} ${t.unit})`;
 
     const campaigns = [], skipped = [], covered = new Set();
     liveCampaigns(opts.live).forEach(c => {
@@ -167,7 +176,7 @@
       const want = wanted(p.roles, p.region);
       p.roles.forEach(role => covered.add(c.platform + '|' + role + '|' + p.region));
       const out = { platform: c.platform, name: c.name, id: c.id, kind: p.kind, region: p.region,
-        adsets: c.adsets.map(a => a.id), add: [], remove: [], keep: [], other: c.other.slice(), unmatched: [],
+        adsets: c.adsets.map(a => a.id), add: [], remove: [], replace: [], keep: [], other: c.other.slice(), unmatched: [],
         openTowns: [...want.values()].map(v => v.loc.name).sort(), question: null, notes: [] };
       if (c.adsetsDiffer) out.notes.push('Its ad sets target different locations, so it is left alone until they match.');
       if (wholeRegion(p.region)) {
@@ -180,9 +189,14 @@
       c.targets.forEach(t => {
         const l = townFor(t);
         if (!l) { out.unmatched.push(label(t)); return; }
-        if (want.has(l.name)) { hit.add(l.name); out.keep.push(l.name); }
-        // What to take off: a Google or Meta pin by its point, a Meta city by its key.
-        else out.remove.push({ town: l.name, target: label(t), ...(t.city ? { city: t.city, key: t.key } : { lat: t.lat, lng: t.lng, radius: t.radius }) });
+        // What to take off: a Google or Meta pin by its point, a Meta city or place by its key.
+        const what = t.city ? { city: t.city, key: t.key } : t.place ? { place: t.place, key: t.key } : { lat: t.lat, lng: t.lng, radius: t.radius };
+        if (want.has(l.name)) {
+          hit.add(l.name); out.keep.push(l.name);
+          // Open, but targeted as a named place: swap it for the town itself,
+          // keeping the place's radius (existing radii stay as they are).
+          if (t.place) out.replace.push({ town: l.name, target: label(t), ...what, points: l.points.map(p => ({ ...p, radius_km: t.unit === 'km' ? t.radius : Math.round(t.radius * 1.609) })) });
+        } else out.remove.push({ town: l.name, target: label(t), ...what });
       });
       want.forEach((v, name) => {
         if (hit.has(name)) return;
@@ -193,7 +207,7 @@
       if (!out.keep.length && !out.add.length && out.remove.length) {
         out.question = `This is the last open location in ${c.name}. Should I pause this campaign?`;
       }
-      if (c.adsetsDiffer) { out.add = []; out.remove = []; }
+      if (c.adsetsDiffer) { out.add = []; out.remove = []; out.replace = []; }
       campaigns.push(out);
     });
 
@@ -266,15 +280,38 @@
       }));
     }
 
-    const changes = campaigns.filter(c => c.add.length || c.remove.length || c.question);
+    const changes = campaigns.filter(c => c.add.length || c.remove.length || c.replace.length || c.question);
     return {
       date: opts.date, prevDate: opts.prevDate || null, radius_km: radius,
       campaigns, changes, skipped, noCampaign, indeed, townChanges,
       unknownTowns: [...unknown.values()],
       counts: { campaigns: campaigns.length, withChanges: changes.length,
-        add: RAC.util.sum(campaigns.map(c => c.add.length)), remove: RAC.util.sum(campaigns.map(c => c.remove.length)) },
+        add: RAC.util.sum(campaigns.map(c => c.add.length)), remove: RAC.util.sum(campaigns.map(c => c.remove.length)),
+        replace: RAC.util.sum(campaigns.map(c => c.replace.length)) },
     };
   }
 
-  RAC.locations = { townOf, preview, parseCampaign, liveCampaigns };
+  // The written update the team sends after each change, in its usual form:
+  // every job that opened or closed between the two days, by role, with RAC's
+  // own job names (the same rows as What changed).
+  const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  function dayName(iso) {
+    const [, m, d] = String(iso).split('-').map(Number);
+    const th = (d % 100 >= 11 && d % 100 <= 13) ? 'th' : ({ 1: 'st', 2: 'nd', 3: 'rd' }[d % 10] || 'th');
+    return d + th + ' ' + MONTHS[m - 1];
+  }
+  function writtenUpdate(pri, from, to) {
+    const bullets = (rows) => (rows.length ? rows.map(r => '• ' + r.location).join('\n') : '• None');
+    const open = (r, d) => (((r.v || {})[d]) || 0) > 0;
+    const parts = [`Please find below all details of today's update to location priorities, covering ${dayName(from)} to ${dayName(to)}.`];
+    RAC.ROLES.forEach(role => {
+      const rows = (((pri && pri.roles) || {})[role] || {}).rows || [];
+      parts.push(role,
+        'Roles/locations added:', bullets(rows.filter(r => !open(r, from) && open(r, to))),
+        'Roles/locations removed:', bullets(rows.filter(r => open(r, from) && !open(r, to))));
+    });
+    return parts.join('\n\n');
+  }
+
+  RAC.locations = { townOf, preview, parseCampaign, liveCampaigns, writtenUpdate };
 })(window.RAC = window.RAC || {});

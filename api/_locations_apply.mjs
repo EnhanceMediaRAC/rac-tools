@@ -16,7 +16,9 @@
 //     person, because the whole location set is replaced on each change.
 //     Pins kept keep their radius and bid adjustment.
 //   - Meta: only geo_locations changes; the rest of each ad set's targeting
-//     is sent back exactly as read. New towns are 25 km pins.
+//     is sent back exactly as read. New towns are 25 km pins. A named place
+//     standing for an open town is swapped for a pin on that town at the
+//     place's radius.
 
 export const ACCOUNTS = { google: '904-497-1739', meta: '652299511175883' };
 export const MAX_CAMPAIGNS = 12;
@@ -40,8 +42,10 @@ export function checkRequest(changes) {
     if (!['google', 'meta'].includes(c.platform)) return 'Unknown platform ' + c.platform;
     const bad = campaignAllowed(c.campaignName);
     if (bad) return c.campaignName + ': ' + bad;
-    if (((c.add || []).length + (c.remove || []).length) > MAX_TOWNS) return `${c.campaignName}: at most ${MAX_TOWNS} towns at a time.`;
-    if ((c.add || []).some(a => !(Number.isFinite(a.lat) && Number.isFinite(a.lng) && a.lat > 49.8 && a.lat < 60.9 && a.lng > -8.2 && a.lng < 1.8))) return c.campaignName + ': a town to add has no UK point.';
+    if (((c.add || []).length + (c.remove || []).length + (c.replace || []).length) > MAX_TOWNS) return `${c.campaignName}: at most ${MAX_TOWNS} towns at a time.`;
+    if ((c.replace || []).length && c.platform !== 'meta') return `${c.campaignName}: only Meta has named places to replace.`;
+    if ((c.replace || []).some(a => !(a.radius > 0 && a.radius <= 80))) return `${c.campaignName}: a replacement radius is out of range.`;
+    if ([...(c.add || []), ...(c.replace || [])].some(a =>!(Number.isFinite(a.lat) && Number.isFinite(a.lng) && a.lat > 49.8 && a.lat < 60.9 && a.lng > -8.2 && a.lng < 1.8))) return c.campaignName + ': a town to add has no UK point.';
   }
   return null;
 }
@@ -83,9 +87,15 @@ export function metaPlan(targeting, change, radiusKm = 25) {
   if (change.pause) return { action: 'pause_campaign', params: { campaign_id: String(change.campaignId) } };
   const t = JSON.parse(JSON.stringify(targeting || {}));
   const g = t.geo_locations = t.geo_locations || {};
-  const cities = (g.cities || []).slice(), pins = (g.custom_locations || []).slice();
-  for (const r of change.remove || []) {
-    if (r.key || r.city) {
+  const cities = (g.cities || []).slice(), pins = (g.custom_locations || []).slice(), places = (g.places || []).slice();
+  // A replace takes a named place off and puts its town on at the same radius.
+  const replace = change.replace || [];
+  for (const r of [...(change.remove || []), ...replace.map(x => ({ ...x, place: x.place || true }))]) {
+    if (r.place) {
+      const i = places.findIndex(p => String(p.key) === String(r.key));
+      if (i < 0) return { skip: `${r.town} is no longer on the ad set; check again before updating` };
+      places.splice(i, 1);
+    } else if (r.key || r.city) {
       const i = cities.findIndex(c => (r.key && String(c.key) === String(r.key)) || (!r.key && c.name === r.city));
       if (i < 0) return { skip: `${r.town} is no longer on the ad set; check again before updating` };
       cities.splice(i, 1);
@@ -96,8 +106,10 @@ export function metaPlan(targeting, change, radiusKm = 25) {
     }
   }
   (change.add || []).forEach(a => pins.push({ latitude: a.lat, longitude: a.lng, radius: radiusKm, distance_unit: 'kilometer' }));
+  replace.forEach(a => pins.push({ latitude: a.lat, longitude: a.lng, radius: a.radius, distance_unit: 'kilometer' }));
   if (cities.length) g.cities = cities; else delete g.cities;
   if (pins.length) g.custom_locations = pins; else delete g.custom_locations;
+  if (places.length) g.places = places; else delete g.places;
   const left = (g.cities || []).length + (g.custom_locations || []).length + (g.places || []).length + (g.regions || []).length + (g.countries || []).length;
   if (!left) return { skip: 'that would leave it with no locations; pause it instead' };
   return { action: 'update_adset', targeting: t };
