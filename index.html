@@ -28,6 +28,7 @@
 <script src="planner/plan.js"></script>
 <script src="planner/onerac.js"></script>
 <script src="planner/snapshot.js"></script>
+<script src="planner/locations.js"></script>
 <script src="planner/legacy_shape.js"></script>
 <script src="planner/app.js"></script>
 <script src="exports/text.js"></script>
@@ -618,6 +619,7 @@ input[type=range]::-moz-range-thumb {
 <script type="text/babel" src="ui/assumptions_tab.jsx"></script>
 <script type="text/babel" src="ui/market_table.jsx"></script>
 <script type="text/babel" src="ui/cost_limits.jsx"></script>
+<script type="text/babel" src="ui/locations_tab.jsx"></script>
 <script type="text/babel" data-type="module">
 const { useState, useEffect, useMemo, useRef, createContext, useContext } = React;
 
@@ -6768,6 +6770,19 @@ function MonthOnMonth({ ws, month, role }) {
   );
 }
 
+// What every live RAC conversion campaign targets on Google and Meta, through
+// the Windsor function, for Update locations. Signed in, like the spend pull.
+async function windsorTargeting() {
+  if (!sbSignedIn()) throw new Error('Sign in first, using the button at the top.');
+  await sbFresh();
+  const call = () => fetch('/api/windsor-spend?targeting=1', { headers: { Authorization: 'Bearer ' + (SB_TOKEN && SB_TOKEN.access_token) } });
+  let r = await call();
+  if (r.status === 401 && await sbRefresh()) r = await call();
+  const j = await r.json();
+  if (!r.ok) throw new Error(j.error || ('Request failed: ' + r.status));
+  return j;
+}
+
 function PrioritiesTool({ container, patchMonth, month, ws }) {
   const [role, setRole] = useState('SMR');
   const [view, setView] = useState('grid');
@@ -6790,7 +6805,7 @@ function PrioritiesTool({ container, patchMonth, month, ws }) {
   };
 
   const views = [['grid', 'Vacancies'], ['changed', 'What changed'],
-                 ['trends', 'Trends'], ['mom', 'Month on month']];
+                 ['trends', 'Trends'], ['mom', 'Month on month'], ['locations', 'Update locations']];
 
   // An empty month used to return here, before the paste box rendered, so it
   // told you to paste and gave you nowhere to do it. Vacancies always renders;
@@ -6878,6 +6893,8 @@ function PrioritiesTool({ container, patchMonth, month, ws }) {
       {view === 'changed' && <WhatChanged pri={pri} from={from} to={to} role={role} baseline={baseline} />}
       {view === 'trends' && <TrendsView pri={pri} role={role} baseline={baseline} />}
       {view === 'mom' && <MonthOnMonth ws={ws} month={month} role={role} />}
+      {view === 'locations' && <RACUI.LocationUpdates pri={pri} month={month} fmtDay={fmtDay} getTargeting={windsorTargeting}
+        oneRacRegions={RAC.onerac.live((container.working || {}).oneRac, month)} />}
     </div>
   );
 }

@@ -90,6 +90,34 @@ async function pull(c, apiKey, from, to) {
   return { rows: [...out.values()], appsError: null };
 }
 
+// Location targeting, last 7 days so every live campaign has a row. Only
+// enabled RAC conversion campaigns are handed back; Google's criteria rows
+// carry every kind of criterion, and the preview keeps the locations.
+const RAC_CONVERSION = "RAC | Conversion |";
+const TARGETING = {
+  google_ads: { live: (x) => x.campaign_status === "ENABLED", fields: ["campaign", "campaign_id", "campaign_status",
+    "campaign_criterion_negative", "campaign_criterion_location_name",
+    "campaign_criterion_proximity_radius", "campaign_criterion_proximity_radius_units",
+    "campaign_criterion_proximity_geo_point_latitude_in_micro_degrees",
+    "campaign_criterion_proximity_geo_point_longitude_in_micro_degrees"] },
+  facebook: { live: (x) => x.adset_effective_status === "ACTIVE", fields: ["campaign", "campaign_id",
+    "adset_id", "adset_name", "adset_effective_status", "adset_targeting"] },
+};
+
+async function targeting(apiKey) {
+  const to = new Date().toISOString().slice(0, 10);
+  const from = new Date(Date.now() - 7 * 864e5).toISOString().slice(0, 10);
+  const out = { from, to, google: [], meta: [], errors: [] };
+  for (const [id, t] of Object.entries(TARGETING)) {
+    try {
+      const rows = (await windsor(id, apiKey, from, to, t.fields))
+        .filter(x => String(x.campaign || "").startsWith(RAC_CONVERSION) && t.live(x));
+      out[id === "facebook" ? "meta" : "google"] = rows;
+    } catch (e) { out.errors.push({ connector: id, error: String(e.message || e) }); }
+  }
+  return out;
+}
+
 export default async function handler(req, res) {
   try {
     // GET /api/windsor-spend?version=1 returns the deployed commit, for the
@@ -152,6 +180,10 @@ export default async function handler(req, res) {
     }
 
     const q = req.query || {};
+    // GET /api/windsor-spend?targeting=1: the locations every live RAC
+    // conversion campaign targets on Google and Meta, for the Update
+    // locations preview (planner/locations.js). Reads only.
+    if (q.targeting) return res.status(200).json(await targeting(WINDSOR_API_KEY));
     const from = (q.from || "").trim();
     const to = (q.to || "").trim();
     const isDate = (s) => /^\d{4}-\d{2}-\d{2}$/.test(s);
