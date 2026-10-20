@@ -21,6 +21,7 @@
 //   CRON_SECRET                - optional, for a scheduled pull
 
 import { createClient } from "@supabase/supabase-js";
+import { ACCOUNTS, checkRequest, googlePlan, metaPlan } from "./_locations_apply.mjs";
 
 const WINDSOR_BASE = "https://connectors.windsor.ai";
 const ENHANCE_DOMAIN = "@enhancemedia.co.uk";
@@ -118,6 +119,91 @@ async function targeting(apiKey) {
   return out;
 }
 
+// Windsor makes changes only through its MCP server, which takes the same API
+// key. Three calls: start a session, say it has started, call the tool.
+async function windsorTool(apiKey, name, args) {
+  const url = "https://mcp.windsor.ai/";
+  const headers = { Authorization: "Bearer " + apiKey, "Content-Type": "application/json", Accept: "application/json, text/event-stream" };
+  const send = async (body, session) => {
+    const r = await fetch(url, { method: "POST", headers: session ? { ...headers, "Mcp-Session-Id": session } : headers, body: JSON.stringify(body) });
+    if (!r.ok && r.status !== 202) throw new Error(`Windsor MCP returned ${r.status}`);
+    const text = await r.text();
+    // Either plain JSON or a stream of "data:" lines; the answer is the last one.
+    const data = text.trim().startsWith("{") ? text : (text.split("\n").filter(l => l.startsWith("data:")).pop() || "").slice(5);
+    return { session: r.headers.get("mcp-session-id") || session, msg: data ? JSON.parse(data) : null };
+  };
+  const init = await send({ jsonrpc: "2.0", id: 1, method: "initialize",
+    params: { protocolVersion: "2025-03-26", capabilities: {}, clientInfo: { name: "rac-tools", version: "1" } } });
+  await send({ jsonrpc: "2.0", method: "notifications/initialized" }, init.session);
+  const { msg } = await send({ jsonrpc: "2.0", id: 2, method: "tools/call", params: { name, arguments: args } }, init.session);
+  if (!msg || msg.error) throw new Error((msg && msg.error && msg.error.message) || "No answer from Windsor");
+  const text = ((msg.result && msg.result.content) || []).map(c => c.text || "").join(" ");
+  if (msg.result && msg.result.isError) throw new Error(text || "Windsor refused the change");
+  return text;
+}
+
+// POST /api/windsor-spend?apply=1 { changes, test }
+// Each change: { platform, campaignId, campaignName, adsetIds, add, remove, pause }.
+// Reads each campaign fresh, works out exactly what to send
+// (api/_locations_apply.mjs) and sends it. Only the production deployment
+// changes anything: anywhere else, or with test set, it stops before
+// sending and shows what it would have sent.
+async function apply(apiKey, body, admin, email) {
+  const changes = (body && body.changes) || [];
+  const bad = checkRequest(changes);
+  if (bad) return { status: 400, json: { error: bad } };
+  const live = process.env.VERCEL_ENV === "production" && !body.test;
+  const to = new Date().toISOString().slice(0, 10);
+  const from = new Date(Date.now() - 7 * 864e5).toISOString().slice(0, 10);
+  const googleRows = changes.some(c => c.platform === "google")
+    ? await windsor("google_ads", apiKey, from, to, ["campaign", "campaign_id", "campaign_status", "criteria_type",
+      "campaign_criterion_negative", "campaign_criterion_location_geo_target_constant", "campaign_criterion_bid_modifier",
+      "campaign_criterion_proximity_radius", "campaign_criterion_proximity_radius_units",
+      "campaign_criterion_proximity_geo_point_latitude_in_micro_degrees", "campaign_criterion_proximity_geo_point_longitude_in_micro_degrees"]) : [];
+  const metaRows = changes.some(c => c.platform === "meta")
+    ? await windsor("facebook", apiKey, from, to, ["campaign", "campaign_id", "adset_id", "adset_effective_status", "adset_targeting"]) : [];
+
+  const results = [];
+  for (const c of changes) {
+    const out = { platform: c.platform, campaignName: c.campaignName, sent: [], skip: null };
+    try {
+      if (c.platform === "google") {
+        const rows = googleRows.filter(r => String(r.campaign_id) === String(c.campaignId));
+        if (!rows.length || rows[0].campaign !== c.campaignName) { out.skip = "campaign not found as named; check again"; results.push(out); continue; }
+        const p = googlePlan(rows, c);
+        if (p.skip) out.skip = p.skip;
+        else out.sent.push({ connector: "google_ads", action: p.action, account: ACCOUNTS.google, params: p.params });
+      } else if (c.pause) {
+        const p = metaPlan(null, c);
+        out.sent.push({ connector: "facebook", action: p.action, account: ACCOUNTS.meta, params: p.params });
+      } else {
+        for (const id of c.adsetIds || []) {
+          const row = metaRows.find(r => String(r.adset_id) === String(id) && r.campaign === c.campaignName && r.adset_effective_status === "ACTIVE");
+          if (!row) { out.skip = `ad set ${id} not found as live; check again`; break; }
+          const targeting = typeof row.adset_targeting === "string" ? JSON.parse(row.adset_targeting) : row.adset_targeting;
+          const p = metaPlan(targeting, c);
+          if (p.skip) { out.skip = p.skip; break; }
+          out.sent.push({ connector: "facebook", action: p.action, account: ACCOUNTS.meta, params: { adset_id: String(id), targeting: p.targeting } });
+        }
+        if (out.skip) out.sent = [];   // all of a campaign's ad sets, or none
+      }
+      if (live) for (const s of out.sent) s.answer = await windsorTool(apiKey, "execute_action", s);
+    } catch (e) { out.error = String(e.message || e); }
+    results.push(out);
+  }
+
+  let connection = null;
+  if (!live) {
+    // Prove the change route works without changing anything.
+    try { await windsorTool(apiKey, "list_actions", { connector: "google_ads" }); connection = "ok"; }
+    catch (e) { connection = String(e.message || e); }
+  } else if (admin) {
+    const at = new Date().toISOString();
+    await admin.from("rac_state").insert({ k: "locations-log:" + at, v: { at, by: email, results }, updated_at: at });
+  }
+  return { status: 200, json: { applied: live, connection, results } };
+}
+
 export default async function handler(req, res) {
   try {
     // GET /api/windsor-spend?version=1 returns the deployed commit, for the
@@ -141,6 +227,7 @@ export default async function handler(req, res) {
     // Media address, or an address on the allow list.
     const token = (req.headers.authorization || "").replace(/^Bearer\s+/i, "");
     const isCron = !!process.env.CRON_SECRET && token === process.env.CRON_SECRET;
+    let admin = null, email = "";
     if (!isCron) {
       if (!token) return res.status(401).json({ error: "Not signed in." });
       // The token is issued by one Supabase project and checked against
@@ -160,9 +247,9 @@ export default async function handler(req, res) {
           fix: "Set SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY in Vercel to the project you sign in to, then redeploy.",
         });
       }
-      const admin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, { auth: { persistSession: false } });
+      admin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, { auth: { persistSession: false } });
       const { data: userData, error: userErr } = await admin.auth.getUser(token);
-      const email = userData?.user?.email || "";
+      email = userData?.user?.email || "";
       if (userErr || !email) {
         return res.status(401).json({
           error: "Sign-in could not be verified.",
@@ -184,6 +271,15 @@ export default async function handler(req, res) {
     // conversion campaign targets on Google and Meta, for the Update
     // locations preview (planner/locations.js). Reads only.
     if (q.targeting) return res.status(200).json(await targeting(WINDSOR_API_KEY));
+    // POST /api/windsor-spend?apply=1: Update Google and Meta (see apply).
+    // A signed-in person only, never the scheduled pull.
+    if (q.apply) {
+      if (req.method !== "POST") return res.status(405).json({ error: "Use POST." });
+      if (isCron || !email) return res.status(403).json({ error: "Changes need a signed-in person." });
+      const body = typeof req.body === "string" ? JSON.parse(req.body || "{}") : (req.body || {});
+      const r = await apply(WINDSOR_API_KEY, body, admin, email);
+      return res.status(r.status).json(r.json);
+    }
     const from = (q.from || "").trim();
     const to = (q.to || "").trim();
     const isDate = (s) => /^\d{4}-\d{2}-\d{2}$/.test(s);

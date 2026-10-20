@@ -1,8 +1,10 @@
 // Location priorities, What changed and update: under the list of what
 // opened and closed between two days, what that means on Google, Meta and
 // Indeed, and anything that was already out of step before those days
-// (planner/locations.js). Google and Meta are read through Windsor. This
-// version is a preview: nothing is sent to Google or Meta. Loaded by
+// (planner/locations.js). Google and Meta are read through Windsor. Changes
+// are sent only from the live address, for the campaigns ticked, after a
+// confirm (api/windsor-spend.mjs ?apply=1); a test run anywhere shows what
+// would be sent and sends nothing. Loaded by
 // index.html as a Babel script before the app; exposed as
 // window.RACUI.LocationUpdates.
 (function () {
@@ -24,12 +26,25 @@
     }[s.status];
   }
 
-  function LocationUpdates({ pri, from, to, role, oneRacRegions, getTargeting, fmtDay }) {
+  // The request for api/windsor-spend.mjs ?apply=1, one entry per campaign.
+  function requestFor(c, pause) {
+    if (pause) return { platform: c.platform, campaignId: c.id, campaignName: c.name, adsetIds: c.adsets, pause: true };
+    return { platform: c.platform, campaignId: c.id, campaignName: c.name, adsetIds: c.adsets,
+      add: c.add.flatMap(a => a.points.map(p => ({ town: a.town, lat: p.lat, lng: p.lng }))),
+      remove: c.remove.map(r => ({ town: r.town, lat: r.lat, lng: r.lng, radius: r.radius, key: r.key, city: r.city })) };
+  }
+  const WAIT_MIN = 15;   // Windsor's copy of the targeting can lag this long
+
+  function LocationUpdates({ pri, from, to, role, oneRacRegions, getTargeting, applyLocations, canApply, fmtDay }) {
     const RAC = window.RAC;
     const dates = (pri && pri.dates) || [];
     const latest = dates[dates.length - 1];
     const [register, setRegister] = useState(null);
     const [state, setState] = useState({ status: 'idle' });
+    const [answers, setAnswers] = useState({});     // pause questions: campaign name -> 'yes' | 'no'
+    const [picked, setPicked] = useState(null);     // campaign names ticked in the confirm step
+    const [run, setRun] = useState({ status: 'idle' });
+    const [lastApplied, setLastApplied] = useState(null);
     useEffect(() => {
       fetch('data/locations.json').then(r => r.json()).then(setRegister)
         .catch(e => setState({ status: 'error', msg: 'Could not read the location list: ' + e.message }));
@@ -51,6 +66,22 @@
     const unknown = out ? out.unknownTowns.filter(x => x.role === role) : [];
     const indeedFor = (town) => (out ? out.indeed.filter(x => x.role === role && RAC.locations.townOf(x.job).toLowerCase() === town.toLowerCase()) : []);
 
+    // What can be sent: every campaign for this role with towns to change,
+    // and any whose pause question was answered yes.
+    const sendable = out ? out.campaigns.filter(mine).filter(c => !c.wholeRegion && !c.notes.length && (c.question ? answers[c.name] === 'yes' : (c.add.length || c.remove.length))) : [];
+    const ticked = sendable.filter(c => !picked || picked.includes(c.name));
+    const waiting = lastApplied && (Date.now() - lastApplied) < WAIT_MIN * 60000;
+    const describe = (c) => (c.question && answers[c.name] === 'yes' ? 'pause the campaign'
+      : [c.add.length && 'add ' + c.add.map(x => `${x.town} (${out.radius_km} km)`).join(', '), c.remove.length && 'remove ' + c.remove.map(x => x.town).join(', ')].filter(Boolean).join('; '));
+    const send = async (test) => {
+      setRun({ status: 'busy', test });
+      try {
+        const r = await applyLocations({ test, changes: ticked.map(c => requestFor(c, c.question && answers[c.name] === 'yes')) });
+        setRun({ status: 'done', test, ...r });
+        if (r.applied) setLastApplied(Date.now());
+      } catch (e) { setRun({ status: 'error', msg: e.message }); }
+    };
+
     return (
       <div className="card" data-panel="locations">
         <div className="card-head">
@@ -64,7 +95,7 @@
             </button>
             <span className="help-text">
               {state.at ? 'Read at ' + state.at.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }) + '. ' : ''}
-              Preview only: nothing is sent to Google or Meta yet.
+              Reading changes nothing.
             </span>
           </div>
           {state.status === 'error' && <div className="banner banner-warn" style={{ marginTop: 12 }}><div>{state.msg}</div></div>}
@@ -88,7 +119,7 @@
                     <div key={p} className="help-text" style={{ margin: '4px 0 0 12px' }} data-platform={p}>
                       <strong>{PLATFORM[p]}:</strong> {action(tc.platforms[p], tc, out.radius_km)}
                       {tc.platforms[p].campaign && <> &middot; {tc.platforms[p].campaign}</>}
-                      {tc.platforms[p].question && <div style={{ marginTop: 2 }}>{tc.platforms[p].question}</div>}
+                      {tc.platforms[p].question && <Question q={tc.platforms[p].question} name={tc.platforms[p].campaign} answers={answers} setAnswers={setAnswers} />}
                     </div>
                   ))}
                   <div className="help-text" style={{ margin: '4px 0 0 12px' }} data-platform="indeed">
@@ -106,7 +137,7 @@
                 <div key={c.platform + c.name} className="help-text" style={{ marginBottom: 8 }} data-campaign={c.name}>
                   <strong>{PLATFORM[c.platform]}</strong> &middot; {c.name}:{' '}
                   {[add.length && 'add ' + add.map(x => `${x.town} (${out.radius_km} km)`).join(', '), remove.length && 'remove ' + remove.map(x => x.town).join(', ')].filter(Boolean).join('; ') || 'no town to change'}
-                  {c.question && !townChanges.length && <div>{c.question}</div>}
+                  {c.question && !townChanges.length && <Question q={c.question} name={c.name} answers={answers} setAnswers={setAnswers} />}
                   {c.other.length > 0 && <div>Set up differently, left alone: {c.other.join(', ')}</div>}
                   {c.unmatched.length > 0 && <div>Not a town on the list, left alone: {c.unmatched.join(', ')}</div>}
                   {c.notes.map(n => <div key={n}>{n}</div>)}
@@ -123,10 +154,49 @@
                 </div>
               ))}
 
-              <div style={{ marginTop: 18, display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
-                <button className="btn" disabled title="Applying is the next step">Update Google and Meta</button>
-                <span className="help-text">Applying comes next. Until then, this shows exactly what it would change.</span>
-              </div>
+              <div className="section-label" style={{ marginTop: 18 }}>Update Google and Meta</div>
+              {!sendable.length && <div className="help-text">Nothing to send for {role}.</div>}
+              {sendable.length > 0 && (
+                <div data-panel="confirm">
+                  {sendable.map(c => (
+                    <label key={c.platform + c.name} className="help-text" style={{ display: 'block', marginBottom: 4 }}>
+                      <input type="checkbox" checked={ticked.includes(c)}
+                        onChange={e => setPicked(ps => { const cur = ps || sendable.map(x => x.name); return e.target.checked ? [...cur, c.name] : cur.filter(n => n !== c.name); })} />
+                      {' '}<strong>{PLATFORM[c.platform]}</strong> &middot; {c.name}: {describe(c)}
+                    </label>
+                  ))}
+                  <div style={{ marginTop: 10, display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+                    {canApply && (
+                      <button className="btn btn-primary" disabled={!ticked.length || run.status === 'busy' || waiting}
+                        onClick={() => { if (window.confirm(`Change ${ticked.length} campaign${ticked.length > 1 ? 's' : ''} in RAC's live Google and Meta accounts?\n\n` + ticked.map(c => `${PLATFORM[c.platform]} · ${c.name}: ${describe(c)}`).join('\n'))) send(false); }}>
+                        {run.status === 'busy' && !run.test ? 'Updating…' : `Update ${ticked.length} campaign${ticked.length === 1 ? '' : 's'}`}
+                      </button>
+                    )}
+                    <button className="btn" disabled={!ticked.length || run.status === 'busy'} onClick={() => send(true)}>
+                      {run.status === 'busy' && run.test ? 'Testing…' : 'Test run (changes nothing)'}
+                    </button>
+                    <span className="help-text">
+                      {canApply ? 'Asks you to confirm before anything is sent.' : 'This is a test link, so it can only do a test run.'}
+                      {waiting && ` Just updated: Windsor can take ${WAIT_MIN} minutes to show it, so read Google and Meta again before the next update.`}
+                    </span>
+                  </div>
+                </div>
+              )}
+              {run.status === 'error' && <div className="banner banner-warn" style={{ marginTop: 12 }}><div>{run.msg}</div></div>}
+              {run.status === 'done' && (
+                <div className={'banner ' + (run.results.some(r => r.error || r.skip) ? 'banner-warn' : 'banner-good')} style={{ marginTop: 12 }} data-panel="results"><div>
+                  <strong>{run.applied ? 'Sent to Google and Meta.' : 'Test run: nothing was sent.'}</strong>
+                  {!run.applied && <> Connection to Windsor for changes: {run.connection === 'ok' ? 'working' : run.connection}.</>}
+                  {run.results.map(r => (
+                    <div key={r.platform + r.campaignName} style={{ marginTop: 6 }}>
+                      {PLATFORM[r.platform]} &middot; {r.campaignName}:{' '}
+                      {r.error ? 'failed: ' + r.error : r.skip ? 'not sent: ' + r.skip
+                        : run.applied ? `done (${r.sent.length} change${r.sent.length === 1 ? '' : 's'})` : `would send ${r.sent.map(s => s.action).join(', ')}`}
+                    </div>
+                  ))}
+                  {run.applied && <div style={{ marginTop: 6 }}>Read Google and Meta again in about {WAIT_MIN} minutes to see the new targeting here.</div>}
+                </div></div>
+              )}
               <details className="help-text" style={{ marginTop: 12 }}>
                 <summary>{out.skipped.length} campaigns never compared, and why</summary>
                 <ul>{out.skipped.map(s => <li key={s.platform + s.name}>{PLATFORM[s.platform]}: {s.name} ({s.reason})</li>)}</ul>
@@ -134,6 +204,17 @@
             </>
           )}
         </div>
+      </div>
+    );
+  }
+
+  function Question({ q, name, answers, setAnswers }) {
+    return (
+      <div style={{ marginTop: 2 }}>
+        {q}{' '}
+        <button className="btn btn-sm" onClick={() => setAnswers(a => ({ ...a, [name]: 'yes' }))}>Yes</button>{' '}
+        <button className="btn btn-sm" onClick={() => setAnswers(a => ({ ...a, [name]: 'no' }))}>No</button>
+        {answers[name] && <span> {answers[name] === 'yes' ? 'Pause it: ticked below.' : 'Leave it running.'}</span>}
       </div>
     );
   }

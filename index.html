@@ -6783,6 +6783,22 @@ async function windsorTargeting() {
   return j;
 }
 
+// Sends the location changes ticked and confirmed on What changed and update.
+// Only the live addresses offer the real update (CAN_SAVE), and the function
+// itself only sends on the production deployment; a test run sends nothing.
+async function windsorApplyLocations(body) {
+  if (!sbSignedIn()) throw new Error('Sign in first, using the button at the top.');
+  await sbFresh();
+  const call = () => fetch('/api/windsor-spend?apply=1', { method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + (SB_TOKEN && SB_TOKEN.access_token) },
+    body: JSON.stringify({ ...body, test: body.test || !CAN_SAVE }) });
+  let r = await call();
+  if (r.status === 401 && await sbRefresh()) r = await call();
+  const j = await r.json();
+  if (!r.ok) throw new Error(j.error || ('Request failed: ' + r.status));
+  return j;
+}
+
 function PrioritiesTool({ container, patchMonth, month, ws }) {
   const [role, setRole] = useState('SMR');
   const [view, setView] = useState('grid');
@@ -6892,6 +6908,7 @@ function PrioritiesTool({ container, patchMonth, month, ws }) {
       {view === 'grid' && <PriorityGrid role={role} pri={pri} setPri={setPri} month={month} baseline={baseline} />}
       {view === 'changed' && <WhatChanged pri={pri} from={from} to={to} role={role} baseline={baseline} />}
       {view === 'changed' && <RACUI.LocationUpdates pri={pri} from={from} to={to} role={role} fmtDay={fmtDay} getTargeting={windsorTargeting}
+        applyLocations={windsorApplyLocations} canApply={CAN_SAVE}
         oneRacRegions={RAC.onerac.live((container.working || {}).oneRac, month)} />}
       {view === 'trends' && <TrendsView pri={pri} role={role} baseline={baseline} />}
       {view === 'mom' && <MonthOnMonth ws={ws} month={month} role={role} />}

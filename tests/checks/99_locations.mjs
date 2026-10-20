@@ -2,6 +2,7 @@
 // Google and Meta campaigns would change to match today's open towns. The
 // campaigns here are made up; only the location list is the real file.
 import { loadPlanner, readRoot } from '../lib/planner.mjs';
+import { checkRequest, googlePlan, metaPlan, ACCOUNTS } from '../../api/_locations_apply.mjs';
 
 export default function (check, { assert }) {
   const RAC = loadPlanner();
@@ -109,6 +110,72 @@ export default function (check, { assert }) {
     const derby = both.townChanges.find(t => t.town === 'Derby');
     assert(derby.platforms.google.status === 'otherRole', 'Derby stays on OneRAC while Patrol is open: got ' + derby.platforms.google.status);
     return 'Coventry: remove on Meta, no Google campaign; Leeds kept apart as already out of step; Derby kept on OneRAC for Patrol';
+  });
+
+  // ---- What Update Google and Meta sends (api/_locations_apply.mjs) ----
+  const crit = (type, extra = {}) => ({ criteria_type: type, campaign_criterion_negative: false, ...extra });
+  const prox = (lat, lng, radius = 30, units = 'KILOMETERS', bm = null) => crit('PROXIMITY', { campaign_criterion_proximity_radius: radius,
+    campaign_criterion_proximity_radius_units: units, campaign_criterion_bid_modifier: bm,
+    campaign_criterion_proximity_geo_point_latitude_in_micro_degrees: lat * 1e6, campaign_criterion_proximity_geo_point_longitude_in_micro_degrees: lng * 1e6 });
+  const GC = { platform: 'google', campaignId: '123', campaignName: YORKS };
+
+  check('Update Google and Meta: only RAC role and region campaigns, a few at a time, with UK points', () => {
+    assert(checkRequest([]) !== null, 'empty request refused');
+    assert(/UK-wide/.test(checkRequest([{ ...GC, campaignName: 'RAC | Conversion | SMR Mechanics | UK | GS | July 25 | 2936 Broad vs Exact' }])), 'UK campaign refused');
+    assert(/open day/.test(checkRequest([{ ...GC, campaignName: 'RAC | Conversion | OneRAC | Open Day | Sevenoaks | Meta | October 26 | 3145' }])), 'open day refused');
+    assert(/conversion/.test(checkRequest([{ ...GC, campaignName: 'Someone else | Conversion | Leeds' }])), 'other campaigns refused');
+    assert(/At most/.test(checkRequest(Array.from({ length: 13 }, () => GC))), 'more than 12 campaigns refused');
+    assert(/no UK point/.test(checkRequest([{ ...GC, add: [{ town: 'Paris', lat: 48.85, lng: 2.35 }] }])), 'a point outside the UK refused');
+    assert(checkRequest([{ ...GC, add: [{ town: 'Leeds', lat: 53.8, lng: -1.55 }] }]) === null, 'a normal change passes');
+    assert(ACCOUNTS.google === '904-497-1739' && ACCOUNTS.meta === '652299511175883', 'RAC accounts only');
+    return 'UK-wide, open day and other campaigns refused; at most 12 campaigns; points must be in the UK; RAC accounts only';
+  });
+
+  check('Update Google and Meta: Google keeps every other pin as it is, adds at 25 km and is never emptied', () => {
+    const rows = [prox(53.75, -0.34, 30, 'KILOMETERS', 1.2), prox(53.8, -1.55, 20, 'MILES'), crit('KEYWORD'), crit('DEVICE')];
+    const p = googlePlan(rows, { ...GC, remove: [{ town: 'Leeds', lat: 53.8, lng: -1.55, radius: 20 }], add: [{ town: 'York', lat: 53.96, lng: -1.08 }] });
+    assert(p.action === 'set_campaign_geo_targeting' && p.params.campaign_id === '123' && Array.isArray(p.params.locations) && !p.params.locations.length, 'geo targeting call');
+    const [hull, york] = p.params.proximities;
+    assert(p.params.proximities.length === 2 && hull.radius === 30 && hull.radius_units === 'KILOMETERS' && hull.bid_modifier === 1.2, 'Hull kept with its radius and bid adjustment');
+    assert(york.radius === 25 && york.radius_units === 'KILOMETERS', 'York added at 25 km');
+    assert(/no longer on the campaign/.test(googlePlan(rows, { ...GC, remove: [{ town: 'Bath', lat: 51.38, lng: -2.36 }] }).skip), 'a town already gone stops the change');
+    assert(/no locations/.test(googlePlan([prox(53.75, -0.34)], { ...GC, remove: [{ town: 'Hull', lat: 53.75, lng: -0.34 }] }).skip), 'never emptied');
+    assert(/left for a person/.test(googlePlan([...rows, crit('LOCATION', { campaign_criterion_negative: true })], GC).skip), 'exclusions left for a person');
+    const pause = googlePlan(rows, { ...GC, pause: true });
+    assert(pause.action === 'pause_campaign' && pause.params.campaign_id === '123', 'pause');
+    return 'Hull kept at 30 km with its 1.2 bid adjustment, Leeds removed, York added at 25 km; gone towns, emptying and exclusions stop it; pause only when asked';
+  });
+
+  check('Update Google and Meta: Meta changes only the locations, adds 25 km pins and is never emptied', () => {
+    const t = { age_min: 18, age_max: 65, publisher_platforms: ['facebook', 'instagram'],
+      geo_locations: { cities: [{ key: '1', name: 'Birmingham', radius: 30, distance_unit: 'kilometer' }, { key: '2', name: 'Coventry', radius: 30, distance_unit: 'kilometer' }], location_types: ['home', 'recent'] } };
+    const MC = { platform: 'meta', campaignId: 'm1', campaignName: WM };
+    const p = metaPlan(t, { ...MC, remove: [{ town: 'Coventry', key: '2', city: 'Coventry' }], add: [{ town: 'Walsall', lat: 52.586, lng: -1.982 }] });
+    assert(p.action === 'update_adset', 'ad set update');
+    const g = p.targeting.geo_locations;
+    assert(g.cities.length === 1 && g.cities[0].key === '1', 'Coventry removed, Birmingham kept');
+    assert(g.custom_locations.length === 1 && g.custom_locations[0].radius === 25 && g.custom_locations[0].distance_unit === 'kilometer', 'Walsall added as a 25 km pin');
+    assert(JSON.stringify(g.location_types) === JSON.stringify(t.geo_locations.location_types), 'location types untouched');
+    const rest = (x) => JSON.stringify({ ...x, geo_locations: undefined });
+    assert(rest(p.targeting) === rest(t), 'everything outside the locations sent back exactly as read');
+    assert(t.geo_locations.cities.length === 2, 'the targeting read is not changed in place');
+    assert(/no longer on the ad set/.test(metaPlan(t, { ...MC, remove: [{ town: 'Leeds', key: '9', city: 'Leeds' }] }).skip), 'a town already gone stops the change');
+    assert(/no locations/.test(metaPlan(t, { ...MC, remove: [{ town: 'Central Birmingham', key: '1' }, { town: 'Coventry', key: '2' }] }).skip), 'never emptied');
+    assert(metaPlan(t, { ...MC, pause: true }).action === 'pause_campaign', 'pause');
+    return 'Coventry removed, Birmingham kept, Walsall added as a 25 km pin; age, placements and location types untouched; gone towns and emptying stop it';
+  });
+
+  check('Update Google and Meta: the preview carries what to remove, and real changes only happen on the production deployment', () => {
+    const out = run(pri([row('Mobile Vehicle Technician - Coventry', 'West Midlands', 0, 1), row('Mobile Vehicle Technician - Central Birmingham', 'West Midlands', 1)]),
+      { meta: [adset(WM, 1, ['Birmingham', 'Coventry'])] });
+    const r = out.campaigns[0].remove[0];
+    assert(r.town === 'Coventry' && r.key === 'Coventry' && r.city === 'Coventry', 'Meta remove carries the city key');
+    const api = readRoot('api/windsor-spend.mjs');
+    assert(/const live = process\.env\.VERCEL_ENV === "production" && !body\.test;/.test(api), 'real changes only on production, and never on a test run');
+    assert(/if \(live\) for \(const s of out\.sent\) s\.answer = await windsorTool/.test(api), 'nothing is sent unless live');
+    assert(/if \(isCron \|\| !email\) return res\.status\(403\)/.test(api), 'a signed-in person only, never the scheduled pull');
+    assert(/req\.method !== "POST"/.test(api), 'changes only by POST');
+    return 'Meta remove carries the city key; the endpoint sends only on production, signed in, by POST';
   });
 
   check('Update locations: the location list gives every town one region and a point', () => {

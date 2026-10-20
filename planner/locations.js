@@ -181,7 +181,8 @@
         const l = townFor(t);
         if (!l) { out.unmatched.push(label(t)); return; }
         if (want.has(l.name)) { hit.add(l.name); out.keep.push(l.name); }
-        else out.remove.push({ town: l.name, target: label(t) });
+        // What to take off: a Google or Meta pin by its point, a Meta city by its key.
+        else out.remove.push({ town: l.name, target: label(t), ...(t.city ? { city: t.city, key: t.key } : { lat: t.lat, lng: t.lng, radius: t.radius }) });
       });
       want.forEach((v, name) => {
         if (hit.has(name)) return;
