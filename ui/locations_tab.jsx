@@ -9,7 +9,7 @@
 // window.RACUI.LocationUpdates.
 (function () {
   const RACUI = (window.RACUI = window.RACUI || {});
-  const { useState, useEffect, useMemo } = React;
+  const { useState, useMemo } = React;
   const PLATFORM = { google: 'Google', meta: 'Meta' };
 
   function action(s, tc, radius) {
@@ -36,23 +36,20 @@
   }
   const WAIT_MIN = 15;   // Windsor's copy of the targeting can lag this long
 
-  function LocationUpdates({ pri, from, to, role, oneRacRegions, getTargeting, applyLocations, canApply, fmtDay }) {
+  function LocationUpdates({ pri, from, to, role, oneRacRegions, register: list, getTargeting, applyLocations, canApply, fmtDay }) {
     const RAC = window.RAC;
     const dates = (pri && pri.dates) || [];
     const latest = dates[dates.length - 1];
-    const [register, setRegister] = useState(null);
+    // The location list, loaded once by the Location priorities tool.
+    const register = list && !list.error ? list : null;
     const [state, setState] = useState({ status: 'idle' });
     const [answers, setAnswers] = useState({});     // pause questions: campaign name -> 'yes' | 'no'
     const [picked, setPicked] = useState(null);     // campaign names ticked in the confirm step
     const [run, setRun] = useState({ status: 'idle' });
     const [lastApplied, setLastApplied] = useState(null);
     const [copied, setCopied] = useState(false);
-    const written = from && to ? RAC.locations.writtenUpdate(pri, from, to) : '';
+    const written = from && to ? RAC.locations.writtenUpdate(pri, from, to, oneRacRegions, register) : '';
     const copy = () => navigator.clipboard.writeText(written).then(() => { setCopied(true); setTimeout(() => setCopied(false), 2000); });
-    useEffect(() => {
-      fetch('data/locations.json').then(r => r.json()).then(setRegister)
-        .catch(e => setState({ status: 'error', msg: 'Could not read the location list: ' + e.message }));
-    }, []);
 
     const read = async () => {
       setState({ status: 'busy' });
@@ -62,14 +59,16 @@
     const out = useMemo(() => (state.live && register ? RAC.locations.preview({ register, pri, date: to, prevDate: from,
       oneRacRegions, live: state.live, regions: window.__AVP_DATA__.regions_ordered }) : null), [state.live, register, pri, from, to, oneRacRegions]);
 
-    const mine = (c) => c.kind === role || c.kind === 'OneRAC';
+    // OneRAC is its own role switch: its campaigns show there and nowhere else.
+    const mine = (c) => c.kind === role;
+    const isOne = role === 'OneRAC';
     const townChanges = out ? out.townChanges.filter(t => t.role === role) : [];
     const drift = out ? out.campaigns.filter(mine).map(c => ({ c, add: c.add.filter(x => !x.fromChanges), remove: c.remove.filter(x => !x.fromChanges) }))
       .filter(x => x.add.length || x.remove.length || x.c.replace.length || x.c.other.length || x.c.unmatched.length || (x.c.question && !townChanges.length)) : [];
     const swaps = (c) => c.replace.map(x => `replace ${x.place} (place) with ${x.town} (${x.points[0].radius_km} km)`);
-    const noCampaign = out ? out.noCampaign.filter(x => x.role === role || x.role === 'OneRAC') : [];
-    const unknown = out ? out.unknownTowns.filter(x => x.role === role) : [];
-    const indeedFor = (town) => (out ? out.indeed.filter(x => x.role === role && RAC.locations.townOf(x.job).toLowerCase() === town.toLowerCase()) : []);
+    const noCampaign = out ? out.noCampaign.filter(x => x.role === role) : [];
+    const unknown = out ? out.unknownTowns.filter(x => (isOne ? (oneRacRegions || []).includes(x.region) : x.role === role)) : [];
+    const indeedFor = (town) => (out ? out.indeed.filter(x => (isOne || x.role === role) && RAC.locations.townOf(x.job).toLowerCase() === town.toLowerCase()) : []);
 
     // What can be sent: every campaign for this role with towns to change,
     // and any whose pause question was answered yes.
@@ -113,6 +112,7 @@
             </span>
           </div>
           {state.status === 'error' && <div className="banner banner-warn" style={{ marginTop: 12 }}><div>{state.msg}</div></div>}
+          {list && list.error && <div className="banner banner-warn" style={{ marginTop: 12 }}><div>Could not read the location list (data/locations.json), so Google and Meta can&rsquo;t be checked.</div></div>}
           {((state.live && state.live.errors) || []).map(e => (
             <div key={e.connector} className="banner banner-warn" style={{ marginTop: 12 }}><div>{e.connector}: {e.error}</div></div>
           ))}
