@@ -6488,7 +6488,7 @@ function WhatChanged({ pri, from, to, role, baseline }) {
         return (
           <div className="card" key={role}>
             <div className="card-head">
-              <div className="card-title">{role === 'SMR' ? 'Mobile Vehicle Tech (SMR)' : role === 'OneRAC' ? 'OneRAC (towns open for either role)' : 'Roadside Tech (Patrol, incl. SuperFlex)'}</div>
+              <div className="card-title">{role === 'SMR' ? 'Mobile Vehicle Tech (SMR)' : role === 'OneRAC' ? 'OneRAC (SMR and Patrol jobs in its regions)' : 'Roadside Tech (Patrol, incl. SuperFlex)'}</div>
               <div className="card-sub">{fmtDay(from)} to {fmtDay(to)}</div>
             </div>
             <div className="card-body">
@@ -6549,6 +6549,8 @@ function TrendsView({ pri, role, baseline }) {
         const rows = (pri.roles[role] || {}).rows || [];
         const cuts = {}; dates.forEach(d => { cuts[d] = regionCut(rows, d); });
         const planCut = regionCut(rows, 'plan', baseline);
+        // OneRAC rows only exist in its regions; the rest would be all zeros.
+        const regions = role === 'OneRAC' ? DATA.regions_ordered.filter(r => rows.some(x => x.region === r)) : DATA.regions_ordered;
         const blocks = [
           { key: 'locs', title: 'live locations', get: (c, r) => c[r].locs },
           { key: 'vac', title: 'live vacancies', get: (c, r) => c[r].vac },
@@ -6577,7 +6579,7 @@ function TrendsView({ pri, role, baseline }) {
                     </tr>
                   </thead>
                   <tbody>
-                    {DATA.regions_ordered.map(r => (
+                    {regions.map(r => (
                       <tr key={r}>
                         <td className="stick loc">{r}</td>
                         <td className="plan-col mono">{b.get(planCut, r) || 0}</td>
@@ -6598,9 +6600,9 @@ function TrendsView({ pri, role, baseline }) {
                     ))}
                     <tr className="tot-row">
                       <td className="stick"><strong>Total</strong></td>
-                      <td className="plan-col mono">{DATA.regions_ordered.reduce((s, r) => s + b.get(planCut, r), 0)}</td>
+                      <td className="plan-col mono">{regions.reduce((s, r) => s + b.get(planCut, r), 0)}</td>
                       {dates.map(d => (
-                        <td key={d} className="mono num">{DATA.regions_ordered.reduce((s, r) => s + b.get(cuts[d], r), 0)}</td>
+                        <td key={d} className="mono num">{regions.reduce((s, r) => s + b.get(cuts[d], r), 0)}</td>
                       ))}
                     </tr>
                   </tbody>
@@ -6807,15 +6809,23 @@ function PrioritiesTool({ container, patchMonth, month, ws }) {
   const dates = pri.dates || [];
   const [from, setFrom] = useState(dates.length > 1 ? dates[dates.length - 2] : dates[0]);
   const [to, setTo] = useState(dates[dates.length - 1]);
-  // OneRAC is a third role on What changed and update while it runs this
-  // month: a town in its regions is open while either role has it open
-  // (RAC.locations.oneRacRows). The other views follow RAC's own two lists.
+  // OneRAC is a third role on What changed and update, and Trends, while it
+  // runs this month: a town in its regions is open while either role has it
+  // open (RAC.locations.oneRacRows). Vacancies stays on RAC's own two lists,
+  // because that is where they are pasted; Month on month has one month of
+  // OneRAC so far.
   const oneRacRegions = RAC.onerac.live((container.working || {}).oneRac, month);
   const [register, setRegister] = useState(null);
   useEffect(() => { fetch('data/locations.json').then(r => r.json()).then(setRegister).catch(() => setRegister({ error: true, locations: [] })); }, []);
-  const roles = view === 'changed' && oneRacRegions.length ? [...ROLES, 'OneRAC'] : ROLES;
-  const pickView = (id) => { setView(id); if (id !== 'changed' && role === 'OneRAC') setRole('SMR'); };
-  const changedPri = role === 'OneRAC' ? { ...pri, roles: { ...pri.roles, OneRAC: { rows: RAC.locations.oneRacRows(pri, oneRacRegions, register) } } } : pri;
+  const oneRacViews = ['changed', 'trends'];
+  const roles = oneRacViews.includes(view) && oneRacRegions.length ? [...ROLES, 'OneRAC'] : ROLES;
+  const pickView = (id) => { setView(id); if (!oneRacViews.includes(id) && role === 'OneRAC') setRole('SMR'); };
+  // Under OneRAC, What changed lists the real SMR and Patrol jobs in its
+  // regions (so a Patrol closure shows even while SMR keeps the town live);
+  // Trends counts towns live for either role, which is what OneRAC targets.
+  const withOneRac = (rows) => ({ ...pri, roles: { ...pri.roles, OneRAC: { rows } } });
+  const changedPri = role === 'OneRAC' ? withOneRac(RAC.locations.oneRacJobRows(pri, oneRacRegions, register)) : pri;
+  const trendPri = role === 'OneRAC' ? withOneRac(RAC.locations.oneRacRows(pri, oneRacRegions, register)) : pri;
 
   const setPri = (updater) => {
     const next = typeof updater === 'function' ? updater(pri) : updater;
@@ -6918,7 +6928,7 @@ function PrioritiesTool({ container, patchMonth, month, ws }) {
       {view === 'changed' && <WhatChanged pri={changedPri} from={from} to={to} role={role} baseline={baseline} />}
       {view === 'changed' && <RACUI.LocationUpdates pri={pri} from={from} to={to} role={role} fmtDay={fmtDay} getTargeting={windsorTargeting}
         applyLocations={windsorApplyLocations} canApply={CAN_SAVE} register={register} oneRacRegions={oneRacRegions} />}
-      {view === 'trends' && <TrendsView pri={pri} role={role} baseline={baseline} />}
+      {view === 'trends' && <TrendsView pri={trendPri} role={role} baseline={baseline} />}
       {view === 'mom' && <MonthOnMonth ws={ws} month={month} role={role} />}
     </div>
   );

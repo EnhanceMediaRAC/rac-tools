@@ -114,7 +114,9 @@ export default function (check, { assert }) {
     const reg2 = { ...register, locations: [...register.locations, { name: 'Derby', region: 'East Midlands', points: [{ name: 'Derby', lat: 52.9225, lng: -1.4746 }] }] };
     const both = RAC.locations.preview({ register: reg2, pri: pri([row('Mobile Vehicle Technician - Derby', 'East Midlands', 0, 1)], [row('Roadside Technician - Derby', 'East Midlands', 2)]),
       date: '2026-10-20', prevDate: '2026-10-19', oneRacRegions: ['East Midlands'], regions: REGIONS, live: { google: [pin(one, 52.92, -1.47)] } });
-    assert(!both.townChanges.some(t => t.town === 'Derby'), 'Derby still open for Patrol: no change for OneRAC, and SMR does not report OneRAC regions');
+    const derby = both.townChanges.filter(t => t.town === 'Derby');
+    assert(derby.length === 1 && derby[0].role === 'OneRAC' && derby[0].change === null && derby[0].byRole.SMR === 'closed' && derby[0].platforms.google.status === 'stillOpen',
+      'Derby: shown once, under OneRAC, as SMR closed and still open for Patrol; SMR does not report OneRAC regions');
     assert(both.campaigns[0].keep.includes('Derby') && !both.campaigns[0].remove.length, 'Derby stays on the OneRAC campaign');
     return 'Coventry: remove on Meta, no Google campaign; Leeds kept apart as already out of step; Derby kept on OneRAC while Patrol is open';
   });
@@ -129,6 +131,8 @@ export default function (check, { assert }) {
       [row('Roadside Technician Nights - Derby', 'East Midlands', 0, 1), row('Superflex Roadside Patrol - Leicester', 'East Midlands', 1, 0)]);
     const rows = RAC.locations.oneRacRows(p, ['East Midlands'], reg2);
     assert(rows.length === 2 && rows.every(r => r.region === 'East Midlands') && rows[0].location === 'OneRAC - Derby' && rows[0].v['2026-10-19'] === 2, 'one row per OneRAC town, both roles added together');
+    const withPlan = pri([{ ...row('Mobile Vehicle Technician - Derby', 'East Midlands', 1), plan: 2 }], [{ ...row('Roadside Technician - Derby', 'East Midlands', 1), plan: 3 }]);
+    assert(RAC.locations.oneRacRows(withPlan, ['East Midlands'], reg2)[0].plan === 5, 'the plan column adds both roles, for Trends');
     const out = RAC.locations.preview({ register: reg2, pri: p, date: '2026-10-20', prevDate: '2026-10-19', oneRacRegions: ['East Midlands'], regions: REGIONS,
       live: { google: [pin(one, 52.92, -1.47), pin(one, 51.0, -3.0)] } });
     const tc = (t) => out.townChanges.find(x => x.town === t);
@@ -139,7 +143,19 @@ export default function (check, { assert }) {
     const text = RAC.locations.writtenUpdate(p, '2026-10-19', '2026-10-20', ['East Midlands'], reg2);
     assert(text.endsWith('OneRAC\n\nLocations added:\n\n• OneRAC - Leicester\n\nLocations removed:\n\n• OneRAC - Derby'), 'written update OneRAC section:\n' + text);
     assert(!/OneRAC/.test(RAC.locations.writtenUpdate(p, '2026-10-19', '2026-10-20', [], reg2)), 'no OneRAC section when OneRAC is not running');
-    return 'Derby closed for both: remove from OneRAC; Leicester open for Patrol only: add; the written update gains a OneRAC section';
+    // The case from 22 October: Patrol closes in Northampton while SMR is
+    // still open. OneRAC targeting stays, but the change and its Indeed jobs show.
+    const reg3 = { ...reg2, locations: [...reg2.locations, { name: 'Northampton', region: 'East Midlands', points: [{ name: 'Northampton', lat: 52.2405, lng: -0.9027 }] }] };
+    const p3 = pri([row('Mobile Vehicle Technician - Northampton', 'East Midlands', 1)],
+      [row('Roadside Technician - Northampton', 'East Midlands', 0, 2), row('Roadside Technician Nights - Northampton', 'East Midlands', 0, 1)]);
+    const o3 = RAC.locations.preview({ register: reg3, pri: p3, date: '2026-10-20', prevDate: '2026-10-19', oneRacRegions: ['East Midlands'], regions: REGIONS,
+      live: { google: [pin(one, 52.2405, -0.9027)] } });
+    const nn = o3.townChanges.find(x => x.town === 'Northampton');
+    assert(nn && nn.role === 'OneRAC' && nn.change === null && nn.byRole.Patrol === 'closed' && nn.openFor.join() === 'SMR', 'Northampton: Patrol closed, still open for SMR');
+    assert(nn.platforms.google.status === 'stillOpen' && !o3.campaigns[0].remove.length, 'OneRAC keeps targeting Northampton');
+    assert(o3.indeed.filter(x => x.role === 'Patrol' && x.change === 'remove').length === 2, 'both Patrol Northampton jobs listed for Indeed');
+    assert(RAC.locations.oneRacJobRows(p3, ['East Midlands'], reg3).length === 3, 'What changed under OneRAC lists the real SMR and Patrol jobs');
+    return 'Derby closed for both: remove from OneRAC; Leicester open for Patrol only: add; Northampton closed for Patrol only: OneRAC unchanged, Indeed jobs listed; the written update gains a OneRAC section';
   });
 
   // ---- What Update Google and Meta sends (api/_locations_apply.mjs) ----

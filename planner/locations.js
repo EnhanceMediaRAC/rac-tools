@@ -242,43 +242,59 @@
     //   notTargeted      closed, and the campaign did not target it
     //   leftAlone        opened, but the campaign is held back (its ad sets differ)
     //   noCampaign       no live campaign for that role and region
+    //   stillOpen        OneRAC: closed for one role, still open for the other
     // OneRAC is its own role here: a town in a OneRAC region is open while
     // either role has it open. SMR and Patrol skip those regions, because
-    // their campaigns there are idle.
+    // their campaigns there are idle. A town that opens or closes for one
+    // role only still comes up under OneRAC (byRole), so its Indeed jobs are
+    // listed, even though the OneRAC targeting does not change.
     const townChanges = [];
     if (opts.prevDate && opts.prevDate !== opts.date) {
-      [...RAC.ROLES, ...(oneRac.length ? ['OneRAC'] : [])].forEach(role => {
-        const rows = role === 'OneRAC' ? oneRacRows(pri, oneRac, reg) : (((pri.roles || {})[role] || {}).rows || []);
-        const at = (d) => {
-          const m = new Map();
-          rows.forEach(row => {
-            const loc = byName.get(norm(townOf(row.location)));
-            if (loc) m.set(loc.name, (m.get(loc.name) || 0) + (((row.v || {})[d]) || 0));
-          });
-          return m;
-        };
-        const a = at(opts.prevDate), b = at(opts.date);
-        new Set([...a.keys(), ...b.keys()]).forEach(name => {
-          const was = (a.get(name) || 0) > 0, now = (b.get(name) || 0) > 0;
-          if (was === now) return;
+      const at = (role, d) => {
+        const m = new Map();
+        (((pri.roles || {})[role] || {}).rows || []).forEach(row => {
+          const loc = byName.get(norm(townOf(row.location)));
+          if (loc) m.set(loc.name, (m.get(loc.name) || 0) + (((row.v || {})[d]) || 0));
+        });
+        return m;
+      };
+      const was = {}, now = {};
+      RAC.ROLES.forEach(role => { was[role] = at(role, opts.prevDate); now[role] = at(role, opts.date); });
+      const isOpen = (m, name) => (m.get(name) || 0) > 0;
+      const platformsFor = (tc, kinds, opened) => ['google', 'meta'].forEach(platform => {
+        const c = campaigns.find(x => x.platform === platform && x.region === tc.region && kinds.includes(x.kind));
+        let status = 'noCampaign';
+        if (c) {
+          if (c.add.some(x => x.town === tc.town)) status = 'add';
+          else if (c.remove.some(x => x.town === tc.town)) status = 'remove';
+          else if (c.wholeRegion) status = 'covered';
+          else if (c.keep.includes(tc.town)) status = tc.change ? (opened ? 'already' : 'otherRole') : 'stillOpen';
+          else status = opened ? 'leftAlone' : 'notTargeted';   // opened but held back (ad sets differ)
+        }
+        tc.platforms[platform] = { status, campaign: c ? c.name : null, question: c ? c.question : null };
+      });
+      RAC.ROLES.forEach(role => new Set([...was[role].keys(), ...now[role].keys()]).forEach(name => {
+        const w = isOpen(was[role], name), n = isOpen(now[role], name), loc = byName.get(norm(name));
+        if (w === n || oneRac.includes(loc.region)) return;
+        const tc = { role, town: name, region: loc.region, change: n ? 'opened' : 'closed', platforms: {} };
+        platformsFor(tc, [role, 'OneRAC'], n);
+        townChanges.push(tc);
+      }));
+      if (oneRac.length) {
+        const names = new Set(RAC.ROLES.flatMap(r => [...was[r].keys(), ...now[r].keys()]));
+        names.forEach(name => {
           const loc = byName.get(norm(name));
-          if (role !== 'OneRAC' && oneRac.includes(loc.region)) return;
-          const tc = { role, town: name, region: loc.region, change: now ? 'opened' : 'closed', platforms: {} };
-          ['google', 'meta'].forEach(platform => {
-            const c = campaigns.find(x => x.platform === platform && x.region === loc.region && (x.kind === role || x.kind === 'OneRAC'));
-            let status = 'noCampaign';
-            if (c) {
-              if (c.add.some(x => x.town === name)) status = 'add';
-              else if (c.remove.some(x => x.town === name)) status = 'remove';
-              else if (c.wholeRegion) status = 'covered';
-              else if (c.keep.includes(name)) status = now ? 'already' : 'otherRole';
-              else status = now ? 'leftAlone' : 'notTargeted';   // opened but held back (ad sets differ)
-            }
-            tc.platforms[platform] = { status, campaign: c ? c.name : null, question: c ? c.question : null };
-          });
+          if (!oneRac.includes(loc.region)) return;
+          const byRole = {};
+          RAC.ROLES.forEach(r => { const w = isOpen(was[r], name), n = isOpen(now[r], name); if (w !== n) byRole[r] = n ? 'opened' : 'closed'; });
+          if (!Object.keys(byRole).length) return;
+          const w = RAC.ROLES.some(r => isOpen(was[r], name)), n = RAC.ROLES.some(r => isOpen(now[r], name));
+          const tc = { role: 'OneRAC', town: name, region: loc.region, change: w === n ? null : (n ? 'opened' : 'closed'), byRole,
+            openFor: RAC.ROLES.filter(r => isOpen(now[r], name)), platforms: {} };
+          platformsFor(tc, ['OneRAC'], n);
           townChanges.push(tc);
         });
-      });
+      }
       // Mark each campaign change that comes from these days, so the rest
       // reads as what was already out of step before them.
       campaigns.forEach(c => [...c.add, ...c.remove].forEach(x => {
@@ -329,12 +345,23 @@
     RAC.ROLES.forEach(role => ((((pri && pri.roles) || {})[role] || {}).rows || []).forEach(row => {
       const town = townOf(row.location), loc = byName.get(norm(town)), name = loc ? loc.name : town, region = loc ? loc.region : row.region;
       if (!(oneRacRegions || []).includes(region)) return;
-      const e = m.get(name) || { location: 'OneRAC - ' + name, region, v: {} };
+      const e = m.get(name) || { location: 'OneRAC - ' + name, region, plan: 0, v: {} };
+      e.plan += Number(row.plan) || 0;   // RAC's plan column, for Trends
       Object.entries(row.v || {}).forEach(([d, n]) => { e.v[d] = (e.v[d] || 0) + (Number(n) || 0); });
       m.set(name, e);
     }));
     return [...m.values()].sort((a, b) => a.region.localeCompare(b.region) || a.location.localeCompare(b.location));
   }
 
-  RAC.locations = { townOf, preview, parseCampaign, liveCampaigns, writtenUpdate, oneRacRows };
+  // The SMR and Patrol job rows in OneRAC's regions, as RAC wrote them, for
+  // What changed under OneRAC: which jobs opened or closed, by role.
+  function oneRacJobRows(pri, oneRacRegions, register) {
+    const byName = new Map(((register && register.locations) || []).map(l => [norm(l.name), l]));
+    return RAC.ROLES.flatMap(role => ((((pri && pri.roles) || {})[role] || {}).rows || []).filter(row => {
+      const loc = byName.get(norm(townOf(row.location)));
+      return (oneRacRegions || []).includes(loc ? loc.region : row.region);
+    }));
+  }
+
+  RAC.locations = { townOf, preview, parseCampaign, liveCampaigns, writtenUpdate, oneRacRows, oneRacJobRows };
 })(window.RAC = window.RAC || {});
