@@ -6488,7 +6488,7 @@ function WhatChanged({ pri, from, to, role, baseline }) {
         return (
           <div className="card" key={role}>
             <div className="card-head">
-              <div className="card-title">{role === 'SMR' ? 'Mobile Vehicle Tech (SMR)' : 'Roadside Tech (Patrol, incl. SuperFlex)'}</div>
+              <div className="card-title">{role === 'SMR' ? 'Mobile Vehicle Tech (SMR)' : role === 'OneRAC' ? 'OneRAC (towns open for either role)' : 'Roadside Tech (Patrol, incl. SuperFlex)'}</div>
               <div className="card-sub">{fmtDay(from)} to {fmtDay(to)}</div>
             </div>
             <div className="card-body">
@@ -6807,6 +6807,15 @@ function PrioritiesTool({ container, patchMonth, month, ws }) {
   const dates = pri.dates || [];
   const [from, setFrom] = useState(dates.length > 1 ? dates[dates.length - 2] : dates[0]);
   const [to, setTo] = useState(dates[dates.length - 1]);
+  // OneRAC is a third role on What changed and update while it runs this
+  // month: a town in its regions is open while either role has it open
+  // (RAC.locations.oneRacRows). The other views follow RAC's own two lists.
+  const oneRacRegions = RAC.onerac.live((container.working || {}).oneRac, month);
+  const [register, setRegister] = useState(null);
+  useEffect(() => { fetch('data/locations.json').then(r => r.json()).then(setRegister).catch(() => setRegister({ error: true, locations: [] })); }, []);
+  const roles = view === 'changed' && oneRacRegions.length ? [...ROLES, 'OneRAC'] : ROLES;
+  const pickView = (id) => { setView(id); if (id !== 'changed' && role === 'OneRAC') setRole('SMR'); };
+  const changedPri = role === 'OneRAC' ? { ...pri, roles: { ...pri.roles, OneRAC: { rows: RAC.locations.oneRacRows(pri, oneRacRegions, register) } } } : pri;
 
   const setPri = (updater) => {
     const next = typeof updater === 'function' ? updater(pri) : updater;
@@ -6870,13 +6879,13 @@ function PrioritiesTool({ container, patchMonth, month, ws }) {
 
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16, flexWrap: 'wrap' }}>
         <div className="role-switch role-switch-lead">
-          {ROLES.map(r => (
+          {roles.map(r => (
             <button key={r} className={r === role ? 'active' : ''} onClick={() => setRole(r)}>{r}</button>
           ))}
         </div>
         <div className="role-switch">
           {views.map(([id, label]) => (
-            <button key={id} className={id === view ? 'active' : ''} onClick={() => setView(id)}>{label}</button>
+            <button key={id} className={id === view ? 'active' : ''} onClick={() => pickView(id)}>{label}</button>
           ))}
         </div>
         {(container.versions || []).length > 0 && view !== 'mom' && (
@@ -6906,10 +6915,9 @@ function PrioritiesTool({ container, patchMonth, month, ws }) {
       </div>
 
       {view === 'grid' && <PriorityGrid role={role} pri={pri} setPri={setPri} month={month} baseline={baseline} />}
-      {view === 'changed' && <WhatChanged pri={pri} from={from} to={to} role={role} baseline={baseline} />}
+      {view === 'changed' && <WhatChanged pri={changedPri} from={from} to={to} role={role} baseline={baseline} />}
       {view === 'changed' && <RACUI.LocationUpdates pri={pri} from={from} to={to} role={role} fmtDay={fmtDay} getTargeting={windsorTargeting}
-        applyLocations={windsorApplyLocations} canApply={CAN_SAVE}
-        oneRacRegions={RAC.onerac.live((container.working || {}).oneRac, month)} />}
+        applyLocations={windsorApplyLocations} canApply={CAN_SAVE} register={register} oneRacRegions={oneRacRegions} />}
       {view === 'trends' && <TrendsView pri={pri} role={role} baseline={baseline} />}
       {view === 'mom' && <MonthOnMonth ws={ws} month={month} role={role} />}
     </div>

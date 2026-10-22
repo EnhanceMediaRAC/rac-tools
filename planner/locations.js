@@ -242,12 +242,16 @@
     //   notTargeted      closed, and the campaign did not target it
     //   leftAlone        opened, but the campaign is held back (its ad sets differ)
     //   noCampaign       no live campaign for that role and region
+    // OneRAC is its own role here: a town in a OneRAC region is open while
+    // either role has it open. SMR and Patrol skip those regions, because
+    // their campaigns there are idle.
     const townChanges = [];
     if (opts.prevDate && opts.prevDate !== opts.date) {
-      RAC.ROLES.forEach(role => {
+      [...RAC.ROLES, ...(oneRac.length ? ['OneRAC'] : [])].forEach(role => {
+        const rows = role === 'OneRAC' ? oneRacRows(pri, oneRac, reg) : (((pri.roles || {})[role] || {}).rows || []);
         const at = (d) => {
           const m = new Map();
-          (((pri.roles || {})[role] || {}).rows || []).forEach(row => {
+          rows.forEach(row => {
             const loc = byName.get(norm(townOf(row.location)));
             if (loc) m.set(loc.name, (m.get(loc.name) || 0) + (((row.v || {})[d]) || 0));
           });
@@ -257,7 +261,9 @@
         new Set([...a.keys(), ...b.keys()]).forEach(name => {
           const was = (a.get(name) || 0) > 0, now = (b.get(name) || 0) > 0;
           if (was === now) return;
-          const loc = byName.get(norm(name)), tc = { role, town: name, region: loc.region, change: now ? 'opened' : 'closed', platforms: {} };
+          const loc = byName.get(norm(name));
+          if (role !== 'OneRAC' && oneRac.includes(loc.region)) return;
+          const tc = { role, town: name, region: loc.region, change: now ? 'opened' : 'closed', platforms: {} };
           ['google', 'meta'].forEach(platform => {
             const c = campaigns.find(x => x.platform === platform && x.region === loc.region && (x.kind === role || x.kind === 'OneRAC'));
             let status = 'noCampaign';
@@ -300,18 +306,35 @@
     const th = (d % 100 >= 11 && d % 100 <= 13) ? 'th' : ({ 1: 'st', 2: 'nd', 3: 'rd' }[d % 10] || 'th');
     return d + th + ' ' + MONTHS[m - 1];
   }
-  function writtenUpdate(pri, from, to) {
+  // With OneRAC running (oneRacRegions), a OneRAC section follows: the towns
+  // in its regions that opened or closed for either role.
+  function writtenUpdate(pri, from, to, oneRacRegions, register) {
     const bullets = (rows) => (rows.length ? rows.map(r => '• ' + r.location).join('\n') : '• None');
     const open = (r, d) => (((r.v || {})[d]) || 0) > 0;
     const parts = [`Please find below all details of today's update to location priorities, covering ${dayName(from)} to ${dayName(to)}.`];
-    RAC.ROLES.forEach(role => {
-      const rows = (((pri && pri.roles) || {})[role] || {}).rows || [];
-      parts.push(role,
-        'Roles/locations added:', bullets(rows.filter(r => !open(r, from) && open(r, to))),
-        'Roles/locations removed:', bullets(rows.filter(r => open(r, from) && !open(r, to))));
-    });
+    const section = (name, rows, what) => parts.push(name,
+      what + ' added:', bullets(rows.filter(r => !open(r, from) && open(r, to))),
+      what + ' removed:', bullets(rows.filter(r => open(r, from) && !open(r, to))));
+    RAC.ROLES.forEach(role => section(role, (((pri && pri.roles) || {})[role] || {}).rows || [], 'Roles/locations'));
+    if ((oneRacRegions || []).length) section('OneRAC', oneRacRows(pri, oneRacRegions, register), 'Locations');
     return parts.join('\n\n');
   }
 
-  RAC.locations = { townOf, preview, parseCampaign, liveCampaigns, writtenUpdate };
+  // OneRAC's own rows: one per town in its regions, its open roles for both
+  // roles added together, so a town open for either role is open for OneRAC.
+  // The location list's region wins over RAC's row (Chigwell is London).
+  function oneRacRows(pri, oneRacRegions, register) {
+    const byName = new Map(((register && register.locations) || []).map(l => [norm(l.name), l]));
+    const m = new Map();
+    RAC.ROLES.forEach(role => ((((pri && pri.roles) || {})[role] || {}).rows || []).forEach(row => {
+      const town = townOf(row.location), loc = byName.get(norm(town)), name = loc ? loc.name : town, region = loc ? loc.region : row.region;
+      if (!(oneRacRegions || []).includes(region)) return;
+      const e = m.get(name) || { location: 'OneRAC - ' + name, region, v: {} };
+      Object.entries(row.v || {}).forEach(([d, n]) => { e.v[d] = (e.v[d] || 0) + (Number(n) || 0); });
+      m.set(name, e);
+    }));
+    return [...m.values()].sort((a, b) => a.region.localeCompare(b.region) || a.location.localeCompare(b.location));
+  }
+
+  RAC.locations = { townOf, preview, parseCampaign, liveCampaigns, writtenUpdate, oneRacRows };
 })(window.RAC = window.RAC || {});

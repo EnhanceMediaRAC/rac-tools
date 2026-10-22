@@ -114,9 +114,32 @@ export default function (check, { assert }) {
     const reg2 = { ...register, locations: [...register.locations, { name: 'Derby', region: 'East Midlands', points: [{ name: 'Derby', lat: 52.9225, lng: -1.4746 }] }] };
     const both = RAC.locations.preview({ register: reg2, pri: pri([row('Mobile Vehicle Technician - Derby', 'East Midlands', 0, 1)], [row('Roadside Technician - Derby', 'East Midlands', 2)]),
       date: '2026-10-20', prevDate: '2026-10-19', oneRacRegions: ['East Midlands'], regions: REGIONS, live: { google: [pin(one, 52.92, -1.47)] } });
-    const derby = both.townChanges.find(t => t.town === 'Derby');
-    assert(derby.platforms.google.status === 'otherRole', 'Derby stays on OneRAC while Patrol is open: got ' + derby.platforms.google.status);
-    return 'Coventry: remove on Meta, no Google campaign; Leeds kept apart as already out of step; Derby kept on OneRAC for Patrol';
+    assert(!both.townChanges.some(t => t.town === 'Derby'), 'Derby still open for Patrol: no change for OneRAC, and SMR does not report OneRAC regions');
+    assert(both.campaigns[0].keep.includes('Derby') && !both.campaigns[0].remove.length, 'Derby stays on the OneRAC campaign');
+    return 'Coventry: remove on Meta, no Google campaign; Leeds kept apart as already out of step; Derby kept on OneRAC while Patrol is open';
+  });
+
+  check('OneRAC: a town in its regions is open while either role has it open, in the update and the written update', () => {
+    const one = 'RAC | Conversion | OneRAC | East Midlands | GS | Oct 26 | 3037';
+    const reg2 = { ...register, locations: [...register.locations,
+      { name: 'Derby', region: 'East Midlands', points: [{ name: 'Derby', lat: 52.9225, lng: -1.4746 }] },
+      { name: 'Leicester', region: 'East Midlands', points: [{ name: 'Leicester', lat: 52.6369, lng: -1.1398 }] }] };
+    // Derby closes for both roles; Leicester opens for Patrol only; Coventry (not OneRAC) closes for SMR.
+    const p = pri([row('Mobile Vehicle Technician - Derby', 'East Midlands', 0, 1), row('Mobile Vehicle Technician - Coventry', 'West Midlands', 0, 1)],
+      [row('Roadside Technician Nights - Derby', 'East Midlands', 0, 1), row('Superflex Roadside Patrol - Leicester', 'East Midlands', 1, 0)]);
+    const rows = RAC.locations.oneRacRows(p, ['East Midlands'], reg2);
+    assert(rows.length === 2 && rows.every(r => r.region === 'East Midlands') && rows[0].location === 'OneRAC - Derby' && rows[0].v['2026-10-19'] === 2, 'one row per OneRAC town, both roles added together');
+    const out = RAC.locations.preview({ register: reg2, pri: p, date: '2026-10-20', prevDate: '2026-10-19', oneRacRegions: ['East Midlands'], regions: REGIONS,
+      live: { google: [pin(one, 52.92, -1.47), pin(one, 51.0, -3.0)] } });
+    const tc = (t) => out.townChanges.find(x => x.town === t);
+    assert(tc('Derby').role === 'OneRAC' && tc('Derby').change === 'closed' && tc('Derby').platforms.google.status === 'remove', 'Derby closed for OneRAC: remove');
+    assert(tc('Leicester').role === 'OneRAC' && tc('Leicester').platforms.google.status === 'add', 'Leicester opened for Patrol only: added to OneRAC');
+    assert(tc('Coventry').role === 'SMR', 'Coventry is still an SMR change');
+    assert(!out.townChanges.some(x => x.role !== 'OneRAC' && x.region === 'East Midlands'), 'SMR and Patrol do not report OneRAC regions');
+    const text = RAC.locations.writtenUpdate(p, '2026-10-19', '2026-10-20', ['East Midlands'], reg2);
+    assert(text.endsWith('OneRAC\n\nLocations added:\n\n• OneRAC - Leicester\n\nLocations removed:\n\n• OneRAC - Derby'), 'written update OneRAC section:\n' + text);
+    assert(!/OneRAC/.test(RAC.locations.writtenUpdate(p, '2026-10-19', '2026-10-20', [], reg2)), 'no OneRAC section when OneRAC is not running');
+    return 'Derby closed for both: remove from OneRAC; Leicester open for Patrol only: add; the written update gains a OneRAC section';
   });
 
   // ---- What Update Google and Meta sends (api/_locations_apply.mjs) ----
