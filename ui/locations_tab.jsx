@@ -20,6 +20,7 @@
       covered: 'No change: the campaign covers the whole region',
       already: 'No change: already targeted',
       otherRole: `No change: still open for ${other}`,
+      stillOpen: `No change: still open for ${(tc.openFor || []).join(' and ')}`,
       notTargeted: 'No change: it was not targeted',
       leftAlone: 'Held back: this campaign’s ad sets target different locations',
       noCampaign: `No live ${tc.role} campaign in ${tc.region}`,
@@ -128,7 +129,11 @@
               {!townChanges.length && <div className="help-text">Nothing opened or closed for {role} between these days.</div>}
               {townChanges.map(tc => (
                 <div key={tc.town} style={{ marginBottom: 12 }} data-town={tc.town}>
-                  <div className={'chg-row ' + (tc.change === 'closed' ? 'bad' : 'good')}>{tc.town} {tc.change}<span>{tc.region}</span></div>
+                  <div className={'chg-row ' + (tc.change === 'closed' || (!tc.change && Object.values(tc.byRole).includes('closed')) ? 'bad' : 'good')}>
+                    {tc.town} {tc.change || Object.entries(tc.byRole).map(([r, c]) => r + ' ' + c).join(', ')}
+                    {tc.change && tc.byRole && <> ({Object.entries(tc.byRole).map(([r, c]) => r + ' ' + c).join(', ')})</>}
+                    <span>{tc.region}</span>
+                  </div>
                   {['google', 'meta'].map(p => (
                     <div key={p} className="help-text" style={{ margin: '4px 0 0 12px' }} data-platform={p}>
                       <strong>{PLATFORM[p]}:</strong> {action(tc.platforms[p], tc, out.radius_km)}
