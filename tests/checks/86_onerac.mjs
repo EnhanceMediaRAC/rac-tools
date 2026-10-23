@@ -152,4 +152,17 @@ export default function (check, { assert, near }) {
     return `SMR without London: deployable £${Math.round(without.deployable)} against £${Math.round(plain.deployable)}, ` +
       `OneRAC hold-back £${Math.round(without.holdbacks.oneRac)}`;
   });
+
+  check('OneRAC: the real-world CPA outcome adjustment is described as a blend, not as a test it never had', () => {
+    const line = RAC.text.outcomeLine;
+    const blended = line(1.033, { source: 'blended by open roles', testedValue: null, notes: 'The role values (SMR 1.077, Patrol 1) blended by the open roles in OneRAC locations (SMR 40%, Patrol 60%).' }, 'costs');
+    assert(blended === 'It is the SMR and Patrol figures (SMR 1.077, Patrol 1) blended by the open roles in OneRAC locations, so planned costs are raised by that amount.', 'blended: ' + blended);
+    assert(!/testing gave no figure|consistently enough/.test(blended), 'no test described for OneRAC');
+    const applied = line(1.077, { source: 'agreed, informed by tests', testedValue: 1.077 }, 'costs');
+    assert(/came out about 7\.7% higher than predicted \(1\.077\), consistently enough to plan for it, so planned costs are raised by that amount\.$/.test(applied), 'applied: ' + applied);
+    const notApplied = line(1, { source: 'agreed, informed by tests', testedValue: 1.03 }, 'costs');
+    assert(/but not in the same direction with every test month left out, so no adjustment is applied\.$/.test(notApplied), 'not applied: ' + notApplied);
+    assert(line(1.05, { testedValue: null }, 'costs') === 'Testing on past months gave no figure, so planned costs are raised by that amount.', 'no test, not blended');
+    return 'OneRAC: "the SMR and Patrol figures blended by the open roles"; SMR and Patrol wording unchanged';
+  });
 }

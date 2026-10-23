@@ -9078,7 +9078,10 @@ function DataTool() {
       });
     });
     // Merge with anything folded in previously, so older months are not lost.
-    const merged = { at: store.at, months: [...new Set([...(applied ? applied.months : []), ...months])].sort(), cells: {} };
+    // Keep the latest date the data runs to: without it a month the file only
+    // partly covered would later read as complete (planner/data.js).
+    const lastDate = [applied && applied.lastDate, store.lastDate].filter(Boolean).sort().pop() || null;
+    const merged = { at: store.at, months: [...new Set([...(applied ? applied.months : []), ...months])].sort(), lastDate, cells: {} };
     PLATFORMS.forEach(p => {
       merged.cells[p] = { ...((applied && applied.cells && applied.cells[p]) || {}) };
       Object.keys(store.cells[p]).forEach(k => {
