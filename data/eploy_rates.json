@@ -1,8 +1,8 @@
 {
   "note": "Aggregated from the Eploy application report by tools/eploy_import.py. cells: [role, region, platform, application month, applications, quality applications, hires, progressed past screening]. quality_measure names the column counted as quality.",
   "quality_measure": "Quality Applies",
-  "dataset": {"file": "Corrected RAC Eploy Data Oct 2025 - Aug 2026 v2.xlsx", "file_date": "2026-09-17", "sheet": "Application Report - All Roles", "first_application": "2025-10-01", "last_application": "2026-08-31", "rows_read": 51529, "rows_smr": 9920, "rows_patrol": 12558, "rows_other_roles": 29051, "hired_not_marked_progressed": {"SMR": 0, "Patrol": 0}, "unknown_region_applications": {"Patrol": 174, "SMR": 80}},
-  "mappings_sha256": "1794467dcf32",
+  "dataset": {"file": "Corrected RAC Eploy Data Oct 2025 - Aug 2026 v3.xlsx", "file_date": "2026-09-25", "sheet": "Application Report - All Roles", "first_application": "2025-10-01", "last_application": "2026-08-31", "rows_read": 51529, "rows_smr": 9920, "rows_patrol": 12558, "rows_other_roles": 29051, "hired_not_marked_progressed": {"SMR": 0, "Patrol": 0}, "unknown_region_applications": {"Patrol": 174, "SMR": 80}},
+  "mappings_sha256": "4b6dc513dd54",
   "eploy_first_month": "2025-10",
   "cells": [
     ["Patrol", "East Midlands", "appcast", "2025-10", 6, 1, 0, 1],

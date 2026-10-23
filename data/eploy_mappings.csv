@@ -43,10 +43,12 @@ source,Organic Instagram,other,
 source,Email,other,
 source,Organic Bing Search,other,
 source,RAC.co.uk,other,
+source,RAC Consumer Site,other,Label for rac.co.uk from workbook v3 (was RAC.co.uk)
 source,Google for Jobs,other,
 source,RAC Careers,other,
 source,RAC In-App,other,
 source,Total Jobs,other,
+source,TotalJobs,other,Workbook v3 tidies Total Jobs and Totaljobs to TotalJobs
 source,Paid YouTube,other,
 source,Yahoo,other,
 source,Organic DuckDuckGo Search,other,
