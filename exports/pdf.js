@@ -282,12 +282,12 @@
         ...(unrun.length ? [`${F.gbp(unrunTotal)} (${share(unrunTotal)}) is in ${F.list(unrun.map(c => `${c.region} ${L()[c.platform]}`))}, which had no spend of ${unrun.length === 1 ? 'its' : 'their'} own since ${capFirst}`] : []),
       ].join('; ') + '. Predictions for spend above past levels are based on how much cost per application rises with spend.';
       const reEntry = RAC.assumptions.entry(p.A, 'remaining_error_factor', d.role) || {};
-      const reUsed = ca.remainingError, reTested = reEntry.testedValue;
+      const reUsed = ca.remainingError;
       const lines = [
         pastLevels,
         ...RAC.text.capsPoint(p),
         `Spending cap multiple: ${F.mult(s.capMultiple.value)}.`,
-        `Real-world CPA outcome adjustment: ${reUsed.toFixed(3)} (${RAC.text.sourceLabel(reEntry.source)}). When we predicted past months from the months before them, ${RAC.text.outcomeText(reTested)}${reUsed === 1 && reTested !== null && reTested !== undefined && Math.abs(reTested - 1) > 0.0005 ? ', but not in the same direction with every test month left out, so no adjustment is applied' : reUsed !== 1 ? ', consistently enough to plan for it, so planned costs are raised by that amount' : ''}.`,
+        `Real-world CPA outcome adjustment: ${reUsed.toFixed(3)} (${RAC.text.sourceLabel(reEntry.source)}). ${RAC.text.outcomeLine(reUsed, reEntry, 'costs')}`,
         ...(ca.extra ? [`Cost adjustment: planned cost per application is multiplied by ${ca.used.toFixed(3)} (${ca.basis}).`] : []),
         `Expected hires from other sources: ${F.num(s.otherHiresMonthly.value)} a month (${src(s.otherHiresMonthly)}), counted towards the hire target. They are not modelled on the budget; we aim to model this in future.${s.otherHiresShare.value > 0 ? ` ${F.pct(s.otherHiresShare.value)} of them were credited to paid media (${src(s.otherHiresShare)}).` : ''}`,
         `Months used: ${RAC.text.monthsUsed(p.A, d.role, p, opts.backtest).map(r => r.short).join('; ')}. Quality and hire rates, caps, other-source hires and testing follow fixed rules, not the data window; the method pages give each in full.${p.settlingUsed.length ? ` Not yet settled, figures may change: ${p.settlingUsed.map(m => F.month(m.month)).join(', ')}.` : ''}`,

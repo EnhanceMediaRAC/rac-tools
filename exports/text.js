@@ -134,7 +134,7 @@
       d1Rate: g('d1_role_rate'), d1RateTested: e('d1_role_rate').testedValue,
       d1Strength: g('d1_prior_strength'),
       bias: plan ? plan.remainingError : g('remaining_error_factor'),
-      biasDefault: g('remaining_error_factor'), biasTested: e('remaining_error_factor').testedValue,
+      biasDefault: g('remaining_error_factor'), biasTested: e('remaining_error_factor').testedValue, biasEntry: e('remaining_error_factor'),
       rangeLow: g('range_apps_low'), rangeHigh: g('range_apps_high'),
       widen: g('row_widen_apps'), widenTested: e('row_widen_apps').testedValue,
       lowRateSd: g('low_confidence_rate_sd'), lowApps: g('low_confidence_min_apps'),
@@ -219,6 +219,24 @@
     return `actual costs per application came out about ${fmt.pct(d, 1)} ${tested >= 1 ? 'higher' : 'lower'} than predicted (${tested.toFixed(3)})`;
   }
 
+  // The sentence after "Real-world CPA outcome adjustment: x", for the PDF and
+  // the Method text. OneRAC's figure has no test of its own: it is the two
+  // roles' figures blended by open roles, so it says that instead of
+  // describing a test.
+  //   used: the value applied; entry: its assumptions entry; costs: the noun
+  function outcomeLine(used, entry, costs) {
+    const e = entry || {}, tested = e.testedValue;
+    const change = used === 1 ? 'are not adjusted' : `are ${used > 1 ? 'raised' : 'lowered'} by that amount`;
+    if (e.source === 'blended by open roles') {
+      const roles = /\(([^)]*)\) blended/.exec(e.notes || '');
+      return `It is the SMR and Patrol figures${roles ? ` (${roles[1]})` : ''} blended by the open roles in OneRAC locations, so planned ${costs} ${change}.`;
+    }
+    if (tested === null || tested === undefined || !isFinite(tested)) return `Testing on past months gave no figure, so planned ${costs} ${change}.`;
+    const lead = `When we predicted past months from the months before them, ${outcomeText(tested)}`;
+    if (used === 1) return lead + (Math.abs(tested - 1) > 0.0005 ? ', but not in the same direction with every test month left out, so no adjustment is applied.' : '.');
+    return `${lead}, consistently enough to plan for it, so planned ${costs} ${change}.`;
+  }
+
   // Expected hires from other sources: counted towards the target, not
   // modelled on the budget (user decision, 22 September 2026, option A).
   const OTHER_SOURCES_LINE = 'Expected hires from other sources count towards the hire target. They are not modelled on the budget: the plan does not predict how spend changes them, and the same figure is used at every budget. We aim to model this in future.';
@@ -298,7 +316,7 @@
       p('Base cost per application is the location and platform’s weighted spend over its weighted applications in those months, or the platform’s figure for the role where it had no applications of its own.'),
       p(`Thin-data adjustment. A location and platform with few applications is pulled towards the platform’s figure for the role, and that figure towards the role’s average cost per application over the months the caps use (${f.gbp(v.benchmark, 2)}); a row with ${v.cpaPrior} applications behind it is pulled halfway.`),
       p(`Diminishing returns adjustment. The plan compares the media spend it is placing with the row’s average monthly spend and raises cost per application accordingly, at a factor of ${v.d1Rate}${v.d1Strength >= OFF ? ' shared across platforms' : ''}: doubling spend raised cost per application by ${f.pct(Math.pow(2, 1 - v.d1Rate) - 1)} and delivered ${f.pct(Math.pow(2, v.d1Rate) - 1)} more applications, not double. Spending below the average lowers the cost the same way.`),
-      p(`Real-world CPA outcome adjustment: ${v.bias.toFixed(3)}. When we predicted each past month from the months before it, ${outcomeText(v.biasTested)}${v.bias === 1 ? ', but not in the same direction with every test month left out, so no adjustment is applied' : ', consistently enough to plan for it, so planned costs per application are raised by that much'}. It is set for every plan, not plan by plan.`),
+      p(`Real-world CPA outcome adjustment: ${v.bias.toFixed(3)}. ${outcomeLine(v.bias, v.biasEntry, 'costs per application')} It is set for every plan, not plan by plan.`),
       p('Plan cost per application and predicted applications. Plan cost per application is the base cost with those three adjustments applied, shown together in the tables as CPA adjustments; predicted applications are the media spend divided by that cost.'),
       p(`Quality rate. ${QUALITY_DEFINITION} Rates are by platform and role, from applications made ${qualityMonths}, counted once ${v.screenMaturity} further months had started, with Indeed and Appcast blended towards the role average across all sources${rates ? ` (${f.pct(rates.roleScreen, 1)})` : ''} ${v.screenBlend >= OFF ? 'in full' : `at a strength of ${v.screenBlend} applications`}, and Meta and Google moved ${f.pct(v.pull)} of the way to it. ${v.locBlend >= OFF ? 'Differences between locations are not applied.' : `Each location’s rate is then adjusted towards its own, blended by ${v.locBlend} applications.`}`),
       p(`Attribution. ${ATTRIBUTION}`),
@@ -440,5 +458,5 @@
   }
 
   RAC.text = { fmt, sourceLabel, clientNote, SOURCE_LABELS, INTERNAL_KEYS, values, monthsUsed, capLimitsText, method, glossary, assumptionRows, costAdjustment,
-    capsPoint, reachSentence, targetText, outcomeText, OTHER_SOURCES_LINE, ATTRIBUTION, QUALITY_DEFINITION, RANGE_LINE, ROW_RANGE_LINE };
+    capsPoint, reachSentence, targetText, outcomeText, outcomeLine, OTHER_SOURCES_LINE, ATTRIBUTION, QUALITY_DEFINITION, RANGE_LINE, ROW_RANGE_LINE };
 })(window.RAC = window.RAC || {});
